@@ -402,7 +402,9 @@ export class Game {
   outputFlows(b: Building): boolean {
     const front = this.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
     if (!front || !front.built) return false;
-    return !!this.def(front.kind).storage || front.kind === 'belt' || front.kind === 'belt_fast';
+    if (this.def(front.kind).storage) return true;
+    // Una cinta sólo se lleva la salida si tiene energía.
+    return (front.kind === 'belt' || front.kind === 'belt_fast') && powerMult(front) > 0;
   }
 
   turretDef(b: Building): TurretDef | undefined {
@@ -802,7 +804,9 @@ export class Game {
   private stepBelts(dt: number): void {
     for (const b of this.buildings.values()) {
       if ((b.kind !== 'belt' && b.kind !== 'belt_fast') || !b.built || b.item === null) continue;
-      const speed = b.kind === 'belt_fast' ? CONFIG.belt.fastSpeed : CONFIG.belt.speed;
+      // Sin energía la cinta no se mueve (multiplicador 0): eso es el modo manual.
+      const speed = (b.kind === 'belt_fast' ? CONFIG.belt.fastSpeed : CONFIG.belt.speed) * powerMult(b);
+      if (speed <= 0) continue;
       b.beltProgress = Math.min(1, b.beltProgress + speed * dt);
       if (b.beltProgress >= 1 && this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], b.item, b.dir)) {
         b.item = null;

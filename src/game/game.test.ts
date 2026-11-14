@@ -4,7 +4,7 @@ import { botTick } from './bot';
 import { CONFIG } from './config';
 import { Game } from './game';
 import { bfsPath } from './path';
-import { flatGame, instant, run } from './testutil';
+import { flatGame, instant, powerUp, run } from './testutil';
 import { Ore } from './types';
 import { MAX_HEIGHT, generateWorld } from './world';
 
@@ -140,6 +140,7 @@ describe('economía y cintas', () => {
     const g = flatGame([[4, 9, Ore.Iron]]);
     instant(g, 'drill', 4, 9, 0);
     for (let x = 5; x <= 8; x++) instant(g, 'belt', x, 9, 0);
+    powerUp(g, [[6, 8]], [6, 7]); // las cintas necesitan electricidad
     run(g, 20);
     expect(count(g.storage, 'iron_ore')).toBeGreaterThanOrEqual(7);
   });
@@ -159,6 +160,7 @@ describe('piezas y recetas', () => {
     instant(g, 'belt', 4, 9, 0);
     const f = instant(g, 'factory', 5, 9, 0);
     for (let x = 6; x <= 8; x++) instant(g, 'belt', x, 9, 0);
+    powerUp(g, [[3, 8], [7, 8]], [5, 7]);
     expect(g.setRecipe(f.id, 'iron_plate')).toBe(true);
     const before = count(g.storage, 'iron_plate');
     run(g, 30);

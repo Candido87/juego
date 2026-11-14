@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { count } from './bag';
 import { CONFIG } from './config';
-import { flatGame, instant, run } from './testutil';
+import { flatGame, instant, powerUp, run } from './testutil';
 import { Ore } from './types';
 import { generateWorld } from './world';
 
@@ -210,5 +210,48 @@ describe('petróleo → gasolina → electricidad', () => {
   it('el mapa tiene yacimientos de petróleo', () => {
     const w = generateWorld(7, 40, 40);
     expect(Array.from(w.ore)).toContain(Ore.Oil);
+  });
+});
+
+describe('cintas eléctricas y modo manual', () => {
+  it('sin red las cintas no mueven nada; con red, sí', () => {
+    const g = flatGame();
+    g.npcs = [];
+    const belts = [5, 6, 7, 8].map((x) => instant(g, 'belt', x, 9, 0));
+    belts[0].item = 'iron_ore';
+    run(g, 5);
+    expect(belts[0].item).toBe('iron_ore');
+    expect(count(g.storage, 'iron_ore')).toBe(0);
+    powerUp(g, [[6, 8]], [6, 7]);
+    run(g, 5);
+    expect(count(g.storage, 'iron_ore')).toBe(1);
+  });
+
+  it('las cintas consumen electricidad de la red', () => {
+    const g = flatGame();
+    g.npcs = [];
+    powerUp(g, [[6, 8]], [6, 7]);
+    for (const x of [5, 6, 7]) instant(g, 'belt', x, 9, 0);
+    run(g, 0.2);
+    expect(g.grid.nets[0].demand).toBeCloseTo(3 * CONFIG.power.demand.belt!);
+  });
+
+  it('modo manual: taladro → cinta parada → un Transportista lo recoge a mano', () => {
+    const g = flatGame([[3, 3, Ore.Iron]]);
+    instant(g, 'drill', 3, 3, 0);
+    instant(g, 'belt', 4, 3, 0);
+    instant(g, 'belt', 5, 3, 0);
+    expect(g.outputFlows(g.buildingAt(3, 3)!)).toBe(false);
+    run(g, 60);
+    expect(count(g.storage, 'iron_ore')).toBeGreaterThanOrEqual(CONFIG.jobs.collectMin);
+  });
+
+  it('con red la salida fluye sola y no hace falta recoger', () => {
+    const g = flatGame([[3, 3, Ore.Iron]]);
+    const d = instant(g, 'drill', 3, 3, 0);
+    instant(g, 'belt', 4, 3, 0);
+    powerUp(g, [[4, 4]], [5, 5]);
+    run(g, 0.2);
+    expect(g.outputFlows(d)).toBe(true);
   });
 });

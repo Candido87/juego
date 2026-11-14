@@ -194,7 +194,7 @@ export const CONFIG = {
     /** Consumo de cada edificio conectado. */
     demand: { belt: 0.5, belt_fast: 1, drill: 3, farm: 2, pump: 2, refinery: 4, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6 } as Partial<Record<BuildKind, number>>,
     /** Multiplicador de rendimiento [sin red, con red]; con apagón se interpola según la satisfacción. */
-    mult: { drill: [1, 2], farm: [1, 2], pump: [1, 2], refinery: [0.5, 1.5], factory: [0.5, 1.5] } as Partial<Record<BuildKind, [number, number]>>,
+    mult: { belt: [0, 1], belt_fast: [0, 1], drill: [1, 2], farm: [1, 2], pump: [1, 2], refinery: [0.5, 1.5], factory: [0.5, 1.5] } as Partial<Record<BuildKind, [number, number]>>,
     generators: {
       generator: { power: 20, fuel: 'gasoline', burnTime: 10, fuelCap: 10 },
       turbine: { power: 60, fuel: 'gasoline', burnTime: 6, fuelCap: 10 },

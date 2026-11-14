@@ -77,7 +77,9 @@ export function affordable(game: Game, cost: Bag): boolean {
   return hasAll(game.storage, need);
 }
 
+/** Sin red, las cintas no se mueven: el bot pone sólo el taladro y deja que los Transportistas recojan. */
 function buildMine(game: Game, plan: MinePlan): boolean {
+  if (!game.grid.nets.some((n) => n.production > 0)) plan = { ...plan, belts: [] };
   const cost: Bag = {};
   addAll(cost, CONFIG.buildings.drill.cost);
   for (let i = 0; i < plan.belts.length; i++) addAll(cost, CONFIG.buildings.belt.cost);
