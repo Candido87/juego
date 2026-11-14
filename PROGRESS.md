@@ -19,7 +19,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [x] P4. Cintas que consumen electricidad y modo manual completo por NPCs (absorbe el antiguo 5/E2).
 - [x] P5. Taller con 2 trabajadores dedicados y cola de reparaciones (+ enemigos dañan edificios).
 - [x] P6. Vivienda y crecimiento de población.
-- [ ] P7. Interfaz (población, comida, gasolina, taller) y equilibrado con simulaciones.
+- [x] P7. Interfaz (población, comida, gasolina, taller) y equilibrado con simulaciones.
 
 ### Menús y árbol con población (después del rediseño; sustituye al antiguo 14 y parte del 16)
 - [ ] M1. Menú principal, pausa y opciones, con guardar y cargar partida.

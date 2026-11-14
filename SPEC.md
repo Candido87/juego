@@ -277,3 +277,10 @@ El coste en paquetes de ciencia se mantiene (se paga al empezar, como antes) y s
 - Números orientativos: casa barata (2 bastidores), crecimiento cada 30 s con comida de sobra; el laboratorio
   cuesta poco (bastidores + engranajes) y funciona sin red a la mitad de ritmo, para que sea viable en las
   primeras oleadas; las primeras tecnologías cuestan 2–4 Ciencia I y 20–30 s de estudio.
+
+### Decisiones del equilibrado (P7)
+19. Un **Constructor sin obras echa una mano acarreando** (abastecer/recoger) con menos preferencia que sus
+    propios trabajos (`jobs.helpPenalty`). Con 3 personas, sin esto el transporte a mano bloqueaba todo.
+20. Números: granja 1 comida/4 s (una granja alimenta ~5 personas sin red), crecimiento cada 30 s si hay
+    ≥ 15 de comida (cuesta 8), casa = 4 plazas, núcleo = 3. Vida de NPC 55–60. Munición: 1 placa → 6 balas.
+    Daño a edificios = 30 % del dps enemigo. Con esto el bot (`npm run sim`) llega a la oleada ~10.

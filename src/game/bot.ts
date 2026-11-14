@@ -120,9 +120,9 @@ function countKind(game: Game, kind: BuildKind): number {
 
 /** Fábricas que el bot quiere, en orden. Van pegadas al núcleo y le escupen la salida. */
 /** Menas que el bot explota, en orden. */
-const BOT_ORES: Ore[] = [Ore.Iron, Ore.Iron, Ore.Wood, Ore.Iron, Ore.Copper, Ore.Iron, Ore.Wood, Ore.Copper];
+const BOT_ORES: Ore[] = [Ore.Iron, Ore.Wood, Ore.Iron, Ore.Wood, Ore.Iron, Ore.Iron, Ore.Wood, Ore.Iron];
 
-const BOT_FACTORIES = ['iron_plate', 'gear', 'frame', 'gun_part', 'ammo', 'iron_plate', 'gear'];
+const BOT_FACTORIES = ['iron_plate', 'frame', 'gear', 'ammo', 'gun_part', 'iron_plate', 'iron_plate', 'frame', 'gear', 'ammo'];
 
 /** Coloca un edificio con salida pegado al núcleo, mirando hacia él (y le pone receta si es fábrica). */
 export function placeNextToCore(game: Game, kind: BuildKind, recipe?: string): boolean {
@@ -177,19 +177,23 @@ export function placeNear(game: Game, kind: BuildKind): boolean {
 /** Realiza como mucho una acción. Devuelve una descripción o null si no hizo nada. */
 export function botTick(game: Game): string | null {
   regulate(game);
+  // Quien llegue: Transportista si hay mucho que acarrear, si no Constructor.
+  const haul = game.jobs.list().filter((j) => (j.type === 'supply' || j.type === 'collect') && j.npcId === null).length;
+  const role = (r: string) => game.npcs.filter((n) => n.role === r).length;
+  game.growthRole = haul > 3 && role('transporter') <= role('constructor') ? 'transporter' : 'constructor';
   // Comida: una granja por cada 3 personas (más una de margen).
   const farms = countKind(game, 'farm');
   if (farms < 1 + Math.floor(game.population / 3) && placeNextToCore(game, 'farm')) return 'granja';
   // Vivienda: siempre una plaza libre por delante para que la colonia crezca.
   const pendingHouses = [...game.buildings.values()].some((b) => b.kind === 'house' && !b.built);
   if (!pendingHouses && game.population >= game.housingCapacity() && placeNear(game, 'house')) return 'casa';
-  const factories = countKind(game, 'factory');
-  if (factories < BOT_FACTORIES.length && countKind(game, 'drill') >= 1 && placeNextToCore(game, 'factory', BOT_FACTORIES[factories])) {
-    return 'fábrica';
-  }
   const turrets = countKind(game, 'turret_bullet');
   if (turrets < 1 + Math.ceil(game.wave * 0.6)) {
     if (placeBestTurret(game, 'turret_bullet')) return 'torreta';
+  }
+  const factories = countKind(game, 'factory');
+  if (factories < Math.min(BOT_FACTORIES.length, 4 + game.wave) && countKind(game, 'drill') >= 1 && placeNextToCore(game, 'factory', BOT_FACTORIES[factories])) {
+    return 'fábrica';
   }
   const drills = countKind(game, 'drill');
   if (drills < BOT_ORES.length) {

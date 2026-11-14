@@ -17,11 +17,12 @@
       .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
       .muted { color: #8b95a5; }
       .bad { color: #ff7b7b; }
+      .warn { color: #ffd166; }
       .good { color: #7dff8a; }
       #hud { top: 8px; left: 8px; display: flex; flex-direction: column; gap: 4px; }
       #hud .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
       #hud .help { font-size: 11px; color: #8b95a5; }
-      #energyWrap, #researchWrap { display: none; }
+      #researchWrap { display: none; }
       .bar { display: inline-block; width: 70px; height: 7px; background: #11151c; border-radius: 4px; overflow: hidden; vertical-align: 0; }
       .bar > i { display: block; height: 100%; background: #6fd3ff; }
       #inventory { top: 92px; left: 8px; width: 170px; max-height: calc(100% - 200px); overflow: auto; }
@@ -57,9 +58,9 @@
         <span>Núcleo <b id="core">0</b></span>
         <span>Oleada <b id="wave">0</b></span>
         <span>Siguiente en <b id="next">0</b>s</span>
-        <span id="energyWrap">Energía <span class="bar"><i id="energyBar"></i></span> <b id="energy">0</b></span>
         <span id="researchWrap">Investigando <b id="research">—</b></span>
       </div>
+      <div class="row" id="colony"></div>
       <div class="row">
         <button id="callWave">Adelantar oleada</button>
         <button id="pause">Pausa</button>

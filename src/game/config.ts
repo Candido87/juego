@@ -156,7 +156,7 @@ export const CONFIG = {
     turbine: { name: 'Turbina', cost: { frame: 4, pipe: 4, circuit: 4 }, buildTime: 7, hp: 120, solid: true, size: [1, 1] },
     accumulator: { name: 'Batería', cost: { battery: 4, frame: 1 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
     feeder: { name: 'Alimentador', cost: { gear: 2, frame: 1, circuit: 1 }, buildTime: 1.5, hp: 40, solid: true, size: [1, 1] },
-    turret_bullet: { name: 'Torreta de balas', cost: { gun_part: 2, frame: 1 }, buildTime: 4, hp: 100, solid: true, size: [1, 1] },
+    turret_bullet: { name: 'Torreta de balas', cost: { frame: 1, gun_part: 2 }, buildTime: 4, hp: 100, solid: true, size: [1, 1] },
     turret_laser: { name: 'Torreta láser', cost: { circuit: 4, wire: 4, frame: 2 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
     turret_fire: { name: 'Lanzallamas', cost: { gun_part: 2, pipe: 2, brick: 2 }, buildTime: 5, hp: 120, solid: true, size: [1, 1] },
     turret_frost: { name: 'Torreta de hielo', cost: { gun_part: 1, circuit: 3, battery: 1 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
@@ -169,7 +169,7 @@ export const CONFIG = {
   belt: { speed: 2, fastSpeed: 4 },
   drill: { period: 2, outCap: 6 },
   /** Granja: 1 comida cada `period` s (sin red; con red, más rápido según power.mult.farm). */
-  farm: { period: 5, outCap: 8 },
+  farm: { period: 4, outCap: 8 },
   /** Bomba de petróleo: 1 petróleo cada `period` s sin red (con red, × power.mult.pump). */
   pump: { period: 3, outCap: 8 },
   /** Comida y hambre de la población. */
@@ -263,7 +263,7 @@ export const CONFIG = {
     wire: { name: 'Cable', inputs: { copper_plate: 1 }, outputs: { wire: 2 }, time: 1, tier: 1 },
     pipe: { name: 'Tubería', inputs: { iron_plate: 1 }, outputs: { pipe: 1 }, time: 1.2, tier: 1 },
     gun_part: { name: 'Mecanismo de torreta', inputs: { gear: 1, iron_plate: 2 }, outputs: { gun_part: 1 }, time: 2.5, tier: 1 },
-    ammo: { name: 'Munición', inputs: { iron_plate: 1 }, outputs: { ammo: 4 }, time: 1.5, tier: 1 },
+    ammo: { name: 'Munición', inputs: { iron_plate: 1 }, outputs: { ammo: 6 }, time: 1.5, tier: 1 },
     tool_kit: { name: 'Kit de taller', inputs: { gear: 2, frame: 1 }, outputs: { tool_kit: 1 }, time: 3, tier: 1 },
     science_1: { name: 'Ciencia I', inputs: { copper_plate: 1, gear: 1 }, outputs: { science_1: 1 }, time: 4, tier: 1 },
     circuit: { name: 'Circuito', inputs: { wire: 3, iron_plate: 1 }, outputs: { circuit: 1 }, time: 2.5, tier: 2 },
@@ -275,10 +275,10 @@ export const CONFIG = {
 
   npc: {
     roles: {
-      constructor: { name: 'Constructor', cost: { iron_plate: 4, gear: 2 }, speed: 2.2, capacity: 12, hp: 40, workRate: 1 },
-      transporter: { name: 'Transportista', cost: { iron_plate: 3, gear: 2 }, speed: 2.6, capacity: 10, hp: 35, workRate: 1 },
-      mechanic: { name: 'Mecánico', cost: {}, speed: 2.2, capacity: 8, hp: 40, workRate: 1 },
-      operator: { name: 'Operario', cost: { iron_plate: 3, gear: 1, copper_plate: 2 }, speed: 2, capacity: 0, hp: 40, workRate: 1 },
+      constructor: { name: 'Constructor', cost: { iron_plate: 4, gear: 2 }, speed: 2.2, capacity: 12, hp: 60, workRate: 1 },
+      transporter: { name: 'Transportista', cost: { iron_plate: 3, gear: 2 }, speed: 2.6, capacity: 10, hp: 55, workRate: 1 },
+      mechanic: { name: 'Mecánico', cost: {}, speed: 2.2, capacity: 8, hp: 60, workRate: 1 },
+      operator: { name: 'Operario', cost: { iron_plate: 3, gear: 1, copper_plate: 2 }, speed: 2, capacity: 0, hp: 60, workRate: 1 },
     } as Record<NpcRole, NpcDef>,
     maintainTime: 2.5,
   },
@@ -290,6 +290,8 @@ export const CONFIG = {
     urgentBonus: 3,
     /** Prioridad extra al reparar infraestructura crítica (generadores, torretas, red). */
     criticalRepairBonus: 2,
+    /** Penalización (en puntos de prioridad × 1000) cuando un Constructor ayuda a acarrear. */
+    helpPenalty: 9000,
     /** Se pide abastecer cuando queda menos de esta fracción. */
     supplyBelow: 0.5,
     collectMin: 4,
@@ -304,7 +306,7 @@ export const CONFIG = {
   /** Radio (casillas) en el que un enemigo daña a un NPC. */
   enemyHitRadius: 0.7,
   /** Los enemigos terrestres dañan el edificio que tienen al lado con dps × este factor. */
-  buildingDamageFactor: 0.5,
+  buildingDamageFactor: 0.3,
 
   enemies: {
     grunt: { name: 'Normal', hp: 14, speed: 0.9, armor: 0, dps: 8, coreDamage: 10, flying: false },

@@ -183,6 +183,7 @@ export class Hud {
     this.panelTimer = 0.25;
     this.renderTools(sim);
     this.renderInventory(sim);
+    this.renderColony(sim);
     this.renderNpcs(sim);
     this.renderJobs(sim);
     this.renderSelected(sim);
@@ -200,6 +201,37 @@ export class Hud {
       })
       .join('');
     this.setTool(ui.tool && ui.tool !== 'remove' && !tools.includes(ui.tool) ? null : ui.tool);
+  }
+
+  /** Población, comida, gasolina, energía y taller de un vistazo. */
+  private renderColony(sim: Game) {
+    const busy = sim.npcs.filter((n) => n.role !== 'mechanic' && (n.jobId !== null || total(n.carry) > 0)).length;
+    const mech = sim.npcs.filter((n) => n.role === 'mechanic').length;
+    const free = sim.population - busy - mech;
+    const food = count(sim.storage, 'food');
+    const perMin = sim.foodPerMinute();
+    const mins = perMin > 0 ? food / perMin : Infinity;
+    const foodCls = sim.hungry ? 'bad' : mins < 1.5 ? 'warn' : '';
+    const foodState = sim.hungry ? ' ¡HAMBRE!' : mins < 1.5 ? ' (queda poca)' : '';
+    let prod = 0;
+    let dem = 0;
+    for (const n of sim.grid.nets) {
+      prod += n.production;
+      dem += n.demand;
+    }
+    const repairs = sim.jobs.list().filter((j) => j.type === 'repair').length;
+    const shop = sim.workshops().length
+      ? `Taller: <b>${mech}</b> mecánicos, ${repairs} reparaciones`
+      : `<span class="muted" title="Sin taller reparan los Constructores, más despacio">Sin taller (${repairs} reparaciones)</span>`;
+    this.set(
+      'colony',
+      `<span title="Libres / trabajando / en el taller · plazas de vivienda">Población <b>${sim.population}</b>/${sim.housingCapacity()} <span class="muted">(${free} libres, ${busy} trabajando, ${mech} taller)</span></span>
+      <span class="${foodCls}" title="Comida almacenada · consumo por minuto">Comida <b>${food}</b> <span class="muted">−${perMin.toFixed(0)}/min</span>${foodState}</span>
+      <span title="Gasolina en el almacén">Gasolina <b>${count(sim.storage, 'gasoline')}</b></span>
+      <span title="Producción / consumo eléctrico">Energía <b class="${dem > prod ? 'bad' : ''}">${prod.toFixed(0)}/${dem.toFixed(0)}</b></span>
+      <span>${shop}</span>`,
+      true,
+    );
   }
 
   private renderInventory(sim: Game) {

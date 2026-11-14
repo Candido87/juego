@@ -281,14 +281,14 @@ describe('taller y reparaciones', () => {
     const t = instant(g, 'turret_bullet', 4, 4);
     t.hp = t.maxHp * 0.3;
     const site = g.place('farm', 14, 14)!;
-    g.storage.frame = 0; // la obra no se puede terminar → el Constructor queda libre
+    g.storage.gear = 0; // a la obra le faltarán engranajes: no se puede terminar
     const frames = 5;
-    g.storage.gun_part = frames;
+    g.storage.frame = frames; // la torreta se repara con su primer componente (bastidor)
     run(g, 0.1);
     const constructor = g.npcs.find((n) => n.role !== 'mechanic')!;
     run(g, 30);
     expect(t.hp).toBe(t.maxHp);
-    expect(count(g.storage, 'gun_part')).toBeLessThan(frames);
+    expect(count(g.storage, 'frame')).toBeLessThan(frames - 2);
     expect(site.built).toBe(false);
     expect(constructor.jobId === null || g.jobs.get(constructor.jobId)!.type !== 'repair').toBe(true);
   });

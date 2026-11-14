@@ -107,7 +107,12 @@ export function isCriticalInfra(game: Game, b: Building): boolean {
 export function canTake(game: Game, n: Npc, j: Job): boolean {
   if (n.role === 'mechanic') return j.type === 'repair';
   if (j.type === 'repair') return n.role === 'constructor' && !game.hasWorkshop();
-  return JOB_ROLE[j.type] === n.role;
+  return JOB_ROLE[j.type] === n.role || isHelping(n, j);
+}
+
+/** Un Constructor sin obras echa una mano acarreando (con menos preferencia que sus propios trabajos). */
+export function isHelping(n: Npc, j: Job): boolean {
+  return n.role === 'constructor' && (j.type === 'supply' || j.type === 'collect');
 }
 
 /** ¿Puede empezarse ya el trabajo? (p. ej. hay material en el almacén). */
@@ -206,7 +211,7 @@ export class JobBoard {
         const b = game.buildings.get(j.buildingId);
         if (!b || !jobFeasible(game, j, b)) continue;
         const dist = Math.abs(b.x + b.w / 2 - n.x) + Math.abs(b.y + b.d / 2 - n.y);
-        const score = j.priority * 1000 - dist;
+        const score = j.priority * 1000 - dist - (isHelping(n, j) ? CONFIG.jobs.helpPenalty : 0);
         if (score > bestScore) {
           bestScore = score;
           best = j;

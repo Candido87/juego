@@ -211,7 +211,7 @@ describe('transportistas y operarios (modo manual)', () => {
 
   it('torreta sin munición pide abastecimiento urgente y no dispara', () => {
     const g = flatGame([], { waves: true });
-    g.npcs = g.npcs.filter((n) => n.role !== 'transporter');
+    g.npcs = g.npcs.filter((n) => n.role === 'operator'); // nadie que acarree
     for (const [x, y] of [[8, 7], [12, 7], [7, 12], [12, 12]]) instant(g, 'turret_bullet', x, y).inv = {};
     g.jobs.refresh(g);
     const supply = g.jobs.list().find((j) => j.type === 'supply')!;
