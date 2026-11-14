@@ -32,7 +32,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 
 ### Fases de gráficos (packs nuevos de Kenney; sólo capa visual, sin tocar la lógica)
 - [x] G0. Inventario de assets → ASSETS.md (problemas y propuesta).
-- [ ] G1. Enemigos con sprites (balanceo y volteo por dirección; prisma de respaldo).
+- [x] G1. Enemigos con sprites (balanceo y volteo por dirección; prisma de respaldo).
 - [ ] G2. Murallas con sprites conectados y estados de daño.
 - [ ] G3. Interfaz con el UI Pack (paneles, botones, barras, cursor, iconos).
 - [ ] G4. Terreno con variantes, árboles y decoración procedural.

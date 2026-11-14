@@ -4,7 +4,7 @@
  */
 import Phaser from 'phaser';
 import { CONFIG } from '../game/config';
-import { Game } from '../game/game';
+import { Enemy, Game } from '../game/game';
 import { HALF_H, HALF_W, Vec2, depthOf, gridToScreen, occludes, pickTile } from '../game/iso';
 import { BuildKind, DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { MAX_HEIGHT, heightAt, heightAtPoint, oreAt } from '../game/world';
@@ -16,6 +16,7 @@ import {
   buildTextures,
   preloadSprites,
   enemyKey,
+  enemyLookKey,
   itemKey,
   npcKey,
   shapeInfo,
@@ -37,6 +38,10 @@ interface BSprite {
 interface Mover {
   img: Phaser.GameObjects.Image;
   shadow: Phaser.GameObjects.Image;
+  /** Última posición (casillas) para orientar el sprite según el movimiento. */
+  lastX: number;
+  lastY: number;
+  flip: boolean;
 }
 
 interface Flash {
@@ -396,6 +401,9 @@ export class GameScene extends Phaser.Scene {
       m = {
         img: this.add.image(0, 0, key).setOrigin(info.originX, info.originY),
         shadow: this.add.image(0, 0, 'shadow_small').setOrigin(si.originX, si.originY),
+        lastX: x,
+        lastY: y,
+        flip: false,
       };
       map.set(id, m);
     }
@@ -404,12 +412,33 @@ export class GameScene extends Phaser.Scene {
     m.img.setPosition(p.x, p.y - lift - bob).setDepth(this.moverDepth(x, y) + (lift > 0 ? 2 : 0));
   }
 
+  /**
+   * Animación de los enemigos con sprite (el pack no trae fotogramas): se voltean según el movimiento en pantalla,
+   * se balancean al andar y se tiñen al arder o ralentizarse.
+   */
+  private animateEnemy(m: Mover, e: Enemy) {
+    // Desplazamiento horizontal en pantalla: (dx - dy) de la cuadrícula.
+    const dxs = e.x - m.lastX - (e.y - m.lastY);
+    if (Math.abs(dxs) > 1e-4) m.flip = dxs < 0;
+    m.lastX = e.x;
+    m.lastY = e.y;
+    const speed = e.flying ? 6 : 3 + e.speed * 5;
+    const phase = this.sim.time * speed + e.id;
+    const swing = e.flying ? 0.08 : 0.12;
+    m.img.setFlipX(m.flip).setRotation(Math.sin(phase) * swing).setScale(1, 1 + Math.abs(Math.cos(phase)) * 0.06);
+    if (e.burnTimer > 0) m.img.setTint(0xff9966);
+    else if (e.slowTimer > 0) m.img.setTint(0x9be7ff);
+    else m.img.clearTint();
+  }
+
   private syncMovers() {
     const seenE = new Set<number>();
     for (const e of this.sim.enemies) {
       seenE.add(e.id);
       const bob = Math.abs(Math.sin(this.sim.time * 8 + e.id)) * 2;
-      this.syncMover(this.eSprites, e.id, enemyKey(e.kind), e.x, e.y, e.flying ? FLY_Z : 0, bob);
+      const key = enemyLookKey(this, e.kind);
+      this.syncMover(this.eSprites, e.id, key, e.x, e.y, e.flying ? FLY_Z : 0, bob);
+      if (key !== enemyKey(e.kind)) this.animateEnemy(this.eSprites.get(e.id)!, e);
     }
     const seenN = new Set<number>();
     for (const n of this.sim.npcs) {

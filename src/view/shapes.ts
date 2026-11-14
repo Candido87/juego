@@ -14,7 +14,7 @@
 import Phaser from 'phaser';
 import { HALF_H, HALF_W, Z_STEP } from '../game/iso';
 import { BuildingKind, DX, DY, Dir, ENEMY_KINDS, EnemyKind, ITEM_IDS, ItemId, Ore, TurretKind } from '../game/types';
-import { BILLBOARDS, TILESHEET, TOP_TEXTURES, TopTexture, frameRect, rotationFor } from './sprites';
+import { BILLBOARDS, DUNGEON_SHEET, ENEMY_SPRITES, Sheet, TILESHEET, TOP_TEXTURES, TopTexture, frameRect, rotationFor } from './sprites';
 
 /** Prisma: x,y,w,d en casillas (relativo a la esquina de la huella); z,h en píxeles. */
 export interface Part {
@@ -457,7 +457,12 @@ export function shapeKey(kind: BuildingKind, dir: Dir): string {
   return DIRECTIONAL.has(kind) ? `${kind}_${dir}` : kind;
 }
 export const itemKey = (item: ItemId) => `item_${item}`;
+/** Prisma de respaldo de cada enemigo. */
 export const enemyKey = (k: EnemyKind) => `enemy_${k}`;
+/** Sprite de cada enemigo (si el pack no se cargó, no existe y se usa el prisma). */
+export const enemySpriteKey = (k: EnemyKind) => `enemy_spr_${k}`;
+/** Clave a usar para dibujar un enemigo: sprite si existe, si no el prisma. */
+export const enemyLookKey = (scene: Phaser.Scene, k: EnemyKind) => (scene.textures.exists(enemySpriteKey(k)) ? enemySpriteKey(k) : enemyKey(k));
 export const npcKey = (r: string) => `npc_${r}`;
 
 // ------------------------------------------------------------------ terreno
@@ -511,9 +516,9 @@ export function shapeInfo(key: string): ShapeInfo {
 }
 
 /** Casilla del pack (ya cargado en Phaser) girada `rot` veces 90° en sentido horario. */
-function tileCanvas(scene: Phaser.Scene, frame: number, rot: number): HTMLCanvasElement {
-  const t = TILESHEET.tile;
-  const src = scene.textures.get(TILESHEET.key).getSourceImage() as HTMLImageElement;
+function tileCanvas(scene: Phaser.Scene, frame: number, rot: number, sheet: Sheet = TILESHEET): HTMLCanvasElement {
+  const t = sheet.tile;
+  const src = scene.textures.get(sheet.key).getSourceImage() as HTMLImageElement;
   const c = document.createElement('canvas');
   c.width = t;
   c.height = t;
@@ -521,7 +526,7 @@ function tileCanvas(scene: Phaser.Scene, frame: number, rot: number): HTMLCanvas
   ctx.imageSmoothingEnabled = false;
   ctx.translate(t / 2, t / 2);
   ctx.rotate((rot * Math.PI) / 2);
-  const r = frameRect(frame);
+  const r = frameRect(frame, sheet);
   ctx.drawImage(src, r.x, r.y, r.w, r.h, -t / 2, -t / 2, t, t);
   return c;
 }
@@ -598,11 +603,11 @@ function bake(scene: Phaser.Scene, key: string, def: ShapeDef, extraDraw?: (g: P
 }
 
 /** Sprite de pie del pack, escalado `scale` veces y anclado por los pies (abajo-centro). */
-function bakeBillboard(scene: Phaser.Scene, key: string, frame: number, scale = 2) {
-  const t = TILESHEET.tile * scale;
+function bakeBillboard(scene: Phaser.Scene, key: string, frame: number, scale = 2, sheet: Sheet = TILESHEET) {
+  const t = sheet.tile * scale;
   const [tex, ctx] = canvasTexture(scene, key, t, t);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(tileCanvas(scene, frame, 0), 0, 0, t, t);
+  ctx.drawImage(tileCanvas(scene, frame, 0, sheet), 0, 0, t, t);
   tex.refresh();
   SHAPE_INFO.set(key, { originX: 0.5, originY: 0.94, tall: false });
 }
@@ -626,7 +631,7 @@ function bakeShadow(scene: Phaser.Scene, key: string, size: number, center = fal
 
 /** Carga la hoja del pack (llamar en preload). */
 export function preloadSprites(scene: Phaser.Scene): void {
-  if (!scene.textures.exists(TILESHEET.key)) scene.load.image(TILESHEET.key, TILESHEET.url);
+  for (const s of [TILESHEET, DUNGEON_SHEET]) if (!scene.textures.exists(s.key)) scene.load.image(s.key, s.url);
 }
 
 /** Genera todas las texturas (una vez por partida de Phaser). */
@@ -634,6 +639,9 @@ export function buildTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists('core')) return;
   for (const [key, def] of Object.entries(SHAPES)) bake(scene, key, def);
   for (const [key, frame] of Object.entries(BILLBOARDS)) bakeBillboard(scene, key, frame);
+  if (scene.textures.exists(DUNGEON_SHEET.key)) {
+    for (const k of ENEMY_KINDS) bakeBillboard(scene, enemySpriteKey(k), ENEMY_SPRITES[k].frame, ENEMY_SPRITES[k].scale, DUNGEON_SHEET);
+  }
   bakeShadow(scene, 'shadow_1', 1);
   bakeShadow(scene, 'shadow_2', 2);
   bakeShadow(scene, 'shadow_small', 0.5, true);

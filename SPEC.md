@@ -284,3 +284,7 @@ El coste en paquetes de ciencia se mantiene (se paga al empezar, como antes) y s
 20. Números: granja 1 comida/4 s (una granja alimenta ~5 personas sin red), crecimiento cada 30 s si hay
     ≥ 15 de comida (cuesta 8), casa = 4 plazas, núcleo = 3. Vida de NPC 55–60. Munición: 1 placa → 6 balas.
     Daño a edificios = 30 % del dps enemigo. Con esto el bot (`npm run sim`) llega a la oleada ~10.
+
+### Gráficos de enemigos (Fase G1)
+- Enemigos: sprites de **Tiny Dungeon** (CC0) como figuras de pie (×2; el tanque ×3): normal = limo, rápido = araña, blindado = bestia acorazada, volador = murciélago (con altura de vuelo), tanque = cíclope. Registro en `sprites.ts` (`ENEMY_SPRITES`); los prismas de `shapes.ts` siguen como respaldo si no carga la hoja.
+- El pack no trae animaciones: el sprite se voltea según el movimiento en pantalla, se balancea al andar (más rápido cuanto más veloz) y se tiñe de naranja al arder o de azul al ralentizarse.

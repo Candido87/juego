@@ -7,7 +7,7 @@
  * - crear sprites de pie (BILLBOARDS) para NPCs y marcadores,
  * - iconos de la interfaz (TOOL_ICONS, ROLE_ICONS, JOB_ICONS).
  */
-import type { BuildKind, JobType, NpcRole } from '../game/types';
+import type { BuildKind, EnemyKind, JobType, NpcRole } from '../game/types';
 
 export const TILESHEET = {
   key: 'tiny-factory',
@@ -17,6 +17,29 @@ export const TILESHEET = {
   rows: 11,
 };
 export const TILE_COUNT = TILESHEET.cols * TILESHEET.rows;
+
+/** Hoja de personajes y monstruos "Tiny Dungeon" de Kenney (CC0): 12 x 11 casillas de 16 px, sin separación. */
+export const DUNGEON_SHEET = {
+  key: 'tiny-dungeon',
+  url: 'assets/kenney/tiny-dungeon.png',
+  tile: 16,
+  cols: 12,
+  rows: 11,
+};
+export type Sheet = { key: string; url: string; tile: number; cols: number; rows: number };
+
+/**
+ * Aspecto de cada enemigo: casilla de Tiny Dungeon y escala entera (para no borrar el pixel art).
+ * El pack no trae animaciones: se anima por código (balanceo al andar, volteo según el movimiento).
+ * Otros bichos libres para futuras variantes: 110 cangrejo rojo, 121 fantasma, 123 escorpión.
+ */
+export const ENEMY_SPRITES: Record<EnemyKind, { frame: number; scale: number }> = {
+  grunt: { frame: 108, scale: 2 }, // limo verde
+  runner: { frame: 122, scale: 2 }, // araña
+  armored: { frame: 124, scale: 2 }, // bestia acorazada gris
+  flyer: { frame: 120, scale: 2 }, // murciélago
+  tank: { frame: 109, scale: 3 }, // cíclope (más grande)
+};
 
 /**
  * Casilla proyectada sobre una cara superior.
@@ -88,9 +111,9 @@ export const JOB_ICONS: Record<JobType, number> = {
 };
 
 /** Rectángulo de una casilla dentro de la hoja. */
-export function frameRect(frame: number): { x: number; y: number; w: number; h: number } {
-  const t = TILESHEET.tile;
-  return { x: (frame % TILESHEET.cols) * t, y: Math.floor(frame / TILESHEET.cols) * t, w: t, h: t };
+export function frameRect(frame: number, sheet: Sheet = TILESHEET): { x: number; y: number; w: number; h: number } {
+  const t = sheet.tile;
+  return { x: (frame % sheet.cols) * t, y: Math.floor(frame / sheet.cols) * t, w: t, h: t };
 }
 
 /** Giros horarios de 90° que necesita una casilla direccional para apuntar a `dir`. */
