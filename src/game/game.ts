@@ -537,6 +537,12 @@ export class Game {
     return Math.max(0, this.capacityFor(b, item) - count(b.inv, item));
   }
 
+  /** ¿Hay alguna torreta (colocada, aunque sea en obra)? */
+  hasTurret(): boolean {
+    for (const b of this.buildings.values()) if (b.kind in CONFIG.turrets) return true;
+    return false;
+  }
+
   callWaveNow(): void {
     this.nextWaveIn = 0;
   }
@@ -809,7 +815,7 @@ export class Game {
       this.nextWaveIn = CONFIG.waves.interval;
       const W = CONFIG.waves;
       const n = this.wave - 1;
-      const count = W.baseCount + W.countGrowth * n;
+      const count = this.wave === 1 ? W.firstCount : W.baseCount + W.countGrowth * n;
       const hpMult = Math.pow(W.hpGrowth, n);
       const active = Math.min(this.spawns.length, 1 + Math.floor(n / 2));
       const kinds = waveKinds(this.wave);

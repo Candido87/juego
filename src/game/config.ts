@@ -317,7 +317,10 @@ export const CONFIG = {
   } as Record<EnemyKind, EnemyDef>,
 
   waves: {
-    firstDelay: 60,
+    /** Segundos hasta la primera oleada (5:00). */
+    firstDelay: 300,
+    /** La primera oleada es suave: pocos enemigos débiles. */
+    firstCount: 2,
     interval: 35,
     spawnGap: 0.8,
     baseCount: 3,

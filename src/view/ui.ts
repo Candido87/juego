@@ -2,6 +2,7 @@
 import { count, entries, missing, total } from '../game/bag';
 import { CONFIG } from '../game/config';
 import { ROTATABLE, type Building, type Game } from '../game/game';
+import { formatClock } from '../game/format';
 import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
 import { CATEGORIES, CategoryId, categoryOf } from '../game/descripciones';
 import { HELP_CONCEPTS, HELP_CONTROLS } from '../game/ayuda';
@@ -139,7 +140,12 @@ export class Hud {
     );
     $('pause').addEventListener('click', () => this.togglePause());
     $('restart').addEventListener('click', () => this.onRestart());
-    $('callWave').addEventListener('click', () => this.sim?.callWaveNow());
+    $('callWave').addEventListener('click', () => {
+      const g = this.sim;
+      if (!g) return;
+      if (!g.hasTurret() && !window.confirm('Todavía no tienes ninguna torreta. ¿Adelantar la oleada igualmente?')) return;
+      g.callWaveNow();
+    });
     $('npcs').addEventListener('change', (ev) => {
       const sel = ev.target as HTMLSelectElement;
       if (sel.dataset.act === 'growthRole' && this.sim) this.sim.growthRole = (sel.value || null) as NpcRole | null;
@@ -285,7 +291,7 @@ export class Hud {
   update(sim: Game, info: string, dt: number) {
     this.set('core', String(Math.max(0, Math.ceil(sim.coreHp))));
     this.set('wave', String(sim.wave));
-    this.set('next', String(Math.ceil(sim.nextWaveIn)));
+    this.set('next', formatClock(sim.nextWaveIn));
     this.set('dir', DIR_ARROWS[ui.dir]);
     this.set('info', info);
     $('info').style.visibility = info ? 'visible' : 'hidden';
