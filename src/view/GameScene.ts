@@ -164,7 +164,9 @@ export class GameScene extends Phaser.Scene {
       const hud = getHud();
       const k = ev.key.toLowerCase();
       if (k === 'r') hud.rotate();
+      else if (k === 'h') hud.toggleHelp();
       else if (k === 'escape') {
+        if (hud.closeHelp()) return;
         hud.setTool(null);
         ui.selected = null;
       } else if (k === 'x') hud.setTool('remove');

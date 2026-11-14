@@ -4,7 +4,9 @@ import { CONFIG } from '../game/config';
 import { ROTATABLE, type Building, type Game } from '../game/game';
 import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
 import { CATEGORIES, CategoryId, categoryOf } from '../game/descripciones';
+import { HELP_CONCEPTS, HELP_CONTROLS } from '../game/ayuda';
 import { categoryAvailable, cycleCategory, menuEntries } from '../game/menu';
+import { groupInventory, inventorySummary, jobsSummary, npcSummary } from '../game/panels';
 import { Bag, BuildKind, Dir, FREE_ROLES, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
 import { demandOf, isElectric } from '../game/power';
 import { ITEM_COLORS } from './shapes';
@@ -71,7 +73,18 @@ export const ui = {
   selected: null as number | null,
   /** Categoría activa del menú de construcción. */
   category: 'transport' as CategoryId,
+  /** Secciones plegadas (se guardan en localStorage). */
+  collapsed: loadCollapsed(),
 };
+
+const PANELS_KEY = 'iso-factory-td:panels';
+function loadCollapsed(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(PANELS_KEY) ?? '{}') as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
 
 /** Flechas en pantalla para cada dirección de la cuadrícula (+x va abajo-derecha en isométrico). */
 export const DIR_ARROWS = ['↘', '↙', '↖', '↗'];
@@ -95,6 +108,14 @@ export class Hud {
 
   constructor() {
     new TooltipManager(() => this.sim);
+    // Alto real del menú inferior: las columnas laterales terminan justo encima.
+    new ResizeObserver(() => document.documentElement.style.setProperty('--tbh', `${$('toolbar').offsetHeight}px`)).observe($('toolbar'));
+    // Secciones plegables: clic en el título.
+    document.querySelectorAll<HTMLElement>('h3[data-collapse]').forEach((h) => {
+      h.addEventListener('click', () => this.toggleSection(h.dataset.collapse!));
+      this.applyCollapsed(h);
+    });
+    $('helpBtn').addEventListener('click', () => this.toggleHelp());
     $('toolbar').addEventListener('click', (ev) => {
       const target = ev.target as HTMLElement;
       const tab = target.closest<HTMLElement>('[data-cat]');
@@ -167,6 +188,41 @@ export class Hud {
     this.toolsKey = '';
     this.panelTimer = 0;
     ui.selected = null;
+  }
+
+  private applyCollapsed(h: HTMLElement) {
+    const c = !!ui.collapsed[h.dataset.collapse!];
+    h.classList.toggle('collapsed', c);
+    h.querySelector('.arrow')!.textContent = c ? '▸' : '▾';
+  }
+
+  toggleSection(id: string): void {
+    ui.collapsed[id] = !ui.collapsed[id];
+    try {
+      localStorage.setItem(PANELS_KEY, JSON.stringify(ui.collapsed));
+    } catch {
+      /* sin almacenamiento: sólo vale para esta sesión */
+    }
+    document.querySelectorAll<HTMLElement>(`h3[data-collapse="${id}"]`).forEach((h) => this.applyCollapsed(h));
+  }
+
+  /** Panel de ayuda (tecla H o botón "?"). */
+  toggleHelp(): void {
+    const el = $('help');
+    const open = el.style.display !== 'block';
+    el.style.display = open ? 'block' : 'none';
+    if (!open) return;
+    const rows = (list: [string, string][]) => `<table>${list.map(([k, t]) => `<tr><td>${k}</td><td>${t}</td></tr>`).join('')}</table>`;
+    el.innerHTML = `<h3>Controles <button id="helpClose" title="Cerrar (H o Esc)">✕</button></h3>${rows(HELP_CONTROLS)}<h3>Conceptos principales</h3>${rows(HELP_CONCEPTS)}`;
+    $('helpClose').addEventListener('click', () => this.closeHelp());
+  }
+
+  /** Cierra la ayuda; devuelve true si estaba abierta (para que Esc cierre primero los paneles). */
+  closeHelp(): boolean {
+    const el = $('help');
+    const was = el.style.display === 'block';
+    el.style.display = 'none';
+    return was;
   }
 
   togglePause() {
@@ -301,13 +357,19 @@ export class Hud {
   }
 
   private renderInventory(sim: Game) {
-    const rows = entries(sim.storage)
-      .map(([i, n]) => `<div class="it" data-tip="item:${i}"><span>${dot(i)}${itemName(i)}</span><b>${n}</b></div>`)
+    const rows = groupInventory(sim)
+      .map(
+        (g) =>
+          `<div class="gt">${g.name}</div>` +
+          g.items.map(([i, n]) => `<div class="it" data-tip="item:${i}"><span>${dot(i)}${itemName(i)}</span><b>${n}</b></div>`).join(''),
+      )
       .join('');
     this.set('invList', rows || '<span class="muted">vacío</span>', true);
+    this.set('invSum', inventorySummary(sim));
   }
 
   private renderNpcs(sim: Game) {
+    this.set('npcSum', npcSummary(sim));
     const head = `<div class="npcrow"><span>Población <b>${sim.population}</b> / vivienda ${sim.housingCapacity()}</span>
       <span class="${sim.hungry ? 'bad' : 'muted'}">${sim.hungry ? '¡Hambre!' : sim.canGrow() ? 'creciendo' : ''}</span></div>`;
     const rows = NPC_ROLES.map((role) => {
@@ -328,7 +390,7 @@ export class Hud {
 
   private renderJobs(sim: Game) {
     const list = sim.jobs.list();
-    this.set('jobCount', `(${list.length})`);
+    this.set('jobCount', jobsSummary(sim));
     const rows = list
       .slice(0, 14)
       .map((j) => {

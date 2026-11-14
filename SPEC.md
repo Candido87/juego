@@ -344,3 +344,11 @@ Sólo capa de interfaz: sin cambiar la lógica ni los números.
 - El indicador "Casilla x,y · altura" pasa a la fila superior del propio menú (ancho fijo, pequeño, con puntos suspensivos): ya no se superpone a nada.
 - Iconos: casillas del pack cuando existen; para granja, bomba, refinería, taller, casa y las cuatro torretas se **generan por código** (`GENERATED_ICONS` en `sprites.ts`, cuadrícula 16×16). Test: todo edificio tiene icono.
 - Decisión: el panel de Selección sube a `bottom: 110px` para no solaparse con el menú de dos filas.
+
+### Fase 4 de interfaz — paneles (hecha)
+- **Columnas laterales** (`#leftcol`: HUD + Almacén; `#rightcol`: NPCs/Cola + Selección): los paneles se apilan dentro de ellas, así que no se solapan entre sí; terminan justo encima del menú inferior (variable CSS `--tbh` con el alto real del menú, actualizada con `ResizeObserver`). `tools/overlap-check.js` comprueba solapes y paneles fuera de ventana; revisado a 1280×800, 1024×700, 800×600 y 640×480 sin solapes.
+- **Ayuda plegable**: botón "? Ayuda (H)" y tecla **H**; Esc la cierra primero. Contenido en `src/game/ayuda.ts` (controles y conceptos). La línea de controles ya no está en el HUD.
+- **Paneles plegables** (clic en el título; se recuerda en `localStorage`): Almacén, NPCs y Cola de trabajos. Plegados muestran un resumen (`src/game/panels.ts`): materiales y los que faltan, personas/libres/hambre, trabajos y los que esperan.
+- **Almacén agrupado** por tipo con un título pequeño: Materias primas, Piezas y componentes, Combustible, Comida (los grupos vacíos no salen).
+- Decisión: el resumen "en falta" sólo cuenta lo relevante (lo que tienes, lo que piden las obras pendientes y la comida); al empezar no alarma por materias que aún no se tienen.
+- Decisión: el panel de ayuda es una capa superpuesta a propósito (se abre bajo el HUD y se cierra con H/Esc); no entra en la comprobación de solapes.

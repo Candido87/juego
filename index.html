@@ -19,19 +19,32 @@
       .bad { color: #ff7b7b; }
       .warn { color: #ffd166; }
       .good { color: #7dff8a; }
-      #hud { top: 8px; left: 8px; display: flex; flex-direction: column; gap: 4px; }
+      /* Columnas laterales: los paneles se apilan dentro de ellas y nunca se solapan entre sí ni con el menú inferior. */
+      .col { position: fixed; top: 8px; bottom: calc(var(--tbh, 100px) + 16px); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+      .col > .panel { position: static; pointer-events: auto; box-sizing: border-box; }
+      #leftcol { left: 8px; width: max-content; max-width: calc(100% - 300px); }
+      #rightcol { right: 8px; width: 270px; }
+      #hud { flex: none; display: flex; flex-direction: column; gap: 4px; }
       #hud .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-      #hud .help { font-size: 11px; color: #8b95a5; }
       #researchWrap { display: none; }
       .bar { display: inline-block; width: 70px; height: 7px; background: #11151c; border-radius: 4px; overflow: hidden; vertical-align: 0; }
       .bar > i { display: block; height: 100%; background: #6fd3ff; }
-      #inventory { top: 92px; left: 8px; width: 170px; max-height: calc(100% - 200px); overflow: auto; }
+      #inventory { width: 170px; flex: 0 1 auto; min-height: 0; overflow: auto; }
       #inventory .it { display: flex; justify-content: space-between; line-height: 1.6; }
-      #side { top: 8px; right: 8px; width: 270px; max-height: calc(100% - 180px); overflow: auto; }
+      .gt { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #6f7b8c; margin: 6px 0 1px; }
+      .gt:first-child { margin-top: 0; }
+      #side { flex: 0 1 auto; min-height: 0; overflow: auto; }
+      h3.collapsible { cursor: pointer; display: flex; align-items: baseline; gap: 6px; }
+      h3.collapsible:hover { color: #c8e3f3; }
+      h3 .arrow { display: inline-block; width: 10px; }
+      h3 .sum { text-transform: none; letter-spacing: 0; font-weight: normal; color: #8b95a5; font-size: 11px; }
+      h3 .sum.collapsed-only { display: none; }
+      h3.collapsed .sum.collapsed-only { display: inline; }
+      h3.collapsed + .pbody { display: none; }
       .npcrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; line-height: 2; }
       .job { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 4px; align-items: center; line-height: 1.7; font-size: 12px; }
       .job button { padding: 0 6px; }
-      #selected { right: 8px; bottom: 110px; width: 270px; display: none; }
+      #selected { flex: none; display: none; max-height: 45%; overflow: auto; }
       #toolbar { bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; width: max-content; max-width: calc(100% - 40px); box-sizing: border-box; }
       #toprow, #toolrow { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; }
       #cats { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
@@ -56,6 +69,11 @@
       #tech .node.locked { opacity: 0.45; }
       #tech .node.current { border-color: #6fd3ff; }
       #tech .arrow { color: #46505f; }
+      #help { top: 84px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100% - 32px)); max-height: calc(100% - var(--tbh, 100px) - 110px); overflow: auto; display: none; z-index: 8; box-sizing: border-box; padding: 12px 16px; }
+      #help h3 { display: flex; justify-content: space-between; align-items: center; }
+      #help table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
+      #help td { padding: 2px 8px 2px 0; vertical-align: top; line-height: 1.4; }
+      #help td:first-child { white-space: nowrap; color: #ffd166; width: 1%; }
       #tip { position: fixed; display: none; pointer-events: none; z-index: 10; width: max-content; max-width: 320px; font-size: 12px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
       #tip .tt-title { font-size: 13px; font-weight: 600; color: #98c1d9; margin-bottom: 3px; }
       #tip .tt-sec { margin-top: 5px; }
@@ -64,29 +82,36 @@
   </head>
   <body>
     <div id="app"></div>
-    <div id="hud" class="panel">
-      <div class="row">
-        <span data-tip="hud:core">Núcleo <b id="core">0</b></span>
-        <span data-tip="hud:wave">Oleada <b id="wave">0</b></span>
-        <span data-tip="hud:wave">Siguiente en <b id="next">0</b>s</span>
-        <span id="researchWrap">Investigando <b id="research">—</b></span>
+    <div id="leftcol" class="col">
+      <div id="hud" class="panel">
+        <div class="row">
+          <span data-tip="hud:core">Núcleo <b id="core">0</b></span>
+          <span data-tip="hud:wave">Oleada <b id="wave">0</b></span>
+          <span data-tip="hud:wave">Siguiente en <b id="next">0</b>s</span>
+          <span id="researchWrap">Investigando <b id="research">—</b></span>
+        </div>
+        <div class="row" id="colony"></div>
+        <div class="row">
+          <button id="callWave">Adelantar oleada</button>
+          <button id="pause">Pausa</button>
+          <button id="techBtn">Árbol (T)</button>
+          <button id="helpBtn" title="Ayuda y controles (H)">? Ayuda (H)</button>
+        </div>
       </div>
-      <div class="row" id="colony"></div>
-      <div class="row">
-        <button id="callWave">Adelantar oleada</button>
-        <button id="pause">Pausa</button>
-        <button id="techBtn">Árbol (T)</button>
-        <span class="help">Clic: construir/seleccionar · Arrastrar: cámara · Rueda: zoom · Mayús+arrastrar: cintas · R: girar · X: quitar · Esc</span>
+      <div id="inventory" class="panel">
+        <h3 class="collapsible" data-collapse="inventory"><span class="arrow">▾</span>Almacén <span class="sum collapsed-only" id="invSum"></span></h3>
+        <div class="pbody" id="invList"></div>
       </div>
     </div>
-    <div id="inventory" class="panel"><h3>Almacén</h3><div id="invList"></div></div>
-    <div id="side" class="panel">
-      <h3>NPCs</h3>
-      <div id="npcs"></div>
-      <h3 style="margin-top: 10px">Cola de trabajos <span class="muted" id="jobCount"></span></h3>
-      <div id="jobs"></div>
+    <div id="rightcol" class="col">
+      <div id="side" class="panel">
+        <h3 class="collapsible" data-collapse="npcs"><span class="arrow">▾</span>NPCs <span class="sum collapsed-only" id="npcSum"></span></h3>
+        <div class="pbody" id="npcs"></div>
+        <h3 class="collapsible" data-collapse="jobs" style="margin-top: 10px"><span class="arrow">▾</span>Cola de trabajos <span class="sum" id="jobCount"></span></h3>
+        <div class="pbody" id="jobs"></div>
+      </div>
+      <div id="selected" class="panel"></div>
     </div>
-    <div id="selected" class="panel"></div>
     <div id="toolbar" class="panel">
       <div id="toprow">
         <div id="cats"></div>
@@ -98,6 +123,7 @@
         <button data-tool="remove" data-key="X">X · Quitar</button>
       </div>
     </div>
+    <div id="help" class="panel"></div>
     <div id="msg" class="panel"></div>
     <div id="tech" class="panel"></div>
     <div id="tip" class="panel"></div>

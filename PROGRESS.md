@@ -59,7 +59,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [x] UI1. descripciones.ts con datos leídos de config y tests.
 - [x] UI2. Tooltips (menú, almacén, HUD) que no tapan el botón señalado.
 - [x] UI3. Menú de construcción por categorías, atajos y casilla en sitio fijo.
-- [ ] UI4. Paneles plegables, ayuda con H, almacén agrupado, sin solapes.
+- [x] UI4. Paneles plegables, ayuda con H, almacén agrupado, sin solapes.
 
 ### Resto de la hoja de ruta (después del rediseño)
 - [ ] 5. (E2) ~~Cintas motorizadas~~ (hecho en P4); queda sólo la regla "automatizado no pide abastecimiento".
