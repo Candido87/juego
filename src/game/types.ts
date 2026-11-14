@@ -62,6 +62,7 @@ export const BUILD_KINDS = [
   'pump',
   'refinery',
   'workshop',
+  'house',
   'pole',
   'generator',
   'solar',

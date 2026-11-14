@@ -352,6 +352,16 @@ export const SHAPES: Record<string, ShapeDef> = {
     tall: true,
     shadow: 'shadow_1',
   },
+  house: {
+    parts: [
+      { x: 0.12, y: 0.12, w: 0.76, d: 0.76, z: 0, h: 18, color: 0xd9c9a0 },
+      { x: 0.08, y: 0.08, w: 0.84, d: 0.84, z: 18, h: 5, color: 0xa0402a },
+      { x: 0.2, y: 0.2, w: 0.6, d: 0.6, z: 23, h: 5, color: 0xb5452f },
+      { x: 0.6, y: 0.25, w: 0.12, d: 0.12, z: 23, h: 12, color: 0x6a5a4a },
+    ],
+    tall: true,
+    shadow: 'shadow_1',
+  },
   workshop: {
     parts: [
       { x: 0.05, y: 0.05, w: 0.9, d: 0.9, z: 0, h: 18, color: 0x8a6a4a },

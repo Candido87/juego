@@ -3,7 +3,7 @@ import { count, entries, missing, total } from '../game/bag';
 import { CONFIG } from '../game/config';
 import { ROTATABLE, type Building, type Game } from '../game/game';
 import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
-import { BUILD_KINDS, Bag, BuildKind, Dir, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
+import { BUILD_KINDS, Bag, BuildKind, Dir, FREE_ROLES, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
 import { demandOf, isElectric } from '../game/power';
 import { ITEM_COLORS } from './shapes';
 import { JOB_ICONS, ROLE_ICONS, TILESHEET, TOOL_ICONS, frameRect } from './sprites';
@@ -76,10 +76,14 @@ export class Hud {
     $('pause').addEventListener('click', () => this.togglePause());
     $('restart').addEventListener('click', () => this.onRestart());
     $('callWave').addEventListener('click', () => this.sim?.callWaveNow());
+    $('npcs').addEventListener('change', (ev) => {
+      const sel = ev.target as HTMLSelectElement;
+      if (sel.dataset.act === 'growthRole' && this.sim) this.sim.growthRole = (sel.value || null) as NpcRole | null;
+    });
     $('npcs').addEventListener('click', (ev) => {
-      const role = (ev.target as HTMLElement).closest<HTMLElement>('[data-hire]')?.dataset.hire as NpcRole | undefined;
+      const role = (ev.target as HTMLElement).closest<HTMLElement>('[data-assign]')?.dataset.assign as NpcRole | undefined;
       if (role && this.sim) {
-        if (!this.sim.hire(role)) this.flash('Faltan piezas para contratar');
+        if (!this.sim.reassignTo(role)) this.flash('No hay nadie a quien reasignar');
         this.panelTimer = 0;
       }
     });
@@ -206,15 +210,22 @@ export class Hud {
   }
 
   private renderNpcs(sim: Game) {
+    const head = `<div class="npcrow"><span>Población <b>${sim.population}</b> / vivienda ${sim.housingCapacity()}</span>
+      <span class="${sim.hungry ? 'bad' : 'muted'}">${sim.hungry ? '¡Hambre!' : sim.canGrow() ? 'creciendo' : ''}</span></div>`;
     const rows = NPC_ROLES.map((role) => {
       const all = sim.npcs.filter((n) => n.role === role);
+      if (role === 'mechanic' && !all.length) return '';
       const busy = all.filter((n) => n.jobId !== null || total(n.carry) > 0).length;
       const def = CONFIG.npc.roles[role];
-      const cost = entries(def.cost).map(([i, n]) => `${n} ${itemName(i)}`).join(', ');
-      return `<div class="npcrow"><span>${iconHtml(ROLE_ICONS[role], 22)}${def.name}: <b>${all.length}</b> <span class="muted">(${all.length - busy} libres)</span></span>
-        <button data-hire="${role}" ${sim.canHire(role) ? '' : 'disabled'} title="Contratar: ${cost}">+ Contratar</button></div>`;
+      const btn = role === 'mechanic' ? '<span class="muted">taller</span>' : `<button data-assign="${role}" title="Pasar a una persona de otro rol a ${def.name}">+1</button>`;
+      return `<div class="npcrow"><span>${iconHtml(ROLE_ICONS[role], 22)}${def.name}: <b>${all.length}</b> <span class="muted">(${all.length - busy} libres)</span></span>${btn}</div>`;
     }).join('');
-    this.set('npcs', rows, true);
+    const opts = ['<option value="">auto (rol con menos gente)</option>']
+      .concat(FREE_ROLES.map((r) => `<option value="${r}" ${sim.growthRole === r ? 'selected' : ''}>${CONFIG.npc.roles[r].name}</option>`))
+      .join('');
+    const growth = `<div class="npcrow"><span class="muted">Quien llegue será:</span><select data-act="growthRole">${opts}</select></div>`;
+    if ((document.activeElement as HTMLElement | null)?.dataset?.act === 'growthRole') return;
+    this.set('npcs', head + rows + growth, true);
   }
 
   private renderJobs(sim: Game) {

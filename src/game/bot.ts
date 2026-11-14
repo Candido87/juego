@@ -161,12 +161,28 @@ function regulate(game: Game): void {
   }
 }
 
+/** Coloca un edificio en la primera casilla libre alrededor del núcleo (anillos de 2 a 6). */
+export function placeNear(game: Game, kind: BuildKind): boolean {
+  if (!affordable(game, CONFIG.buildings[kind].cost)) return false;
+  const c = game.core;
+  for (let r = 2; r <= 6; r++)
+    for (let y = c.y - r; y < c.y + c.d + r; y++)
+      for (let x = c.x - r; x < c.x + c.w + r; x++) {
+        const edge = x === c.x - r || y === c.y - r || x === c.x + c.w + r - 1 || y === c.y + c.d + r - 1;
+        if (edge && (x + y) % 2 === 0 && game.canPlace(kind, x, y).ok) return game.place(kind, x, y) !== null;
+      }
+  return false;
+}
+
 /** Realiza como mucho una acción. Devuelve una descripción o null si no hizo nada. */
 export function botTick(game: Game): string | null {
   regulate(game);
   // Comida: una granja por cada 3 personas (más una de margen).
   const farms = countKind(game, 'farm');
   if (farms < 1 + Math.floor(game.population / 3) && placeNextToCore(game, 'farm')) return 'granja';
+  // Vivienda: siempre una plaza libre por delante para que la colonia crezca.
+  const pendingHouses = [...game.buildings.values()].some((b) => b.kind === 'house' && !b.built);
+  if (!pendingHouses && game.population >= game.housingCapacity() && placeNear(game, 'house')) return 'casa';
   const factories = countKind(game, 'factory');
   if (factories < BOT_FACTORIES.length && countKind(game, 'drill') >= 1 && placeNextToCore(game, 'factory', BOT_FACTORIES[factories])) {
     return 'fábrica';

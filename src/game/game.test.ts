@@ -97,13 +97,11 @@ describe('NPCs y cola de trabajos', () => {
     expect(count(g.storage, item)).toBe(before + Math.floor(n * CONFIG.deconstruct.refund));
   });
 
-  it('contratar cuesta piezas y añade un NPC', () => {
+  it('reasignar pasa a una persona de otro rol al pedido', () => {
     const g = flatGame();
-    const n = g.npcs.length;
-    const plates = count(g.storage, 'iron_plate');
-    expect(g.hire('constructor')).not.toBeNull();
-    expect(g.npcs.length).toBe(n + 1);
-    expect(count(g.storage, 'iron_plate')).toBe(plates - CONFIG.npc.roles.constructor.cost.iron_plate!);
+    expect(g.reassignTo('transporter')).toBe(true);
+    expect(g.npcs.filter((n) => n.role === 'transporter').length).toBe(2);
+    expect(g.npcs.length).toBe(3);
   });
 
   it('los NPCs no atraviesan edificios sólidos', () => {

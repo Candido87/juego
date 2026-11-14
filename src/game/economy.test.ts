@@ -347,3 +347,57 @@ describe('taller y reparaciones', () => {
     expect(g.setRole(n.id, 'mechanic')).toBe(false);
   });
 });
+
+describe('vivienda y crecimiento', () => {
+  const G = CONFIG.growth;
+
+  it('sin vivienda libre la población no crece', () => {
+    const g = flatGame();
+    g.storage.food = 500;
+    expect(g.housingCapacity()).toBe(CONFIG.housing.core);
+    run(g, G.interval * 3 + 1);
+    expect(g.population).toBe(CONFIG.housing.core);
+  });
+
+  it('con casa y comida de sobra llega gente, gastando comida', () => {
+    const g = flatGame();
+    g.storage.food = 500;
+    instant(g, 'house', 4, 4);
+    expect(g.housingCapacity()).toBe(CONFIG.housing.core + CONFIG.housing.house);
+    run(g, G.interval + 0.5);
+    expect(g.population).toBe(4);
+    expect(g.stats.arrivals).toBe(1);
+    expect(g.npcs[3].role).not.toBe('mechanic');
+    run(g, G.interval * 10);
+    expect(g.population).toBe(g.housingCapacity());
+  });
+
+  it('con poca comida no crece', () => {
+    const g = flatGame();
+    g.storage.food = G.foodMin - 5;
+    instant(g, 'house', 4, 4);
+    run(g, G.interval + 0.5);
+    expect(g.population).toBe(3);
+  });
+
+  it('el jugador elige el rol de quien llega', () => {
+    const g = flatGame();
+    g.storage.food = 500;
+    g.growthRole = 'transporter';
+    instant(g, 'house', 4, 4);
+    run(g, G.interval + 0.5);
+    expect(g.npcs[g.npcs.length - 1].role).toBe('transporter');
+  });
+
+  it('más población permite el taller sin dejar la colonia sin manos', () => {
+    const g = flatGame();
+    g.storage.food = 500;
+    instant(g, 'house', 4, 4);
+    run(g, G.interval * 2 + 1);
+    instant(g, 'workshop', 6, 6);
+    run(g, 0.1);
+    expect(g.npcs.filter((n) => n.role === 'mechanic').length).toBe(2);
+    expect(g.generalWorkers().length).toBe(g.population - 2);
+    expect(g.generalWorkers().length).toBeGreaterThanOrEqual(2);
+  });
+});

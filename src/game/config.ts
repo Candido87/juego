@@ -104,7 +104,7 @@ export const CONFIG = {
   /** Población inicial: 3 personas. */
   startNpcs: { constructor: 1, transporter: 1, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
-    buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'pump', 'refinery', 'workshop', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
+    buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'pump', 'refinery', 'workshop', 'house', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
     /** Recetas de nivel 1. Las de nivel 2 (circuito, batería, placa de muro, ciencia II) llegan con el árbol. */
     recipes: ['iron_plate', 'copper_plate', 'brick', 'gear', 'frame', 'wire', 'pipe', 'gun_part', 'ammo', 'tool_kit', 'science_1'],
   },
@@ -149,6 +149,7 @@ export const CONFIG = {
     pump: { name: 'Bomba de petróleo', cost: { pipe: 2, frame: 2, gear: 1 }, buildTime: 4, hp: 70, solid: true, size: [1, 1] },
     refinery: { name: 'Refinería', cost: { pipe: 3, frame: 3, gear: 2 }, buildTime: 6, hp: 110, solid: true, size: [1, 1] },
     workshop: { name: 'Taller', cost: { tool_kit: 4, frame: 3 }, buildTime: 6, hp: 120, solid: true, size: [1, 1] },
+    house: { name: 'Casa', cost: { frame: 2, wood: 4 }, buildTime: 4, hp: 80, solid: true, size: [1, 1] },
     pole: { name: 'Poste', cost: { wire: 2, frame: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
     generator: { name: 'Generador', cost: { frame: 3, gear: 2, wire: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
     solar: { name: 'Panel solar', cost: { circuit: 2, wire: 4, frame: 1 }, buildTime: 4, hp: 50, solid: true, size: [1, 1] },
@@ -215,6 +216,13 @@ export const CONFIG = {
     constructorFactor: 0.5,
     mechanicFactor: 1.5,
   },
+  /** Vivienda: plazas del núcleo y de cada casa. */
+  housing: { core: 3, house: 4 },
+  /**
+   * Crecimiento: cada `interval` s, si hay plaza libre, no hay hambre y comida ≥ `foodMin`,
+   * se gastan `foodCost` y llega una persona.
+   */
+  growth: { interval: 30, foodMin: 15, foodCost: 8 },
   /** Taller: personas que toma de la población; siempre deja al menos `minOutside` fuera. */
   workshop: { workers: 2, minOutside: 1 },
   deconstruct: { refund: 0.5, timeFactor: 0.5 },

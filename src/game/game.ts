@@ -15,6 +15,7 @@ import {
   DY,
   Dir,
   EnemyKind,
+  FREE_ROLES,
   ItemId,
   NpcRole,
   Ore,
@@ -96,6 +97,7 @@ export type GameEvent =
   | { type: 'destroyed'; id: number; x: number; y: number }
   | { type: 'npcDied'; id: number; x: number; y: number }
   | { type: 'npcLeft'; id: number; x: number; y: number }
+  | { type: 'npcArrived'; id: number; x: number; y: number }
   | { type: 'researched'; id: string }
   | { type: 'gameOver' };
 
@@ -134,17 +136,21 @@ export class Game {
   nextWaveIn: number = CONFIG.waves.firstDelay;
   gameOver = false;
   flowVersion = 0;
-  readonly stats = { delivered: 0, kills: 0, built: 0, npcDeaths: 0, npcLeft: 0, foodEaten: 0 };
+  readonly stats = { delivered: 0, kills: 0, built: 0, npcDeaths: 0, npcLeft: 0, foodEaten: 0, arrivals: 0 };
   /** Comida: fracción de ración acumulada pendiente de comer. */
   foodDebt = 0;
   /** Hay hambre (no queda comida en el almacén). */
   hungry = false;
   /** Segundos de hambre seguida (para las marchas). */
   hungerTime = 0;
+  /** Rol de quien llegue a la colonia (null = el rol con menos gente). */
+  growthRole: NpcRole | null = null;
+  /** Segundos hasta la próxima comprobación de crecimiento. */
+  growthTimer: number = CONFIG.growth.interval;
   readonly unlockedBuildings = new Set<BuildKind>(CONFIG.startUnlocks.buildings);
   readonly unlockedRecipes = new Set<string>(CONFIG.startUnlocks.recipes);
   /** Bonificaciones de investigación. */
-  readonly bonus = { npcSpeed: 0, npcCapacity: 0, npcWork: 0 };
+  readonly bonus = { npcSpeed: 0, npcCapacity: 0, npcWork: 0, houseCapacity: 0 };
   /** Nivel global de cada tipo de torreta (sube con el árbol). */
   readonly turretLevel: Record<TurretKind, number> = { turret_bullet: 1, turret_laser: 1, turret_fire: 1, turret_frost: 1 };
 
@@ -266,6 +272,55 @@ export class Game {
   /** Población total (NPCs vivos). */
   get population(): number {
     return this.npcs.length;
+  }
+
+  /** Plazas de vivienda: núcleo + casas terminadas. */
+  housingCapacity(): number {
+    let n = CONFIG.housing.core;
+    for (const b of this.buildings.values()) if (b.kind === 'house' && b.built) n += CONFIG.housing.house + this.bonus.houseCapacity;
+    return n;
+  }
+
+  /** ¿Se dan las condiciones para que llegue alguien? */
+  canGrow(): boolean {
+    return !this.hungry && this.npcs.length < this.housingCapacity() && count(this.storage, 'food') >= CONFIG.growth.foodMin;
+  }
+
+  /** Rol para el siguiente en llegar. */
+  nextArrivalRole(): NpcRole {
+    if (this.growthRole) return this.growthRole;
+    let best: NpcRole = 'constructor';
+    let bestN = Infinity;
+    for (const r of FREE_ROLES) {
+      const n = this.npcs.filter((o) => o.role === r).length;
+      if (n < bestN) {
+        bestN = n;
+        best = r;
+      }
+    }
+    return best;
+  }
+
+  /** Pasa a una persona al rol `role`, sacándola del rol libre con más gente (prefiere a quien no trabaja). */
+  reassignTo(role: NpcRole): boolean {
+    if (role === 'mechanic') return false;
+    const donors = this.npcs.filter((n) => n.role !== role && n.role !== 'mechanic');
+    if (!donors.length) return false;
+    const size = (r: NpcRole) => this.npcs.filter((n) => n.role === r).length;
+    donors.sort((a, b) => size(b.role) - size(a.role) || Number(a.jobId !== null) - Number(b.jobId !== null) || a.id - b.id);
+    this.changeRole(donors[0], role);
+    return true;
+  }
+
+  private stepGrowth(dt: number): void {
+    this.growthTimer -= dt;
+    if (this.growthTimer > 0) return;
+    this.growthTimer = CONFIG.growth.interval;
+    if (!this.canGrow()) return;
+    take(this.storage, 'food', CONFIG.growth.foodCost);
+    const n = this.spawnNpc(this.nextArrivalRole());
+    this.stats.arrivals++;
+    this.emit({ type: 'npcArrived', id: n.id, x: n.x, y: n.y });
   }
 
   /** Comida que consume la población por minuto. */
@@ -400,15 +455,6 @@ export class Game {
     }
   }
 
-  /** Contrata un NPC pagando piezas del almacén. */
-  hire(role: NpcRole): Npc | null {
-    if (role === 'mechanic') return null;
-    const cost = CONFIG.npc.roles[role].cost;
-    if (!entries(cost).every(([i, n]) => count(this.storage, i) >= n)) return null;
-    for (const [i, n] of entries(cost)) take(this.storage, i, n);
-    return this.spawnNpc(role);
-  }
-
   /** Cambia la receta de una fábrica. Lo que tenía dentro pasa a la salida para que se recoja. */
   setRecipe(id: number, recipe: string | null): boolean {
     const b = this.buildings.get(id);
@@ -491,11 +537,6 @@ export class Game {
     return Math.max(0, this.capacityFor(b, item) - count(b.inv, item));
   }
 
-  canHire(role: NpcRole): boolean {
-    if (role === 'mechanic') return false;
-    return entries(CONFIG.npc.roles[role].cost).every(([i, n]) => count(this.storage, i) >= n);
-  }
-
   callWaveNow(): void {
     this.nextWaveIn = 0;
   }
@@ -536,6 +577,7 @@ export class Game {
     if (!this.noWaves) this.stepWaves(dt);
     this.stepGrid(dt);
     this.stepFood(dt);
+    this.stepGrowth(dt);
     this.staffWorkshops();
     if (this.gameOver) return;
     this.jobs.update(this, dt);
