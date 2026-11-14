@@ -95,6 +95,6 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 ## Recetas de fábrica y azufre
 - [x] R1. Tabla de recetas en config.ts y SPEC.md (categorías), azufre en el mapa (mena, material, parcela cerca del núcleo), alcanzabilidad por test.
 - [x] R2. Motor: estado de fábrica (`factoryStatus`), búferes, cambio de receta que devuelve materiales, tests de manual y automático.
-- [ ] R3. Panel de selección de recetas (categorías, motivo si no disponible) y estado/icono sobre la fábrica.
-- [ ] R4. Integración con transporte y construcción por componentes (comprobar con el panel).
-- [ ] R5. Tooltips automáticos de recetas, bot de `npm run sim` y equilibrado.
+- [x] R3. Panel de recetas (categorías, motivo si no disponible, se abre al colocar o seleccionar una fábrica), estado e icono del producto sobre la fábrica.
+- [x] R4. Transporte (NPC y cintas con red) y construcción por componentes comprobados con tests (fabricas.test.ts, recetas.test.ts).
+- [x] R5. Tooltip de receta automático (qué produce, dónde se necesita), "se produce/usa en" de materiales al día, bot con azufre y piedra, sim: sobrevive 8 min.

@@ -3,6 +3,8 @@ import { count, entries, missing, total } from '../game/bag';
 import { CONFIG } from '../game/config';
 import { ROTATABLE, type Building, type Game } from '../game/game';
 import { formatClock } from '../game/format';
+import { RecipeCategory } from '../game/config';
+import { factoryStatusText, recipeCategories, recipeEntries, recipeFormula } from '../game/recetas';
 import { GuiaView } from './guia';
 import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
 import { CATEGORIES, CategoryId, categoryOf } from '../game/descripciones';
@@ -73,6 +75,9 @@ export const ui = {
   dir: 0 as Dir,
   paused: false,
   selected: null as number | null,
+  /** Panel de recetas abierto y su categoría. */
+  recipesOpen: false,
+  recipeCat: 'materiales' as RecipeCategory,
   /** Categoría activa del menú de construcción. */
   category: 'transport' as CategoryId,
   /** Secciones plegadas (se guardan en localStorage). */
@@ -170,6 +175,7 @@ export class Hud {
       const act = (ev.target as HTMLElement).closest<HTMLElement>('[data-act]')?.dataset.act;
       const b = this.selectedBuilding();
       if (!act || !b || !this.sim) return;
+      if (act === 'recipes') ui.recipesOpen = !ui.recipesOpen;
       if (act === 'rotate') this.sim.rotate(b.x, b.y, rotateCW(b.dir));
       if (act === 'remove') this.sim.remove(b.x, b.y);
       this.panelTimer = 0;
@@ -179,6 +185,21 @@ export class Hud {
       const b = this.selectedBuilding();
       if (sel.dataset.act === 'recipe' && b && this.sim) this.sim.setRecipe(b.id, sel.value || null);
       if (sel.dataset.act === 'critical' && b && this.sim) this.sim.setCritical(b.id, (sel as unknown as HTMLInputElement).checked);
+      this.panelTimer = 0;
+    });
+    $('recipes').addEventListener('click', (ev) => {
+      const t = ev.target as HTMLElement;
+      const b = this.selectedBuilding();
+      if (t.closest('[data-rclose]')) ui.recipesOpen = false;
+      const cat = t.closest<HTMLElement>('[data-rcat]')?.dataset.rcat as RecipeCategory | undefined;
+      if (cat) ui.recipeCat = cat;
+      const rec = t.closest<HTMLElement>('[data-recipe]');
+      if (rec && b && this.sim) {
+        const id = rec.dataset.recipe!;
+        if (id === '') this.sim.setRecipe(b.id, null);
+        else if (!rec.classList.contains('locked')) this.sim.setRecipe(b.id, id);
+      }
+      this.recipesKey = '';
       this.panelTimer = 0;
     });
     onSheetReady.push(() => {
@@ -320,6 +341,7 @@ export class Hud {
     this.renderNpcs(sim);
     this.renderJobs(sim);
     this.renderSelected(sim);
+    this.renderRecipes(sim);
   }
 
   private renderTools(sim: Game) {
@@ -422,6 +444,42 @@ export class Hud {
     this.set('jobs', rows || '<span class="muted">sin trabajos</span>', true);
   }
 
+  private recipesKey = '';
+
+  /** Abre el panel de recetas de la fábrica seleccionada. */
+  openRecipes(): void {
+    ui.recipesOpen = true;
+    this.recipesKey = '';
+  }
+
+  private renderRecipes(sim: Game) {
+    const b = this.selectedBuilding();
+    const el = $('recipes');
+    if (!ui.recipesOpen || !b || b.kind !== 'factory') {
+      el.style.display = 'none';
+      this.recipesKey = '';
+      return;
+    }
+    const list = recipeEntries(sim, b, ui.recipeCat);
+    const key = [b.id, b.recipe, ui.recipeCat, list.map((e) => (e.available ? 1 : 0)).join('')].join('|');
+    el.style.display = 'block';
+    if (key === this.recipesKey) return;
+    this.recipesKey = key;
+    const tabs = recipeCategories(sim)
+      .map((c) => `<button class="tab${c.id === ui.recipeCat ? ' active' : ''}" data-rcat="${c.id}">${c.name}</button>`)
+      .join('');
+    const rows = list
+      .map((e) => {
+        const ins = e.inputs.map(([i, n]) => `${dot(i)}${n} ${itemName(i)}`).join(' + ');
+        const outs = e.outputs.map(([i, n]) => `${dot(i)}${n} ${itemName(i)}`).join(' + ');
+        return `<button class="rrow${e.selected ? ' sel' : ''}${e.available ? '' : ' locked'}" data-recipe="${e.id}" data-tip="recipe:${e.id}">` +
+          `<div class="rname">${e.name}${e.selected ? ' ✓' : ''}</div><div>${ins} → ${outs}</div>` +
+          `<div class="rmeta">⏱ ${e.time} s · ⚡ ${e.energy}/s</div>${e.reason ? `<div class="why">🔒 ${e.reason}</div>` : ''}</button>`;
+      })
+      .join('');
+    el.innerHTML = `<h3>Recetas de la fábrica <button data-rclose title="Cerrar">✕</button></h3><div class="rcats">${tabs}</div>${rows}<button class="rrow" data-recipe="">— Sin receta (la fábrica se detiene) —</button>`;
+  }
+
   private renderSelected(sim: Game) {
     const b = this.selectedBuilding();
     const el = $('selected');
@@ -462,18 +520,11 @@ export class Hud {
       const t = sim.turretDef(b);
       if (t?.ammo && !sim.turretReady(b)) lines.push('<span class="bad">Sin munición: esperando Transportista</span>');
       if (b.kind === 'factory') {
-        const opts = ['<option value="">— sin receta —</option>']
-          .concat(
-            Object.entries(CONFIG.recipes)
-              .filter(([id]) => sim.recipesFor(b).includes(id))
-              .map(([id, r]) => {
-                const ins = entries(r.inputs).map(([i, n]) => `${n} ${itemName(i)}`).join(' + ');
-                const outs = entries(r.outputs).map(([i, n]) => `${n} ${itemName(i)}`).join(' + ');
-                return `<option value="${id}" ${b.recipe === id ? 'selected' : ''}>${r.name}: ${ins} → ${outs}</option>`;
-              }),
-          )
-          .join('');
-        lines.push(`Receta: <select data-act="recipe" style="max-width:250px">${opts}</select>`);
+        const r = b.recipe ? CONFIG.recipes[b.recipe] : null;
+        const stt = factoryStatusText(sim, b);
+        lines.push(`Receta: <b>${r ? r.name : '— ninguna —'}</b> <button data-act="recipes">${ui.recipesOpen ? 'Cerrar recetas' : 'Elegir receta'}</button>`);
+        if (r) lines.push(`<span class="muted">${recipeFormula({ inputs: entries(r.inputs), outputs: entries(r.outputs) })}</span>`);
+        lines.push(`Estado: <span class="${stt.tone}">${stt.text}</span>`);
         if (b.recipe && b.craft > 0) lines.push(`Fabricando: <b>${Math.floor((b.craft / CONFIG.recipes[b.recipe].time) * 100)}%</b>`);
       }
       if (total(b.inv)) lines.push(`Contiene: ${bagText(b.inv)}`);
@@ -496,3 +547,6 @@ export function getHud(): Hud {
 }
 
 export { count };
+
+// Sólo en desarrollo: acceso desde la consola del navegador para comprobar la interfaz.
+if (import.meta.env.DEV) (window as unknown as { __ui: unknown }).__ui = { ui, getHud };

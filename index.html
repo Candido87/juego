@@ -86,6 +86,15 @@
       #guide .g-done { color: #7dff8a; font-size: 13px; font-weight: 600; }
       .guide-hl { outline: 2px solid #ffd166; outline-offset: 1px; animation: ghl 1s ease-in-out infinite; }
       @keyframes ghl { 50% { outline-color: rgba(255, 209, 102, 0.25); box-shadow: 0 0 8px #ffd166; } }
+      #recipes { top: 90px; right: 290px; width: 400px; max-height: calc(100% - var(--tbh, 100px) - 120px); overflow: auto; display: none; z-index: 7; box-sizing: border-box; padding: 10px 12px; background: rgba(20, 24, 32, 0.95); }
+      #recipes h3 { display: flex; justify-content: space-between; align-items: center; }
+      #recipes .rcats { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
+      #recipes .rrow { display: block; width: 100%; text-align: left; margin-bottom: 4px; padding: 5px 8px; line-height: 1.35; }
+      #recipes .rrow .rname { font-weight: 600; }
+      #recipes .rrow .rmeta { color: #8b95a5; font-size: 11px; }
+      #recipes .rrow.sel { background: #3d5a80; border-color: #98c1d9; }
+      #recipes .rrow.locked { opacity: 0.45; filter: grayscale(0.7); }
+      #recipes .rrow .why { color: #ff9f7b; font-size: 11px; }
       #tip { position: fixed; display: none; pointer-events: none; z-index: 10; width: max-content; max-width: 320px; font-size: 12px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
       #tip .tt-title { font-size: 13px; font-weight: 600; color: #98c1d9; margin-bottom: 3px; }
       #tip .tt-sec { margin-top: 5px; }
@@ -137,6 +146,7 @@
       </div>
     </div>
     <div id="help" class="panel"></div>
+    <div id="recipes" class="panel"></div>
     <div id="msg" class="panel"></div>
     <div id="tech" class="panel"></div>
     <div id="tip" class="panel"></div>

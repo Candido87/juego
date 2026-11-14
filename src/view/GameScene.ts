@@ -4,8 +4,9 @@
  */
 import Phaser from 'phaser';
 import { CONFIG } from '../game/config';
-import { Enemy, Game } from '../game/game';
+import { Building, Enemy, Game } from '../game/game';
 import { HALF_H, HALF_W, Vec2, depthOf, gridToScreen, occludes, pickTile } from '../game/iso';
+import { ItemId } from '../game/types';
 import { BuildKind, DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { MAX_HEIGHT, heightAt, heightAtPoint, oreAt } from '../game/world';
 import {
@@ -25,6 +26,7 @@ import {
   turretLook,
   terrainKey,
 } from './shapes';
+import { factoryStatusText } from '../game/recetas';
 import { headIndex, turretBaseKey, turretHeadKey } from './turretModels';
 import { getHud, itemName, ui } from './ui';
 
@@ -39,6 +41,11 @@ interface BSprite {
   /** Cabeza giratoria de las torretas modeladas. */
   head?: Phaser.GameObjects.Image;
   headKey?: string;
+  /** Indicador de la fábrica: icono del producto y rótulo de estado. */
+  prod?: Phaser.GameObjects.Image;
+  label?: Phaser.GameObjects.Text;
+  labelKey?: string;
+  prodKey?: string;
   /** Nivel del modelo de torreta mostrado. */
   level?: number;
 }
@@ -253,7 +260,14 @@ export class GameScene extends Phaser.Scene {
     if (!ui.tool) return;
     const check = this.sim.canPlace(ui.tool, t.x, t.y);
     if (!check.ok) hud.flash(check.reason ?? 'No se puede construir');
-    else this.sim.place(ui.tool, t.x, t.y, ui.dir);
+    else {
+      const b = this.sim.place(ui.tool, t.x, t.y, ui.dir);
+      // Al colocar una fábrica se abre el panel para elegir su receta.
+      if (b && b.kind === 'factory') {
+        ui.selected = b.id;
+        hud.openRecipes();
+      }
+    }
   }
 
   /** Mayús + arrastrar: traza cintas casilla a casilla orientándolas según el movimiento. */
@@ -390,6 +404,7 @@ export class GameScene extends Phaser.Scene {
         } else s.head.clearTint();
       }
       s.shadow?.setVisible(b.built);
+      if (b.kind === 'factory') this.syncFactoryIndicator(b, s);
       if (!b.built) s.img.setTint(0xbfd4ff);
       else if (b.markedForRemoval) s.img.setTint(0xff8080);
       else if (s.head && !this.sim.turretReady(b)) s.img.setTint(0x9a9fb0);
@@ -415,6 +430,8 @@ export class GameScene extends Phaser.Scene {
       s.shadow?.destroy();
       s.alarm?.destroy();
       s.head?.destroy();
+      s.prod?.destroy();
+      s.label?.destroy();
       this.bSprites.delete(id);
     }
   }
@@ -599,6 +616,39 @@ export class GameScene extends Phaser.Scene {
 
   private tileOutline(x: number, y: number, w: number, d: number, z: number): Vec2[] {
     return [gridToScreen(x, y, z), gridToScreen(x + w, y, z), gridToScreen(x + w, y + d, z), gridToScreen(x, y + d, z)];
+  }
+
+  /** Icono del producto y rótulo de estado sobre una fábrica ("elige una receta", "falta Azufre"...). */
+  private syncFactoryIndicator(b: Building, s: BSprite) {
+    const top = gridToScreen(b.x + 0.5, b.y + 0.5, heightAt(this.sim.world, b.x, b.y));
+    const st = b.built ? factoryStatusText(this.sim, b) : null;
+    const want = b.built && b.recipe ? Object.keys(CONFIG.recipes[b.recipe].outputs)[0] : null;
+    if (want && !s.prod) s.prod = this.add.image(0, 0, itemKey(want as ItemId)).setDepth(OVERLAY_DEPTH - 3).setScale(1.5);
+    if (s.prod) {
+      if (want && s.prodKey !== want) {
+        s.prod.setTexture(itemKey(want as ItemId));
+        s.prodKey = want;
+      }
+      s.prod.setVisible(!!want && st?.tone !== 'bad');
+      s.prod.setPosition(top.x, top.y - 46 - (st?.tone === 'good' ? Math.abs(Math.sin(this.sim.time * 3)) * 2 : 0));
+      s.prod.setAlpha(st?.tone === 'good' ? 1 : 0.55);
+    }
+    const text = st && st.tone !== 'good' ? st.short : '';
+    if (text && !s.label) {
+      s.label = this.add
+        .text(0, 0, '', { fontSize: '10px', color: '#ffd166', backgroundColor: 'rgba(20,24,32,0.85)', padding: { x: 3, y: 1 } })
+        .setOrigin(0.5, 1)
+        .setDepth(OVERLAY_DEPTH - 3);
+    }
+    if (s.label) {
+      if (s.labelKey !== text) {
+        s.label.setText(text);
+        s.labelKey = text;
+      }
+      s.label.setColor(st?.tone === 'bad' ? '#ff7b7b' : '#ffd166');
+      s.label.setVisible(!!text);
+      s.label.setPosition(top.x, top.y - 54);
+    }
   }
 
   /** Efectos baratos de las torretas visibles: humo si están dañadas y brillo propio de cada tipo cuando están listas. */

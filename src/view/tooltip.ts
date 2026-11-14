@@ -7,6 +7,7 @@
  */
 import { CONFIG } from '../game/config';
 import type { Game } from '../game/game';
+import { recipeTip } from '../game/recetas';
 import { HUD_KEYS, HudKey, buildTip, hudTip, itemTip } from '../game/tooltips';
 import { BUILD_KINDS, BuildKind, ITEM_IDS, ItemId } from '../game/types';
 import { ITEM_COLORS } from './shapes';
@@ -47,6 +48,15 @@ function itemHtml(g: Game, item: ItemId): string {
     ${badge ? `<div>${badge}</div>` : ''}
     <div class="tt-sec"><span class="muted">Se produce en:</span> ${list(t.producedIn) || '—'}</div>
     <div class="tt-sec"><span class="muted">Se usa en:</span> ${list(t.usedIn) || '—'}</div>`;
+}
+
+function recipeHtml(g: Game, id: string): string {
+  const t = recipeTip(g, id);
+  return `<div class="tt-title">${esc(t.title)}</div>
+    <div>${esc(t.formula)}</div>
+    <div class="muted">Produce: ${esc(t.produces)} · ⏱ ${t.time} s · ⚡ ${t.energy}/s</div>
+    ${t.reason ? `<div class="bad">🔒 ${esc(t.reason)}</div>` : ''}
+    <div class="tt-sec"><span class="muted">Se necesita en:</span> ${list(t.usedIn) || '—'}</div>`;
 }
 
 function hudHtml(g: Game, key: HudKey): string {
@@ -108,6 +118,9 @@ export class TooltipManager {
     if (type === 'build' && (BUILD_KINDS as readonly string[]).includes(id)) html = buildHtml(g, id as BuildKind, anchor.dataset.key || undefined);
     else if (type === 'item' && (ITEM_IDS as readonly string[]).includes(id)) {
       html = itemHtml(g, id as ItemId);
+      mode = 'side';
+    } else if (type === 'recipe') {
+      html = recipeHtml(g, id);
       mode = 'side';
     } else if (type === 'hud' && (HUD_KEYS as readonly string[]).includes(id)) {
       html = hudHtml(g, id as HudKey);
