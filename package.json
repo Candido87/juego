@@ -1,0 +1,22 @@
+{
+  "name": "iso-factory-td",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "sim": "vite-node scripts/simulate.ts"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "typescript": "~5.3.3",
+    "vite": "^4.5.3",
+    "vite-node": "^0.34.6",
+    "vitest": "^0.34.6"
+  }
+}
