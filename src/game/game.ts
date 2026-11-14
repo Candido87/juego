@@ -146,7 +146,23 @@ export class Game {
   nextWaveIn: number = CONFIG.waves.firstDelay;
   gameOver = false;
   flowVersion = 0;
-  readonly stats = { delivered: 0, kills: 0, built: 0, npcDeaths: 0, npcLeft: 0, foodEaten: 0, arrivals: 0 };
+  readonly stats = {
+    delivered: 0,
+    kills: 0,
+    built: 0,
+    npcDeaths: 0,
+    npcLeft: 0,
+    foodEaten: 0,
+    arrivals: 0,
+    /** Objetos que una cinta ha entregado de verdad, por tipo de edificio de destino (la guía detecta flujo real). */
+    beltTo: {} as Record<string, number>,
+    /** Unidades de líquido que una tubería ha entregado, por tipo de edificio de destino. */
+    pipeTo: {} as Record<string, number>,
+    /** Gasolina fabricada por refinerías. */
+    refined: 0,
+    /** Objetos fabricados (no mena) que han llegado a un almacén por cinta o desde la fábrica. */
+    manufacturedStored: 0,
+  };
   /** Comida: fracción de ración acumulada pendiente de comer. */
   foodDebt = 0;
   /** Hay hambre (no queda comida en el almacén). */
@@ -908,6 +924,7 @@ export class Game {
       if (src && isProducer(src.kind) && !belt && !this.def(b.kind).storage) return false;
     }
     if (this.def(b.kind).storage) {
+      if (!ORE_ITEMS.has(item) && item !== 'food' && !isLiquid(item)) this.stats.manufacturedStored++;
       add(this.storage, item, 1);
       this.stats.delivered++;
       this.emit({ type: 'deliver', item });
@@ -959,6 +976,7 @@ export class Game {
   /** Gancho tras fabricar (desgaste, estadísticas). */
   protected onCrafted(b: Building): void {
     b.condition = Math.max(0, b.condition - CONFIG.wear.factoryPerCraft);
+    if (b.kind === 'refinery') this.stats.refined++;
   }
 
   private stepBelts(dt: number): void {
@@ -969,6 +987,8 @@ export class Game {
       if (speed <= 0) continue;
       b.beltProgress = Math.min(1, b.beltProgress + speed * dt);
       if (b.beltProgress >= 1 && this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], b.item, b.dir, b)) {
+        const dest = this.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
+        if (dest && dest.kind !== 'belt' && dest.kind !== 'belt_fast') this.stats.beltTo[dest.kind === 'core' ? 'storage' : dest.kind] = (this.stats.beltTo[dest.kind === 'core' ? 'storage' : dest.kind] ?? 0) + 1;
         b.item = null;
         b.beltProgress = 0;
       }
@@ -989,6 +1009,8 @@ export class Game {
         if (!this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], item, b.dir, b)) break;
         take(b.inv, item, 1);
         b.timer -= 1;
+        const dest = this.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
+        if (dest && dest.kind !== 'pipeline') this.stats.pipeTo[dest.kind] = (this.stats.pipeTo[dest.kind] ?? 0) + 1;
       }
     }
   }
@@ -1222,6 +1244,8 @@ export const ORE_ITEM: Record<number, ItemId | undefined> = {
   [Ore.Oil]: 'oil',
   [Ore.Sulfur]: 'sulfur',
 };
+
+const ORE_ITEMS = new Set<ItemId>(Object.values(ORE_ITEM).filter((x): x is ItemId => !!x));
 
 /** Lista determinista de tipos de enemigo para una oleada según la tabla de config. */
 export function waveKinds(wave: number): EnemyKind[] {

@@ -108,7 +108,8 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 ## Transporte, tuberías y guía (encargo "tutorial incompleto")
 - [x] H1. Reglas de transporte (cintas obligatorias, líquidos fuera de cintas, entradas/salidas `puertos.ts`) con tests.
 - [x] H2. Tuberías y petróleo → gasolina → generador funcionando (sim y tests).
-- [ ] H3. Guía de cintas y de energía con detección real y diagnóstico.
-- [ ] H4. Guía de petróleo y tuberías.
+- [x] H3. Guía de cintas y de energía con detección real y diagnóstico.
+- [x] H4. Guía de petróleo y tuberías.
 - [ ] H5. Cadena completa a defensa, orden/tiempos con `npm run sim` (el bot usa cintas, energía y tuberías).
 - Gráficos (murallas/interfaz/terreno) van en su propia sesión.
+- H5 parcial: `npm run sim` usa el bot de la guía (cintas, postes, bomba y tuberías) junto al bot sencillo, pero ahora **pierde en las oleadas 7-8** (antes sobrevivía 10 min). Pendiente: equilibrar la economía tras la guía (bastidores/engranajes). No verificado en pantalla: flechas de puertos, ruta de ejemplo y alcance de postes.

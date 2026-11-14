@@ -113,7 +113,7 @@ export const CONFIG = {
 
   coreHp: 300,
   /** Almacén inicial: componentes para las primeras obras, algo de materia prima, munición y comida. */
-  startItems: { frame: 20, gear: 14, wire: 6, gun_part: 4, pipe: 10, iron_plate: 30, copper_plate: 10, wood: 16, ammo: 40, food: 30, gasoline: 6 } as Bag,
+  startItems: { frame: 36, gear: 44, wire: 30, gun_part: 4, pipe: 24, iron_plate: 30, copper_plate: 10, wood: 16, ammo: 40, food: 30, gasoline: 6 } as Bag,
   /** Población inicial: 3 personas. */
   startNpcs: { constructor: 1, transporter: 1, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {

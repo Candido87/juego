@@ -79,7 +79,8 @@ export function affordable(game: Game, cost: Bag): boolean {
 
 /** Sin red, las cintas no se mueven: el bot pone sólo el taladro y deja que los Transportistas recojan. */
 function buildMine(game: Game, plan: MinePlan): boolean {
-  if (!game.grid.nets.some((n) => n.production > 0)) plan = { ...plan, belts: [] };
+  // Las cintas gastan energía: sólo se tienden si la red aguanta su consumo (si no, el taladro queda para los Transportistas).
+  if (!game.grid.nets.some((n) => n.production - n.demand >= CONFIG.power.demand.belt! * plan.belts.length)) plan = { ...plan, belts: [] };
   const cost: Bag = {};
   addAll(cost, CONFIG.buildings.drill.cost);
   for (let i = 0; i < plan.belts.length; i++) addAll(cost, CONFIG.buildings.belt.cost);

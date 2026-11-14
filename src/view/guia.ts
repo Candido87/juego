@@ -20,6 +20,7 @@ import {
   visibleStep,
 } from '../game/guia-inicio';
 import { GUIA_DONE, guiaText } from '../game/guia-inicio-textos';
+import { Diag, RouteTile, routeFor } from '../game/guia-flujo';
 import type { Tile } from '../game/types';
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -32,6 +33,7 @@ export class GuiaView {
   private lastHtml = '';
   private lastStepId = '';
   private targetCache: { id: string; at: number; tile: Tile | null } = { id: '', at: -99, tile: null };
+  private flowCache: { id: string; at: number; diag: Diag | null; route: RouteTile[] | null } = { id: '', at: -99, diag: null, route: null };
 
   constructor() {
     this.state = this.load();
@@ -98,6 +100,33 @@ export class GuiaView {
     return this.targetCache.tile;
   }
 
+  /** Diagnóstico y ruta de ejemplo del paso actual (se recalculan cada 0,5 s). */
+  private flow(): { diag: Diag | null; route: RouteTile[] | null } {
+    const st = this.step();
+    const sim = this.sim;
+    if (!st || !sim) return { diag: null, route: null };
+    const c = this.flowCache;
+    if (c.id !== st.id || sim.time - c.at > 0.5) {
+      this.flowCache = {
+        id: st.id,
+        at: sim.time,
+        diag: st.diagnose?.(sim) ?? null,
+        route: st.highlight?.route && st.link ? routeFor(sim, st.link) : null,
+      };
+    }
+    return this.flowCache;
+  }
+
+  /** Aviso concreto de por qué se ha atascado el jugador (con su casilla, si la tiene). */
+  diagnosis(): Diag | null {
+    return this.flow().diag;
+  }
+
+  /** Ruta de ejemplo: casillas con el sentido de la cinta o tubería. */
+  route(): RouteTile[] | null {
+    return this.flow().route;
+  }
+
   update(sim: Game, dt: number): void {
     this.sim = sim;
     if (this.toast) {
@@ -126,6 +155,7 @@ export class GuiaView {
       html = `<div class="g-done">${this.toast.text}</div>`;
     } else if (st) {
       const t = guiaText(sim, st);
+      const diag = this.diagnosis();
       const p = guiaProgress(this.state);
       const next = st.id === 'next' ? '<button data-guide="next">Entendido</button>' : '';
       html =
@@ -133,6 +163,7 @@ export class GuiaView {
         `<button data-guide="close" title="Cerrar este aviso">✕</button></div>` +
         `<div class="g-text">${t.text}</div>` +
         (t.missing ? `<div class="g-miss">${t.missing}</div>` : '') +
+        (diag ? `<div class="g-miss">⚠ ${diag.text}</div>` : '') +
         `<div class="g-foot">${next}<button data-guide="skip" title="No volver a mostrar la guía (se reabre desde la ayuda)">Saltar guía</button></div>`;
     }
     const key = html;

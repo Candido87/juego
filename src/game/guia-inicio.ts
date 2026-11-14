@@ -9,6 +9,7 @@
 import { CONFIG } from './config';
 import type { Building, Game } from './game';
 import { BuildKind, Ore, Tile } from './types';
+import { Diag, LinkSpec, diagnoseLink, diagnosePower, linkDone, powerStatus } from './guia-flujo';
 import { oreAt } from './world';
 
 export interface GuiaHighlight {
@@ -17,7 +18,13 @@ export interface GuiaHighlight {
   /** Elemento de la interfaz (id del DOM). */
   ui?: string;
   /** Zona del mapa que se señala con una flecha. */
-  target?: 'iron' | 'sulfur' | 'stone' | 'enemy_path' | 'core';
+  target?: 'iron' | 'sulfur' | 'stone' | 'oil' | 'enemy_path' | 'core';
+  /** Dibuja las flechas de entrada/salida de los edificios de estos tipos. */
+  ports?: BuildKind[];
+  /** Dibuja el alcance de los postes (conexión de edificios y enlace entre postes). */
+  poleRange?: boolean;
+  /** Dibuja la ruta de ejemplo (casillas con flecha) del enlace del paso. */
+  route?: boolean;
 }
 
 export interface GuiaStep {
@@ -33,6 +40,10 @@ export interface GuiaStep {
   when?: (g: Game, s: GuiaState) => boolean;
   /** Condición de cumplimiento. */
   done: (g: Game, s: GuiaState) => boolean;
+  /** Conexión que pide el paso (origen → destino): sirve para la ruta de ejemplo y los avisos. */
+  link?: LinkSpec;
+  /** Aviso concreto de por qué se ha atascado el jugador (null si todo va bien). */
+  diagnose?: (g: Game) => Diag | null;
 }
 
 export interface GuiaState {
@@ -59,22 +70,113 @@ const drillOn = (g: Game, ores: Ore[]) => built(g, (b) => b.kind === 'drill' && 
 const factoryWith = (g: Game, recipe: string) => built(g, (b) => b.kind === 'factory' && b.recipe === recipe);
 const flag = (s: GuiaState, f: string) => s.flags.includes(f);
 
-/** Pasos de la guía, en el orden eficiente: primero recursos, luego componentes, luego defensa. */
+// Enlaces (origen → destino) que piden los pasos de cintas y tuberías.
+export const L_IRON_STORE: LinkSpec = { from: 'drill', ore: [Ore.Iron], to: ['storage', 'core'] };
+export const L_IRON_FACTORY: LinkSpec = { from: 'drill', ore: [Ore.Iron], to: ['factory'], skipLinkedTo: ['storage', 'core'] };
+export const L_PLATES_STORE: LinkSpec = { from: 'factory', recipe: 'iron_plate', to: ['storage', 'core'] };
+export const L_AMMO_TURRET: LinkSpec = { from: 'factory', recipe: 'ammo', to: ['turret_bullet'] };
+export const L_PUMP_REFINERY: LinkSpec = { from: 'pump', to: ['refinery'] };
+export const L_REFINERY_GEN: LinkSpec = { from: 'refinery', to: ['generator'] };
+
+const anyBuilt = (g: Game, kinds: BuildKind[]) => built(g, (b) => kinds.includes(b.kind as BuildKind));
+const WALLS: BuildKind[] = ['wall_wood', 'wall_stone', 'wall_metal'];
+const consumers = (g: Game) => [...g.buildings.values()].filter((b) => b.built && ['belt', 'belt_fast', 'drill', 'factory', 'pump', 'refinery'].includes(b.kind));
+const gens = (g: Game) => [...g.buildings.values()].filter((b) => b.built && CONFIG.power.generators[b.kind as BuildKind]?.fuel);
+
+/** ¿Hay una red con producción y consumo (el HUD deja de marcar 0/0)? */
+export const powered = (g: Game) => g.grid.nets.some((n) => n.production > 0 && n.demand > 0);
+
+/** Pasos de la guía, en el orden eficiente: cintas, energía, defensa básica, petróleo, cadenas de producción y resto. */
 export const GUIA_STEPS: GuiaStep[] = [
-  { id: 'drill_iron', highlight: { tool: 'drill', target: 'iron' }, build: 'drill', done: (g) => drillOn(g, [Ore.Iron]) },
-  { id: 'storage', highlight: { tool: 'storage' }, build: 'storage', done: (g) => hasBuilt(g, 'storage') && (g.storage.iron_ore ?? 0) > 0 },
-  { id: 'factory_plates', highlight: { tool: 'factory' }, build: 'factory', recipe: 'iron_plate', done: (g) => factoryWith(g, 'iron_plate') },
+  { id: 'drill_iron', highlight: { tool: 'drill', target: 'iron', ports: ['drill'] }, build: 'drill', done: (g) => drillOn(g, [Ore.Iron]) },
+  { id: 'storage', highlight: { tool: 'storage' }, build: 'storage', done: (g) => hasBuilt(g, 'storage') },
+  {
+    id: 'belt_connect',
+    highlight: { tool: 'belt', ports: ['drill', 'storage'], route: true },
+    build: 'belt',
+    link: L_IRON_STORE,
+    done: (g) => linkDone(g, L_IRON_STORE),
+    diagnose: (g) => diagnoseLink(g, L_IRON_STORE, false),
+  },
+  { id: 'power_gen', highlight: { tool: 'generator', ports: ['generator'] }, build: 'generator', done: (g) => hasBuilt(g, 'generator') },
+  {
+    id: 'power_fuel',
+    highlight: { tool: 'generator' },
+    done: (g) => built(g, (b) => !!CONFIG.power.generators[b.kind as BuildKind]?.fuel && b.running),
+    diagnose: (g) => {
+      const ps = powerStatus(g);
+      if (!ps.generators) return null;
+      if (ps.running === 0 && ps.fuelLeft <= 0) return { code: 'no_fuel', text: 'No queda gasolina: sin ella el generador no arranca. Fabrica más con la bomba y la refinería (pasos de petróleo).' };
+      return null;
+    },
+  },
+  {
+    id: 'power_poles',
+    highlight: { tool: 'pole', poleRange: true },
+    build: 'pole',
+    done: (g) => powered(g),
+    diagnose: (g) => {
+      for (const b of [...gens(g), ...consumers(g)]) {
+        if (g.netOf(b)) continue;
+        return { code: 'no_pole', tile: { x: b.x, y: b.y }, text: `Esto no está en ninguna red: pon un poste a menos de ${CONFIG.power.supplyRadius} casillas y enlázalo con los demás (alcance ${CONFIG.power.wireRange}).` };
+      }
+      const b = consumers(g)[0];
+      return b ? diagnosePower(g, b) : null;
+    },
+  },
+  {
+    id: 'belt_flow',
+    highlight: { tool: 'belt', ports: ['drill', 'storage'] },
+    link: L_IRON_STORE,
+    done: (g) => (g.stats.beltTo.storage ?? 0) > 0,
+    diagnose: (g) => diagnoseLink(g, L_IRON_STORE, true),
+  },
   { id: 'farm', highlight: { tool: 'farm' }, build: 'farm', done: (g) => hasBuilt(g, 'farm') },
-  { id: 'drill_sulfur', highlight: { tool: 'drill', target: 'sulfur' }, build: 'drill', done: (g) => drillOn(g, [Ore.Sulfur]) },
-  { id: 'drill_stone', highlight: { tool: 'drill', target: 'stone' }, build: 'drill', done: (g) => drillOn(g, [Ore.Stone]) },
-  { id: 'factory_ammo', highlight: { tool: 'factory' }, build: 'factory', recipe: 'ammo', done: (g) => factoryWith(g, 'ammo') },
-  { id: 'factory_gun', highlight: { tool: 'factory' }, build: 'factory', recipe: 'gun_part', done: (g) => factoryWith(g, 'gun_part') },
   {
     id: 'turret',
-    highlight: { tool: 'turret_bullet', target: 'enemy_path' },
+    highlight: { tool: 'turret_bullet', target: 'enemy_path', ports: ['turret_bullet'] },
     build: 'turret_bullet',
     done: (g) => built(g, (b) => b.kind === 'turret_bullet' && g.turretReady(b)),
   },
+  { id: 'oil_pump', highlight: { tool: 'pump', target: 'oil', ports: ['pump'] }, build: 'pump', done: (g) => hasBuilt(g, 'pump') },
+  {
+    id: 'oil_refine',
+    highlight: { tool: 'pipeline', ports: ['pump', 'refinery'], route: true },
+    build: 'refinery',
+    link: L_PUMP_REFINERY,
+    done: (g) => (g.stats.pipeTo.refinery ?? 0) > 0,
+    diagnose: (g) => (hasBuilt(g, 'refinery') ? diagnoseLink(g, L_PUMP_REFINERY, true) : { code: 'no_refinery', text: 'Falta la refinería: construye una cerca de la bomba (déjale sitio para las tuberías).' }),
+  },
+  {
+    id: 'oil_fuel',
+    highlight: { tool: 'pipeline', ports: ['refinery', 'generator'], route: true },
+    link: L_REFINERY_GEN,
+    done: (g) => (g.stats.pipeTo.generator ?? 0) > 0 && g.stats.refined > 0,
+    diagnose: (g) => diagnoseLink(g, L_REFINERY_GEN, true),
+  },
+  { id: 'factory_plates', highlight: { tool: 'factory', ports: ['factory'] }, build: 'factory', recipe: 'iron_plate', done: (g) => factoryWith(g, 'iron_plate') },
+  {
+    id: 'chain_plates',
+    highlight: { tool: 'belt', ports: ['drill', 'factory', 'storage'], route: true },
+    build: 'belt',
+    link: L_IRON_FACTORY,
+    done: (g) => (g.stats.beltTo.factory ?? 0) > 0 && g.stats.manufacturedStored > 0,
+    diagnose: (g) => diagnoseLink(g, L_IRON_FACTORY, true) ?? diagnoseLink(g, L_PLATES_STORE, true),
+  },
+  { id: 'drill_sulfur', highlight: { tool: 'drill', target: 'sulfur' }, build: 'drill', done: (g) => drillOn(g, [Ore.Sulfur]) },
+  { id: 'drill_stone', highlight: { tool: 'drill', target: 'stone' }, build: 'drill', done: (g) => drillOn(g, [Ore.Stone]) },
+  { id: 'factory_ammo', highlight: { tool: 'factory', ports: ['factory'] }, build: 'factory', recipe: 'ammo', done: (g) => factoryWith(g, 'ammo') },
+  { id: 'factory_gun', highlight: { tool: 'factory' }, build: 'factory', recipe: 'gun_part', done: (g) => factoryWith(g, 'gun_part') },
+  {
+    id: 'chain_ammo',
+    highlight: { tool: 'belt', ports: ['factory', 'turret_bullet'], route: true },
+    build: 'belt',
+    link: L_AMMO_TURRET,
+    done: (g) => (g.stats.beltTo.turret_bullet ?? 0) > 0,
+    diagnose: (g) => diagnoseLink(g, L_AMMO_TURRET, true),
+  },
+  // Los muros se investigan en el árbol: el paso sólo aparece cuando ya se pueden construir.
+  { id: 'walls', highlight: { tool: 'wall_wood', target: 'enemy_path' }, build: 'wall_wood', when: (g) => WALLS.some((k) => g.unlockedBuildings.has(k)), done: (g) => anyBuilt(g, WALLS) },
   {
     id: 'wave_soon',
     urgent: true,
@@ -220,7 +322,7 @@ export function guideTargetTile(g: Game, target: NonNullable<GuiaHighlight['targ
     // Un tramo a unas 8 casillas del núcleo: sitio razonable para la primera torreta.
     return path[Math.max(0, path.length - 1 - CONFIG.guia.pathMarkDistance)] ?? null;
   }
-  const ores: Ore[] = target === 'iron' ? [Ore.Iron] : target === 'sulfur' ? [Ore.Sulfur] : [Ore.Stone, Ore.Coal];
+  const ores: Ore[] = target === 'iron' ? [Ore.Iron] : target === 'sulfur' ? [Ore.Sulfur] : target === 'oil' ? [Ore.Oil] : [Ore.Stone, Ore.Coal];
   let best: Tile | null = null;
   let bd = Infinity;
   for (let y = 0; y < g.world.h; y++) {

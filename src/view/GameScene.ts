@@ -712,6 +712,50 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Ayudas visuales de la guía: puertos de los edificios del paso, ruta de ejemplo, alcance de postes y casilla del problema. */
+  private drawGuideAids(g: Phaser.GameObjects.Graphics, world: typeof this.sim.world) {
+    const guia = getHud().guia;
+    const st = guia.step();
+    const hl = st?.highlight;
+    if (!st || !hl) return;
+    if (hl.ports) for (const b of this.sim.buildings.values()) if (b.built && hl.ports.includes(b.kind as BuildKind)) this.drawPorts(g, b.kind, b.x, b.y, b.dir, 0.9);
+    if (hl.poleRange) {
+      const R = CONFIG.power.supplyRadius;
+      for (const p of this.sim.buildings.values()) {
+        if (p.kind !== 'pole' || !p.built) continue;
+        const z = heightAt(world, p.x, p.y);
+        g.fillStyle(0xffe066, 0.1).fillPoints(this.tileOutline(p.x - R, p.y - R, 2 * R + 1, 2 * R + 1, z), true);
+        g.lineStyle(1.5, 0xffe066, 0.7).strokePoints(this.tileOutline(p.x - R, p.y - R, 2 * R + 1, 2 * R + 1, z), true);
+      }
+    }
+    const route = guia.route();
+    if (route) {
+      const pulse = 0.55 + 0.25 * Math.sin(this.sim.time * 4);
+      const liquid = st.link?.from === 'pump' || st.link?.from === 'refinery';
+      const color = liquid ? 0x6fd3ff : 0xffd166;
+      for (const r of route) {
+        const z = heightAt(world, r.x, r.y);
+        g.fillStyle(color, 0.18 * pulse).fillPoints(this.tileOutline(r.x, r.y, 1, 1, z), true);
+        this.drawArrow(g, r.x, r.y, r.dir, z, color, pulse);
+      }
+    }
+    const d = guia.diagnosis();
+    if (d?.tile) {
+      const z = heightAt(world, d.tile.x, d.tile.y);
+      const pulse = 0.5 + 0.5 * Math.sin(this.sim.time * 6);
+      g.lineStyle(3, 0xff5555, 0.5 + 0.5 * pulse).strokePoints(this.tileOutline(d.tile.x, d.tile.y, 1, 1, z), true);
+    }
+  }
+
+  /** Flecha pequeña en el centro de una casilla apuntando en el sentido `dir` de la cuadrícula. */
+  private drawArrow(g: Phaser.GameObjects.Graphics, x: number, y: number, dir: Dir, z: number, color: number, alpha: number) {
+    const c = gridToScreen(x + 0.5, y + 0.5, z);
+    const f = { x: DX[dir] - DY[dir], y: (DX[dir] + DY[dir]) * 0.5 };
+    const n = { x: -f.y * 2, y: f.x * 0.5 };
+    const L = 11;
+    g.fillStyle(color, alpha).fillTriangle(c.x + f.x * L, c.y + f.y * L, c.x - f.x * L * 0.4 + n.x * 4, c.y - f.y * L * 0.4 + n.y * 4, c.x - f.x * L * 0.4 - n.x * 4, c.y - f.y * L * 0.4 - n.y * 4);
+  }
+
   /** Flecha que rebota y rombo sobre la casilla que recomienda la guía de inicio. */
   private drawGuideMark(g: Phaser.GameObjects.Graphics, world: typeof this.sim.world) {
     const t = getHud().guia.targetTile();
@@ -753,6 +797,7 @@ export class GameScene extends Phaser.Scene {
     const world = this.sim.world;
 
     this.drawGuideMark(g, world);
+    this.drawGuideAids(g, world);
     this.drawTurretFx(g, world);
 
     const sel = ui.selected !== null ? this.sim.buildings.get(ui.selected) : undefined;

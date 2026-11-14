@@ -136,6 +136,6 @@ describe('un jugador que sigue la guía llega a la primera oleada con defensa', 
     const turrets = [...g.buildings.values()].filter((b) => b.kind === 'turret_bullet' && b.built);
     expect(turrets.length).toBeGreaterThan(0);
     expect(turrets.some((b) => g.turretReady(b))).toBe(true);
-    expect(s.completed).toEqual(expect.arrayContaining(['drill_iron', 'factory_plates', 'farm', 'turret']));
+    expect(s.completed).toEqual(expect.arrayContaining(['drill_iron', 'belt_connect', 'power_poles', 'belt_flow', 'farm', 'turret']));
   });
 });
