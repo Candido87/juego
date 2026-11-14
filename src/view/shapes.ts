@@ -221,6 +221,17 @@ function beltShape(dir: Dir, fast: boolean): ShapeDef {
   };
 }
 
+/** Tubería: tubo bajo con flecha de flujo; la vista la tiñe según el líquido que lleva. */
+function pipeShape(dir: Dir): ShapeDef {
+  return {
+    parts: [
+      { x: 0.12, y: 0.12, w: 0.76, d: 0.76, z: 0, h: 7, color: 0x8a949f, edge: 0.3 },
+      { x: 0.3, y: 0.3, w: 0.4, d: 0.4, z: 7, h: 2, color: 0x56606b, edge: 0 },
+    ],
+    decal: arrowDecal(dir, 9, 0xffffff, 0.8),
+  };
+}
+
 function drillShape(dir: Dir): ShapeDef {
   return {
     parts: [
@@ -433,6 +444,7 @@ for (let d = 0; d < 4; d++) {
   const dir = d as Dir;
   SHAPES[`belt_${d}`] = beltShape(dir, false);
   SHAPES[`belt_fast_${d}`] = beltShape(dir, true);
+  SHAPES[`pipeline_${d}`] = pipeShape(dir);
   SHAPES[`drill_${d}`] = drillShape(dir);
   SHAPES[`factory_${d}`] = factoryShape(dir);
   SHAPES[`farm_${d}`] = farmShape(dir);
@@ -457,7 +469,7 @@ export const MUZZLE_Z = 52;
 /** Altura de vuelo de los voladores (px). */
 export const FLY_Z = 28;
 
-const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'drill', 'factory', 'feeder', 'farm', 'pump', 'refinery']);
+const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'pipeline', 'drill', 'factory', 'feeder', 'farm', 'pump', 'refinery']);
 export function shapeKey(kind: BuildingKind, dir: Dir): string {
   return DIRECTIONAL.has(kind) ? `${kind}_${dir}` : kind;
 }

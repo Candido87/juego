@@ -50,6 +50,10 @@ export const ITEM_IDS = [
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 
+/** Líquidos: sólo viajan por tuberías (nunca por cintas). */
+export const LIQUIDS: readonly ItemId[] = ['oil', 'gasoline'];
+export const isLiquid = (i: ItemId): boolean => LIQUIDS.includes(i);
+
 /** Bolsa de objetos: id → cantidad. */
 export type Bag = Partial<Record<ItemId, number>>;
 
@@ -57,6 +61,7 @@ export const BUILD_KINDS = [
   'drill',
   'belt',
   'belt_fast',
+  'pipeline',
   'storage',
   'factory',
   'farm',

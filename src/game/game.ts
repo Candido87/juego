@@ -21,6 +21,7 @@ import {
   Ore,
   Tile,
   TurretKind,
+  isLiquid,
   opposite,
 } from './types';
 import { World, coreOrigin, generateWorld, inBounds, oreAt, spawnPoints } from './world';
@@ -538,6 +539,7 @@ export class Game {
   outputFlows(b: Building): boolean {
     const front = this.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
     if (!front || !front.built) return false;
+    if (front.kind === 'pipeline') return true;
     if (this.def(front.kind).storage) return true;
     // Una cinta sólo se lleva la salida si tiene energía.
     return (front.kind === 'belt' || front.kind === 'belt_fast') && powerMult(front) > 0;
@@ -618,6 +620,7 @@ export class Game {
     this.jobs.update(this, dt);
     for (const n of [...this.npcs]) stepNpc(this, n, dt);
     this.stepBelts(dt);
+    this.stepPipes(dt);
     this.stepDrills(dt);
     this.stepFactories(dt);
     this.stepTurrets(dt);
@@ -884,16 +887,33 @@ export class Game {
   }
 
   /** Intenta meter un objeto en (x,y) viniendo en dirección `dir`. */
-  pushItem(x: number, y: number, item: ItemId, dir: Dir): boolean {
+  pushItem(x: number, y: number, item: ItemId, dir: Dir, src?: Building): boolean {
     const b = this.buildingAt(x, y);
     if (!b || !b.built) return false;
+    const belt = b.kind === 'belt' || b.kind === 'belt_fast';
+    if (isLiquid(item)) {
+      // Los líquidos sólo viajan por tuberías: un productor sólo puede sacarlos a una tubería.
+      if (belt) return false;
+      if (src && src.kind !== 'pipeline' && b.kind !== 'pipeline') return false;
+      if (b.kind === 'pipeline') {
+        if (b.dir === opposite(dir)) return false;
+        const have = Object.keys(b.inv)[0] as ItemId | undefined;
+        if ((have && have !== item) || count(b.inv, item) >= CONFIG.pipe.cap) return false;
+        add(b.inv, item, 1);
+        return true;
+      }
+    } else {
+      if (b.kind === 'pipeline') return false;
+      // Un productor no pasa material a otro edificio de producción: sólo a cintas y almacenes.
+      if (src && isProducer(src.kind) && !belt && !this.def(b.kind).storage) return false;
+    }
     if (this.def(b.kind).storage) {
       add(this.storage, item, 1);
       this.stats.delivered++;
       this.emit({ type: 'deliver', item });
       return true;
     }
-    if (b.kind === 'belt' || b.kind === 'belt_fast') {
+    if (belt) {
       if (b.item !== null || b.dir === opposite(dir)) return false;
       b.item = item;
       b.beltProgress = 0;
@@ -948,9 +968,27 @@ export class Game {
       const speed = (b.kind === 'belt_fast' ? CONFIG.belt.fastSpeed : CONFIG.belt.speed) * powerMult(b);
       if (speed <= 0) continue;
       b.beltProgress = Math.min(1, b.beltProgress + speed * dt);
-      if (b.beltProgress >= 1 && this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], b.item, b.dir)) {
+      if (b.beltProgress >= 1 && this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], b.item, b.dir, b)) {
         b.item = null;
         b.beltProgress = 0;
+      }
+    }
+  }
+
+  /** Tuberías: pasan líquido a la casilla de delante (sin energía); `b.timer` acumula el caudal. */
+  private stepPipes(dt: number): void {
+    for (const b of this.buildings.values()) {
+      if (b.kind !== 'pipeline' || !b.built) continue;
+      const item = Object.keys(b.inv).find((k) => count(b.inv, k as ItemId) > 0) as ItemId | undefined;
+      if (!item) {
+        b.timer = 0;
+        continue;
+      }
+      b.timer = Math.min(CONFIG.pipe.rate, b.timer + CONFIG.pipe.rate * dt);
+      while (b.timer >= 1 && count(b.inv, item) > 0) {
+        if (!this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], item, b.dir, b)) break;
+        take(b.inv, item, 1);
+        b.timer -= 1;
       }
     }
   }
@@ -958,7 +996,7 @@ export class Game {
   /** Saca un objeto de `out` hacia la casilla de delante (cinta, almacén...). */
   private pushOutput(b: Building): void {
     for (const [item] of entries(b.out)) {
-      if (this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], item, b.dir)) {
+      if (this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], item, b.dir, b)) {
         add(b.out, item, -1);
         return;
       }
@@ -1167,9 +1205,12 @@ export class Game {
 }
 
 /** Edificios que se pueden girar (tienen salida o dirección). */
-export const ROTATABLE: BuildingKind[] = ['belt', 'belt_fast', 'drill', 'factory', 'feeder', 'farm', 'pump', 'refinery'];
+export const ROTATABLE: BuildingKind[] = ['belt', 'belt_fast', 'pipeline', 'drill', 'factory', 'feeder', 'farm', 'pump', 'refinery'];
 
 /** Edificios que transforman entradas en salidas con una receta. */
+/** Edificios de producción: no se pasan material entre sí; su salida sólo la aceptan cintas, tuberías o almacenes. */
+export const isProducer = (k: BuildingKind) => k === 'drill' || k === 'farm' || k === 'pump' || k === 'factory' || k === 'refinery';
+
 export const isCrafter = (k: BuildingKind) => k === 'factory' || k === 'refinery';
 
 export const ORE_ITEM: Record<number, ItemId | undefined> = {

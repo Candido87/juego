@@ -7,8 +7,9 @@ import { CONFIG } from '../game/config';
 import { Building, Enemy, Game } from '../game/game';
 import { HALF_H, HALF_W, Vec2, depthOf, gridToScreen, occludes, pickTile } from '../game/iso';
 import { ItemId } from '../game/types';
-import { BuildKind, Dir, DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
-import { MAX_HEIGHT, heightAt, heightAtPoint, oreAt } from '../game/world';
+import { ports } from '../game/puertos';
+import { BuildKind, BuildingKind, Dir, DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
+import { MAX_HEIGHT, heightAt, heightAtPoint, inBounds, oreAt } from '../game/world';
 import {
   FLY_Z,
   MUZZLE_Z,
@@ -83,6 +84,13 @@ const ORE_NAMES: Record<number, string> = {
   [Ore.Oil]: 'petróleo',
   [Ore.Sulfur]: 'azufre',
 };
+
+/** Color del tubo según lo que lleva: vacío gris, petróleo oscuro, gasolina ámbar. */
+function pipeTint(inv: Record<string, number | undefined>): number {
+  if ((inv.oil ?? 0) > 0) return 0x4a3f6b;
+  if ((inv.gasoline ?? 0) > 0) return 0xffc233;
+  return 0xb8c0c8;
+}
 
 export class GameScene extends Phaser.Scene {
   private sim!: Game;
@@ -199,7 +207,7 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.updateHover();
-      if (p.button === 0 && p.event.shiftKey && (ui.tool === 'belt' || ui.tool === 'belt_fast') && this.hover) {
+      if (p.button === 0 && p.event.shiftKey && (ui.tool === 'belt' || ui.tool === 'belt_fast' || ui.tool === 'pipeline') && this.hover) {
         this.painting = { ...this.hover };
         this.placeAt(this.hover);
         return;
@@ -374,7 +382,7 @@ export class GameScene extends Phaser.Scene {
       if (!s) {
         const info = shapeInfo(key);
         const pos = gridToScreen(b.x, b.y, heightAt(world, b.x, b.y));
-        const flat = b.kind === 'belt' || b.kind === 'belt_fast';
+        const flat = b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline';
         const img = this.add
           .image(pos.x, pos.y, key)
           .setOrigin(info.originX, info.originY)
@@ -435,6 +443,7 @@ export class GameScene extends Phaser.Scene {
       if (b.kind === 'factory') this.syncFactoryIndicator(b, s);
       if (!b.built) s.img.setTint(0xbfd4ff);
       else if (b.markedForRemoval) s.img.setTint(0xff8080);
+      else if (b.kind === 'pipeline') s.img.setTint(pipeTint(b.inv));
       else if (s.head && !this.sim.turretReady(b)) s.img.setTint(0x9a9fb0);
       else s.img.clearTint();
       // Luz de alarma: torreta sin munición o generador parado.
@@ -717,6 +726,26 @@ export class GameScene extends Phaser.Scene {
     g.lineStyle(1.5, 0x3a2d05, 1).strokeTriangle(c.x, y + 14, c.x - 9, y, c.x + 9, y);
   }
 
+  /** Flechas de entrada (contorno) y salida (relleno) de un edificio: dónde conectar cintas (amarillo) y tuberías (celeste). */
+  drawPorts(g: Phaser.GameObjects.Graphics, kind: BuildingKind, x: number, y: number, dir: Dir, alpha = 1) {
+    const world = this.sim.world;
+    const pulse = 0.75 + 0.25 * Math.sin(this.sim.time * 5);
+    for (const p of ports(kind, x, y, dir)) {
+      if (!inBounds(world, p.x, p.y)) continue;
+      const z = heightAt(world, p.x, p.y);
+      const c = gridToScreen(p.x + 0.5, p.y + 0.5, z);
+      const color = p.medium === 'liquid' ? 0x6fd3ff : 0xffd166;
+      const f = { x: DX[p.dir] - DY[p.dir], y: (DX[p.dir] + DY[p.dir]) * 0.5 }; // dirección en pantalla
+      const n = { x: -f.y * 2, y: f.x * 0.5 }; // perpendicular aproximada
+      const L = 13;
+      const tip = { x: c.x + f.x * L * 0.9, y: c.y + f.y * L * 0.9 };
+      const b1 = { x: c.x - f.x * L * 0.5 + n.x * 5, y: c.y - f.y * L * 0.5 + n.y * 5 };
+      const b2 = { x: c.x - f.x * L * 0.5 - n.x * 5, y: c.y - f.y * L * 0.5 - n.y * 5 };
+      if (p.io === 'out') g.fillStyle(color, 0.9 * pulse * alpha).fillTriangle(tip.x, tip.y, b1.x, b1.y, b2.x, b2.y);
+      g.lineStyle(2, color, alpha).strokeTriangle(tip.x, tip.y, b1.x, b1.y, b2.x, b2.y);
+    }
+  }
+
   private drawOverlay() {
     const g = this.overlay;
     g.clear();
@@ -733,6 +762,10 @@ export class GameScene extends Phaser.Scene {
       g.lineStyle(2, 0x6fd3ff, 1).strokePoints(pts, true);
       if (sel.kind in CONFIG.turrets) this.drawRange(sel, heightAt(world, sel.x, sel.y), CONFIG.turrets[sel.kind as TurretKind].range, 0x6fd3ff);
     }
+
+    if (sel) this.drawPorts(g, sel.kind, sel.x, sel.y, sel.dir);
+    const hb = this.hover && ui.tool === null ? this.sim.buildingAt(this.hover.x, this.hover.y) : undefined;
+    if (hb && hb !== sel && hb.built) this.drawPorts(g, hb.kind, hb.x, hb.y, hb.dir, 0.8);
 
     const t = this.hover;
     if (!t) return;
@@ -761,6 +794,7 @@ export class GameScene extends Phaser.Scene {
         .setDepth(depthOf(t.x, t.y, L.ghost))
         .setTint(ok ? 0xb8ffbf : 0xff8080)
         .setVisible(true);
+      this.drawPorts(g, ui.tool, t.x, t.y, ui.dir, 0.9);
       if (ui.tool in CONFIG.turrets) this.drawRange(t, z, CONFIG.turrets[ui.tool as TurretKind].range, color);
     }
     const pts = this.tileOutline(t.x, t.y, 1, 1, z);

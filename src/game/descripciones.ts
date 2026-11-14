@@ -18,6 +18,7 @@ export const QUE: Record<BuildingKind, string> = {
   drill: 'Extrae mena del yacimiento que tiene debajo.',
   belt: 'Mueve objetos de una casilla a la siguiente.',
   belt_fast: 'Cinta que mueve los objetos más deprisa.',
+  pipeline: 'Lleva petróleo o gasolina en el sentido de la flecha. No usa electricidad.',
   storage: 'Punto de entrega: las cintas y los Transportistas dejan aquí lo que llevan.',
   factory: 'Transforma materiales en otros según la receta que elijas.',
   farm: 'Cultiva comida de forma continua.',
@@ -46,6 +47,7 @@ export const SIRVE: Record<BuildingKind, string> = {
   drill: 'Es el primer paso de la industria: sin mena no hay placas, componentes ni munición. Se coloca sobre un yacimiento.',
   belt: 'Une taladros, fábricas y almacén sin que nadie acarree. Sin electricidad no se mueve: entonces los Transportistas lo hacen a mano.',
   belt_fast: 'Para rutas con mucho tráfico. Igual que la cinta, necesita electricidad.',
+  pipeline: 'Los líquidos no van en cinta: bomba → tubería → refinería → tubería → generador. Se coloca y se gira como una cinta.',
   storage: 'El inventario es global, así que no amplía lo que puedes guardar; sirve de destino cercano para cintas y NPCs.',
   factory: 'Aquí salen las placas, engranajes, bastidores y demás componentes que piden todos los edificios. Hay que elegir una receta.',
   farm: 'La gente come cada poco: sin comida hay hambre, se trabaja más despacio y acaban marchándose. Se coloca en tierra sin mena.',
@@ -191,6 +193,10 @@ export function buildingStats(kind: BuildingKind): Stat[] {
     const sp = kind === 'belt' ? CONFIG.belt.speed : CONFIG.belt.fastSpeed;
     s.push({ key: 'beltSpeed', label: 'Velocidad', value: sp, unit: 'casillas/s' });
   }
+  if (kind === 'pipeline') {
+    s.push({ key: 'pipeCap', label: 'Capacidad', value: CONFIG.pipe.cap, unit: 'unidades' });
+    s.push({ key: 'pipeRate', label: 'Caudal', value: CONFIG.pipe.rate, unit: 'unidades/s' });
+  }
   const gen = P.generators[kind as BuildKind];
   if (gen) {
     s.push({ key: 'power', label: 'Produce', value: gen.power, unit: 'energía/s' });
@@ -322,7 +328,7 @@ export interface Category {
 /** Categorías del menú de construcción. Cada edificio está en exactamente una (lo comprueba un test). */
 export const CATEGORIES: Category[] = [
   { id: 'extraction', name: 'Extracción', kinds: ['drill', 'pump'] },
-  { id: 'transport', name: 'Transporte', kinds: ['belt', 'belt_fast', 'feeder', 'storage'] },
+  { id: 'transport', name: 'Transporte', kinds: ['belt', 'belt_fast', 'pipeline', 'feeder', 'storage'] },
   { id: 'industry', name: 'Industria', kinds: ['factory', 'refinery'] },
   { id: 'energy', name: 'Energía', kinds: ['pole', 'generator', 'solar', 'turbine', 'accumulator'] },
   { id: 'defense', name: 'Defensa', kinds: ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'wall_wood', 'wall_stone', 'wall_metal'] },

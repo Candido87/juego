@@ -113,11 +113,11 @@ export const CONFIG = {
 
   coreHp: 300,
   /** Almacén inicial: componentes para las primeras obras, algo de materia prima, munición y comida. */
-  startItems: { frame: 20, gear: 14, wire: 6, gun_part: 4, pipe: 4, iron_plate: 30, copper_plate: 10, wood: 16, ammo: 40, food: 30, gasoline: 6 } as Bag,
+  startItems: { frame: 20, gear: 14, wire: 6, gun_part: 4, pipe: 10, iron_plate: 30, copper_plate: 10, wood: 16, ammo: 40, food: 30, gasoline: 6 } as Bag,
   /** Población inicial: 3 personas. */
   startNpcs: { constructor: 1, transporter: 1, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
-    buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'pump', 'refinery', 'workshop', 'house', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
+    buildings: ['drill', 'belt', 'pipeline', 'storage', 'factory', 'farm', 'pump', 'refinery', 'workshop', 'house', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
     /** Recetas de nivel 1. Las de nivel 2 (circuito, batería, placa de muro, ciencia II) llegan con el árbol. */
     recipes: ['iron_plate', 'copper_plate', 'brick', 'gear', 'frame', 'wire', 'pipe', 'gun_part', 'ammo', 'tool_kit', 'science_1'],
   },
@@ -157,6 +157,7 @@ export const CONFIG = {
     drill: { name: 'Taladro', cost: { frame: 1, gear: 2 }, buildTime: 3, hp: 60, solid: true, size: [1, 1] },
     belt: { name: 'Cinta', cost: { gear: 1 }, buildTime: 0.6, hp: 20, solid: false, size: [1, 1] },
     belt_fast: { name: 'Cinta rápida', cost: { gear: 1, wire: 1 }, buildTime: 0.8, hp: 25, solid: false, size: [1, 1] },
+    pipeline: { name: 'Tubería', cost: { pipe: 1 }, buildTime: 0.6, hp: 25, solid: false, size: [1, 1] },
     storage: { name: 'Almacén', cost: { frame: 3 }, buildTime: 4, hp: 120, solid: true, size: [1, 1], storage: true },
     factory: { name: 'Fábrica', cost: { frame: 3, gear: 2 }, buildTime: 5, hp: 100, solid: true, size: [1, 1] },
     farm: { name: 'Granja', cost: { frame: 2, gear: 1 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
@@ -181,6 +182,8 @@ export const CONFIG = {
   coreDef: { name: 'Núcleo', cost: {}, buildTime: 0, hp: 300, solid: true, size: [2, 2], storage: true } as BuildingDef,
 
   belt: { speed: 2, fastSpeed: 4 },
+  /** Tuberías (sin energía): unidades de líquido que caben por casilla y que pasan a la siguiente por segundo. */
+  pipe: { cap: 4, rate: 4 },
   drill: { period: 2, outCap: 6 },
   /** Granja: 1 comida cada `period` s (sin red; con red, más rápido según power.mult.farm). */
   farm: { period: 4, outCap: 8 },
@@ -379,7 +382,7 @@ export const CONFIG = {
     mapW: 24,
     mapH: 24,
     /** Almacén inicial del tutorial: sin menas (así "llegó mena al almacén" demuestra el transporte a mano). */
-    startItems: { frame: 14, gear: 12, wire: 8, pipe: 6, gun_part: 4, iron_plate: 20, copper_plate: 6, wood: 12, ammo: 20, food: 40, gasoline: 6 } as Bag,
+    startItems: { frame: 14, gear: 12, wire: 8, pipe: 12, gun_part: 4, iron_plate: 20, copper_plate: 6, wood: 12, ammo: 20, food: 40, gasoline: 6 } as Bag,
     /** Con 3 personas el taller y la obra se estorban: el tutorial acorta la llegada de gente. */
     growthTimer: 5,
     /** Población que el tutorial intenta alcanzar antes del taller. */
