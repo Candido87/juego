@@ -98,7 +98,7 @@ export const CONFIG = {
   startItems: { iron_plate: 60, gear: 24, copper_plate: 10, wood: 12, ammo: 40 } as Bag,
   startNpcs: { constructor: 2, transporter: 2, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
-    buildings: ['drill', 'belt', 'storage', 'factory', 'turret_bullet'] as BuildKind[],
+    buildings: ['drill', 'belt', 'storage', 'factory', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
     recipes: ['iron_plate', 'copper_plate', 'gear', 'ammo', 'brick', 'circuit', 'battery', 'wall_plate', 'science_1', 'science_2'],
   },
 
@@ -126,8 +126,12 @@ export const CONFIG = {
     belt_fast: { name: 'Cinta rápida', cost: { iron_plate: 1, gear: 1 }, buildTime: 0.8, hp: 25, solid: false, size: [1, 1] },
     storage: { name: 'Almacén', cost: { iron_plate: 6, wood: 4 }, buildTime: 4, hp: 120, solid: true, size: [1, 1], storage: true },
     factory: { name: 'Fábrica', cost: { iron_plate: 8, gear: 4 }, buildTime: 5, hp: 100, solid: true, size: [1, 1] },
-    generator: { name: 'Generador', cost: { iron_plate: 6, copper_plate: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
-    accumulator: { name: 'Acumulador', cost: { battery: 4, iron_plate: 2 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
+    pole: { name: 'Poste', cost: { wood: 2, copper_plate: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
+    generator: { name: 'Generador de combustión', cost: { iron_plate: 6, copper_plate: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
+    solar: { name: 'Panel solar', cost: { copper_plate: 6, circuit: 3, iron_plate: 2 }, buildTime: 4, hp: 50, solid: true, size: [1, 1] },
+    turbine: { name: 'Turbina de vapor', cost: { iron_plate: 10, circuit: 4, brick: 4 }, buildTime: 7, hp: 120, solid: true, size: [1, 1] },
+    accumulator: { name: 'Batería', cost: { battery: 4, iron_plate: 2 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
+    feeder: { name: 'Alimentador', cost: { iron_plate: 2, gear: 2, circuit: 1 }, buildTime: 1.5, hp: 40, solid: true, size: [1, 1] },
     turret_bullet: { name: 'Torreta de balas', cost: { iron_plate: 6, gear: 3 }, buildTime: 4, hp: 100, solid: true, size: [1, 1] },
     turret_laser: { name: 'Torreta láser', cost: { copper_plate: 6, circuit: 4 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
     turret_fire: { name: 'Lanzallamas', cost: { iron_plate: 6, brick: 4, gear: 2 }, buildTime: 5, hp: 120, solid: true, size: [1, 1] },
@@ -140,13 +144,33 @@ export const CONFIG = {
 
   belt: { speed: 2, fastSpeed: 4 },
   drill: { period: 2, outCap: 6 },
-  /** speed: multiplicador de velocidad de fabricación (manual, sin energía). */
-  factory: { inputBatches: 3, outCap: 10, speed: 1 },
+  factory: { inputBatches: 3, outCap: 10 },
+
+  /** Red eléctrica. Potencias en unidades/s; la energía de batería en unidades. */
+  power: {
+    /** Alcance de cable entre postes (casillas, distancia euclídea entre centros). */
+    wireRange: 6,
+    /** Distancia Chebyshev máxima entre un edificio y su poste. */
+    supplyRadius: 2,
+    /** Consumo de cada edificio conectado. */
+    demand: { belt: 0.5, belt_fast: 1, drill: 3, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6 } as Partial<Record<BuildKind, number>>,
+    /** Multiplicador de rendimiento [sin red, con red]; con apagón se interpola según la satisfacción. */
+    mult: { drill: [1, 2], factory: [0.5, 1.5] } as Partial<Record<BuildKind, [number, number]>>,
+    generators: {
+      generator: { power: 20, fuel: 'coal', burnTime: 8, fuelCap: 10 },
+      turbine: { power: 60, fuel: 'coal', burnTime: 6, fuelCap: 10 },
+      solar: { power: 5 },
+    } as Partial<Record<BuildKind, { power: number; fuel?: ItemId; burnTime?: number; fuelCap?: number }>>,
+    batteryCapacity: 400,
+    /** Segundos que tarda un Operario en arrancar un generador parado. */
+    startTime: 2,
+    /** Por defecto, las torretas son consumidores críticos. */
+    criticalByDefault: ['turret_laser', 'turret_frost'] as BuildKind[],
+  },
   /** Cada unidad del primer material del coste repara esta fracción de la vida. */
   repair: { fractionPerUnit: 0.34, secondsPerUnit: 0.6 },
   deconstruct: { refund: 0.5, timeFactor: 0.5 },
 
-  energy: { baseCapacity: 50, accumulatorCapacity: 300, generatorPower: 10, coalBurnTime: 8, generatorFuelCap: 10 },
 
   turrets: {
     turret_bullet: {
@@ -197,7 +221,7 @@ export const CONFIG = {
 
   jobs: {
     scanInterval: 0.5,
-    priority: { build: 2, deconstruct: 1, repair: 3, supply: 2, collect: 1, maintain: 2 } as Record<JobType, number>,
+    priority: { build: 2, deconstruct: 1, repair: 3, supply: 2, collect: 1, maintain: 2, start: 4 } as Record<JobType, number>,
     /** Prioridad extra para torretas sin munición/energía. */
     urgentBonus: 3,
     /** Se pide abastecer cuando queda menos de esta fracción. */

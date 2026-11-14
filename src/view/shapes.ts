@@ -270,6 +270,42 @@ export const SHAPES: Record<string, ShapeDef> = {
     tall: true,
     shadow: 'shadow_1',
   },
+  pole: {
+    parts: [
+      { x: 0.42, y: 0.42, w: 0.16, d: 0.16, z: 0, h: 44, color: 0x7a5a3a },
+      { x: 0.2, y: 0.45, w: 0.6, d: 0.1, z: 40, h: 4, color: 0x5a4030 },
+      { x: 0.22, y: 0.44, w: 0.08, d: 0.12, z: 44, h: 4, color: 0xd9a066 },
+      { x: 0.7, y: 0.44, w: 0.08, d: 0.12, z: 44, h: 4, color: 0xd9a066 },
+    ],
+    tall: true,
+  },
+  solar: {
+    parts: [
+      { x: 0.1, y: 0.1, w: 0.8, d: 0.8, z: 0, h: 6, color: COLORS.dark },
+      { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 6, h: 3, color: 0x1e3a6e },
+    ],
+    decal: (g, P) => {
+      g.lineStyle(1, 0x6fa8ff, 0.6);
+      for (const t of [0.35, 0.65]) {
+        const a = P(0.08, t, 9);
+        const b = P(0.92, t, 9);
+        const c = P(t, 0.08, 9);
+        const d = P(t, 0.92, 9);
+        g.lineBetween(a.x, a.y, b.x, b.y);
+        g.lineBetween(c.x, c.y, d.x, d.y);
+      }
+    },
+    shadow: 'shadow_1',
+  },
+  turbine: {
+    parts: [
+      { x: 0.05, y: 0.05, w: 0.9, d: 0.9, z: 0, h: 14, color: 0x5d6b78 },
+      { x: 0.15, y: 0.15, w: 0.5, d: 0.5, z: 14, h: 22, color: 0x8a99a8 },
+      { x: 0.68, y: 0.2, w: 0.2, d: 0.2, z: 14, h: 34, color: COLORS.dark },
+    ],
+    tall: true,
+    shadow: 'shadow_1',
+  },
   accumulator: {
     parts: [
       { x: 0.12, y: 0.12, w: 0.76, d: 0.76, z: 0, h: 8, color: COLORS.dark },
@@ -293,7 +329,17 @@ for (let d = 0; d < 4; d++) {
   SHAPES[`belt_fast_${d}`] = beltShape(dir, true);
   SHAPES[`drill_${d}`] = drillShape(dir);
   SHAPES[`factory_${d}`] = factoryShape(dir);
+  SHAPES[`feeder_${d}`] = {
+    parts: [
+      { x: 0.15, y: 0.15, w: 0.7, d: 0.7, z: 0, h: 8, color: 0x4a6a5a },
+      { x: 0.35, y: 0.35, w: 0.3, d: 0.3, z: 8, h: 10, color: 0x7fbf9f },
+    ],
+    decal: arrowDecal(dir, 8, COLORS.beltArrowFast, 0.8),
+  };
 }
+
+/** Altura (px) a la que cuelgan los cables de los postes. */
+export const WIRE_Z = 46;
 for (const k of ENEMY_KINDS) SHAPES[`enemy_${k}`] = enemyShape(k);
 for (const r of NPC_ROLES) SHAPES[`npc_${r}`] = npcShape(r);
 for (const i of ITEM_IDS) SHAPES[`item_${i}`] = itemShape(i);
@@ -303,7 +349,7 @@ export const MUZZLE_Z = 52;
 /** Altura de vuelo de los voladores (px). */
 export const FLY_Z = 28;
 
-const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'drill', 'factory']);
+const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'drill', 'factory', 'feeder']);
 export function shapeKey(kind: BuildingKind, dir: Dir): string {
   return DIRECTIONAL.has(kind) ? `${kind}_${dir}` : kind;
 }

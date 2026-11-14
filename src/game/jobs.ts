@@ -26,6 +26,7 @@ export const JOB_ROLE: Record<JobType, NpcRole> = {
   supply: 'transporter',
   collect: 'transporter',
   maintain: 'operator',
+  start: 'operator',
 };
 
 export const JOB_NAMES: Record<JobType, string> = {
@@ -35,6 +36,7 @@ export const JOB_NAMES: Record<JobType, string> = {
   supply: 'Abastecer',
   collect: 'Recoger',
   maintain: 'Mantener',
+  start: 'Arrancar',
 };
 
 interface Desired {
@@ -82,6 +84,8 @@ function baseJobs(game: Game, out: Desired[]): void {
     }
     // Recoger salidas que no salen solas.
     if (total(b.out) >= J.collectMin && !game.outputFlows(b)) job('collect', null, total(b.out));
+    // Arrancar generadores parados que ya tienen combustible.
+    if (game.needsStart(b)) job('start', null, 0, true);
     // Mantenimiento por desgaste.
     if ((b.kind === 'factory' || game.turretDef(b)) && b.condition < J.maintainBelow) job('maintain', null, 0, b.condition <= 0);
   }

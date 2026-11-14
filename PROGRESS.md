@@ -10,7 +10,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [x] 1. (A1) Sistema de NPCs y cola de trabajos (construcción por NPC con una sola torreta de balas).
 - [x] 2. (A2) Piezas y recetas nuevas; las construcciones consumen piezas concretas.
 - [x] 3. (A3) Transportistas: reparto de munición y piezas por NPC (modo manual).
-- [ ] 4. (E1) Redes eléctricas: generador de combustión, postes y cables, consumo/producción, apagón parcial.
+- [x] 4. (E1) Redes eléctricas: generador de combustión, postes y cables, consumo/producción, apagón parcial.
 - [ ] 5. (E2) Cintas motorizadas y diferencia entre modo manual (NPC) y automático.
 - [ ] 6. (E3) Alimentadores automáticos y torretas con abastecimiento automático.
 - [ ] 7. (E4) Baterías, solar y prioridades de consumo.

@@ -50,8 +50,12 @@ export const BUILD_KINDS = [
   'belt_fast',
   'storage',
   'factory',
+  'pole',
   'generator',
+  'solar',
+  'turbine',
   'accumulator',
+  'feeder',
   'turret_bullet',
   'turret_laser',
   'turret_fire',
@@ -72,4 +76,4 @@ export type NpcRole = (typeof NPC_ROLES)[number];
 export const ENEMY_KINDS = ['grunt', 'runner', 'armored', 'flyer', 'tank'] as const;
 export type EnemyKind = (typeof ENEMY_KINDS)[number];
 
-export type JobType = 'build' | 'deconstruct' | 'repair' | 'supply' | 'collect' | 'maintain';
+export type JobType = 'build' | 'deconstruct' | 'repair' | 'supply' | 'collect' | 'maintain' | 'start';

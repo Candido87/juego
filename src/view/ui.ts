@@ -4,6 +4,7 @@ import { CONFIG } from '../game/config';
 import type { Building, Game } from '../game/game';
 import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
 import { BUILD_KINDS, Bag, BuildKind, Dir, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
+import { demandOf, isElectric } from '../game/power';
 import { ITEM_COLORS } from './shapes';
 
 export type Tool = BuildKind | 'remove' | null;
@@ -72,6 +73,7 @@ export class Hud {
       const sel = ev.target as HTMLSelectElement;
       const b = this.selectedBuilding();
       if (sel.dataset.act === 'recipe' && b && this.sim) this.sim.setRecipe(b.id, sel.value || null);
+      if (sel.dataset.act === 'critical' && b && this.sim) this.sim.setCritical(b.id, (sel as unknown as HTMLInputElement).checked);
       this.panelTimer = 0;
     });
     $('techBtn').style.display = CONFIG.tech.length ? '' : 'none';
@@ -221,6 +223,20 @@ export class Hud {
         const c = Math.round(b.condition * 100);
         lines.push(`Estado: <b class="${b.condition < CONFIG.wear.lowThreshold ? 'bad' : ''}">${c}%</b>`);
       }
+      if (isElectric(b.kind) && b.kind !== 'pole') {
+        const net = sim.netOf(b);
+        if (!net) lines.push('<span class="bad">⚡ Sin conexión a la red</span>');
+        else {
+          const s = Math.round((b.critical ? net.sCritical : net.sNormal) * 100);
+          lines.push(`⚡ Red ${net.id + 1}: ${net.production.toFixed(0)} / ${net.demand.toFixed(0)} · energía ${s}%`);
+        }
+        if (demandOf(b) > 0)
+          lines.push(`<label><input type="checkbox" data-act="critical" ${b.critical ? 'checked' : ''}> Crítico (energía primero)</label>`);
+      }
+      const gen = CONFIG.power.generators[b.kind as BuildKind];
+      if (gen?.fuel) {
+        lines.push(b.running ? '<span class="good">En marcha</span>' : `<span class="bad">Parado${count(b.inv, gen.fuel) ? ': esperando a un Operario' : ': sin combustible'}</span>`);
+      }
       const t = sim.turretDef(b);
       if (t?.ammo && !sim.turretReady(b)) lines.push('<span class="bad">Sin munición: esperando Transportista</span>');
       if (b.kind === 'factory') {
@@ -241,7 +257,7 @@ export class Hud {
       if (total(b.inv)) lines.push(`Contiene: ${bagText(b.inv)}`);
       if (total(b.out)) lines.push(`Salida: ${bagText(b.out)}`);
     }
-    const directional = b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'drill' || b.kind === 'factory';
+    const directional = ['belt', 'belt_fast', 'drill', 'factory', 'feeder'].includes(b.kind);
     if (b.kind !== 'core') {
       lines.push(
         `<div style="margin-top:6px;display:flex;gap:4px">${directional ? '<button data-act="rotate">Girar</button>' : ''}

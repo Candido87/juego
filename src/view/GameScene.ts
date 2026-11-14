@@ -12,6 +12,7 @@ import {
   FLY_Z,
   MUZZLE_Z,
   SHOT_COLORS,
+  WIRE_Z,
   buildTextures,
   enemyKey,
   itemKey,
@@ -66,6 +67,8 @@ export class GameScene extends Phaser.Scene {
   private fx!: Phaser.GameObjects.Graphics;
   private overlay!: Phaser.GameObjects.Graphics;
   private paths!: Phaser.GameObjects.Graphics;
+  private wires!: Phaser.GameObjects.Graphics;
+  private wiresGrid: unknown = null;
   private ghost!: Phaser.GameObjects.Image;
   private hover: Tile | null = null;
   private pathsVersion = -1;
@@ -92,6 +95,8 @@ export class GameScene extends Phaser.Scene {
     this.buildTerrain();
 
     this.paths = this.add.graphics().setDepth(OVERLAY_DEPTH - 3);
+    this.wires = this.add.graphics().setDepth(OVERLAY_DEPTH - 4);
+    this.wiresGrid = null;
     this.overlay = this.add.graphics().setDepth(OVERLAY_DEPTH - 1);
     this.fx = this.add.graphics().setDepth(OVERLAY_DEPTH);
     this.ghost = this.add.image(0, 0, 'core').setVisible(false).setAlpha(0.6);
@@ -263,6 +268,7 @@ export class GameScene extends Phaser.Scene {
     this.syncMovers();
     this.consumeEvents();
     this.drawPaths();
+    this.drawWires();
     this.drawOverlay();
     this.drawFx(dt);
     this.updateOcclusion(dt);
@@ -422,6 +428,31 @@ export class GameScene extends Phaser.Scene {
       } else if (ev.type === 'researched') {
         getHud().flash('Investigación completada');
       }
+    }
+  }
+
+  /** Cables entre postes (curva con caída) — se redibujan cuando cambia la topología. */
+  private drawWires() {
+    if (this.wiresGrid === this.sim.grid) return;
+    this.wiresGrid = this.sim.grid;
+    const g = this.wires;
+    g.clear();
+    const world = this.sim.world;
+    for (const [a, b] of this.sim.grid.wires) {
+      const pa = this.sim.buildings.get(a);
+      const pb = this.sim.buildings.get(b);
+      if (!pa || !pb) continue;
+      const A = gridToScreen(pa.x + 0.5, pa.y + 0.5, heightAt(world, pa.x, pa.y));
+      const B = gridToScreen(pb.x + 0.5, pb.y + 0.5, heightAt(world, pb.x, pb.y));
+      A.y -= WIRE_Z;
+      B.y -= WIRE_Z;
+      const sag = 6 + Math.hypot(A.x - B.x, A.y - B.y) * 0.05;
+      const pts: Vec2[] = [];
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        pts.push({ x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t + sag * 4 * t * (1 - t) });
+      }
+      g.lineStyle(1.5, 0x1a1a1a, 0.8).strokePoints(pts, false);
     }
   }
 

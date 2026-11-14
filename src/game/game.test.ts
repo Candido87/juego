@@ -4,29 +4,9 @@ import { botTick } from './bot';
 import { CONFIG } from './config';
 import { Game } from './game';
 import { bfsPath } from './path';
-import { BuildKind, Ore } from './types';
-import { MAX_HEIGHT, createFlatWorld, generateWorld } from './world';
-
-export function flatGame(oreTiles: [number, number, Ore][] = [], opts: { waves?: boolean } = {}) {
-  const world = createFlatWorld(20, 20);
-  for (const [x, y, o] of oreTiles) world.ore[y * 20 + x] = o;
-  return new Game({ world, noWaves: !opts.waves });
-}
-
-export function run(g: Game, seconds: number) {
-  for (let i = 0; i < seconds / CONFIG.step; i++) g.step(CONFIG.step);
-}
-
-/** Construye al instante (para preparar escenarios de test). */
-export function instant(g: Game, kind: BuildKind, x: number, y: number, dir: 0 | 1 | 2 | 3 = 0) {
-  g.unlockedBuildings.add(kind);
-  const b = g.place(kind, x, y, dir)!;
-  expect(b).not.toBeNull();
-  g.completeBuilding(b);
-  const t = g.turretDef(b);
-  if (t?.ammo) b.inv[t.ammo] = t.ammoCap;
-  return b;
-}
+import { flatGame, instant, run } from './testutil';
+import { Ore } from './types';
+import { MAX_HEIGHT, generateWorld } from './world';
 
 describe('mundo', () => {
   it('es determinista por semilla y respeta alturas 0..2 con desnivel ≤ 1', () => {
@@ -199,10 +179,11 @@ describe('piezas y recetas', () => {
 
   it('una receta transforma entradas en salidas en su tiempo', () => {
     const g = flatGame();
+    g.npcs = []; // sin Transportistas que traigan más placas
     const f = instant(g, 'factory', 5, 5, 0);
     g.setRecipe(f.id, 'gear');
     f.inv = { iron_plate: 4 };
-    run(g, CONFIG.recipes.gear.time * 2 / CONFIG.factory.speed + 0.2);
+    run(g, (CONFIG.recipes.gear.time * 2) / g.factorySpeed(f) + 0.2);
     expect(count(f.out, 'gear')).toBe(2);
     expect(count(f.inv, 'iron_plate')).toBe(0);
   });
@@ -264,7 +245,7 @@ describe('transportistas y operarios (modo manual)', () => {
     const g = flatGame();
     const f = instant(g, 'factory', 5, 5);
     f.condition = 0.2;
-    expect(g.factorySpeed(f)).toBe(CONFIG.factory.speed * CONFIG.wear.lowEfficiency);
+    expect(g.factorySpeed(f)).toBe(CONFIG.power.mult.factory![0] * CONFIG.wear.lowEfficiency);
     run(g, 20);
     expect(f.condition).toBe(1);
   });

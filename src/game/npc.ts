@@ -184,6 +184,20 @@ function doMaintain(game: Game, n: Npc, _job: Job, b: Building, dt: number): Out
   return 'continue';
 }
 
+/** Operario: arranca un generador de combustión parado. */
+function doStart(game: Game, n: Npc, _job: Job, b: Building, dt: number): Outcome {
+  if (b.running) return 'done';
+  const r = moveTo(game, n, { kind: 'building', b }, dt);
+  if (r === null) return 'abort';
+  if (!r) return 'continue';
+  n.work += dt * game.npcWork(n);
+  if (n.work >= CONFIG.power.startTime) {
+    b.running = true;
+    return 'done';
+  }
+  return 'continue';
+}
+
 /** Constructor: repara con el primer material del coste del edificio. */
 function doRepair(game: Game, n: Npc, job: Job, b: Building, dt: number): Outcome {
   const item = job.item!;
@@ -218,6 +232,7 @@ const runners: Partial<Record<Job['type'], JobRunner>> = {
   collect: doCollect,
   maintain: doMaintain,
   repair: doRepair,
+  start: doStart,
 };
 export function registerJobRunner(type: Job['type'], r: JobRunner): void {
   runners[type] = r;

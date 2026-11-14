@@ -6,6 +6,7 @@ import { BuildingDef, CONFIG, TurretDef } from './config';
 import { JobBoard } from './jobs';
 import { Npc, stepNpc } from './npc';
 import { dijkstra } from './path';
+import { Grid, PowerNet, emptyGrid, needsStart, powerMult, rebuildGrid, stepPower } from './power';
 import {
   Bag,
   BuildKind,
@@ -52,6 +53,14 @@ export interface Building {
   craft: number;
   /** Estado de mantenimiento 0..1. */
   condition: number;
+  /** Satisfacción eléctrica recibida este paso (0 = sin energía). */
+  power: number;
+  /** Generador de combustión en marcha. */
+  running: boolean;
+  /** Consumidor crítico: recibe energía antes. */
+  critical: boolean;
+  /** Batería: energía guardada. */
+  charge: number;
   /** Torreta: disparos cargados de la unidad de munición en uso. */
   shots: number;
   markedForRemoval: boolean;
@@ -298,7 +307,7 @@ export class Game {
 
   rotate(x: number, y: number, dir: Dir): boolean {
     const b = this.buildingAt(x, y);
-    if (!b || (b.kind !== 'belt' && b.kind !== 'belt_fast' && b.kind !== 'drill' && b.kind !== 'factory')) return false;
+    if (!b || !['belt', 'belt_fast', 'drill', 'factory', 'feeder'].includes(b.kind)) return false;
     b.dir = dir;
     return true;
   }
@@ -333,6 +342,8 @@ export class Game {
     }
     const t = this.turretDef(b);
     if (t?.ammo === item) return t.ammoCap;
+    const gen = CONFIG.power.generators[b.kind as BuildKind];
+    if (gen?.fuel === item) return gen.fuelCap ?? 0;
     return 0;
   }
 
@@ -340,7 +351,9 @@ export class Game {
   inputsOf(b: Building): ItemId[] {
     if (b.kind === 'factory' && b.recipe) return entries(CONFIG.recipes[b.recipe].inputs).map(([i]) => i);
     const t = this.turretDef(b);
-    return t?.ammo ? [t.ammo] : [];
+    if (t?.ammo) return [t.ammo];
+    const gen = CONFIG.power.generators[b.kind as BuildKind];
+    return gen?.fuel ? [gen.fuel] : [];
   }
 
   /** ¿Necesita que un NPC le traiga `item`? (Con automatización, sólo si está vacío.) */
@@ -394,6 +407,7 @@ export class Game {
     b.delivered = {};
     b.hp = b.maxHp;
     this.stats.built++;
+    this.gridDirty = true;
     this.emit({ type: 'built', id: b.id });
     if (this.def(b.kind).solid) this.recomputeFlow();
   }
@@ -419,6 +433,7 @@ export class Game {
     if (this.gameOver) return;
     this.time += dt;
     if (!this.noWaves) this.stepWaves(dt);
+    this.stepGrid(dt);
     this.jobs.update(this, dt);
     for (const n of [...this.npcs]) stepNpc(this, n, dt);
     this.stepBelts(dt);
@@ -460,6 +475,10 @@ export class Game {
       craft: 0,
       condition: 1,
       shots: 0,
+      power: 0,
+      running: false,
+      critical: CONFIG.power.criticalByDefault.includes(kind as BuildKind),
+      charge: 0,
       markedForRemoval: false,
     };
     this.buildings.set(b.id, b);
@@ -472,6 +491,35 @@ export class Game {
     for (let dy = 0; dy < b.d; dy++)
       for (let dx = 0; dx < b.w; dx++) this.owner[(b.y + dy) * this.world.w + b.x + dx] = -1;
     if (b.built && this.def(b.kind).solid) this.recomputeFlow();
+    if (b.built) this.gridDirty = true;
+  }
+
+  // ---------------------------------------------------------------- electricidad
+
+  /** Topología de redes eléctricas (se reconstruye al cambiar edificios). */
+  grid: Grid = emptyGrid();
+  gridDirty = true;
+
+  netOf(b: Building): PowerNet | undefined {
+    const id = this.grid.netOf.get(b.id);
+    return id === undefined ? undefined : this.grid.nets[id];
+  }
+
+  needsStart(b: Building): boolean {
+    return needsStart(b);
+  }
+
+  setCritical(id: number, critical: boolean): void {
+    const b = this.buildings.get(id);
+    if (b) b.critical = critical;
+  }
+
+  private stepGrid(dt: number): void {
+    if (this.gridDirty) {
+      this.grid = rebuildGrid(this);
+      this.gridDirty = false;
+    }
+    stepPower(this, dt);
   }
 
   private spawnNpc(role: NpcRole): Npc {
@@ -633,7 +681,7 @@ export class Game {
 
   /** Velocidad de fabricación (se amplía con energía y desgaste). */
   factorySpeed(b: Building): number {
-    return CONFIG.factory.speed * this.wearFactor(b);
+    return powerMult(b) * this.wearFactor(b);
   }
 
   private stepFactories(dt: number): void {
@@ -693,7 +741,7 @@ export class Game {
       if (b.kind !== 'drill' || !b.built) continue;
       const item = ORE_ITEM[oreAt(this.world, b.x, b.y)];
       if (item && count(b.out, item) < CONFIG.drill.outCap) {
-        b.timer += dt;
+        b.timer += dt * powerMult(b);
         if (b.timer >= CONFIG.drill.period) {
           b.timer -= CONFIG.drill.period;
           add(b.out, item, 1);
