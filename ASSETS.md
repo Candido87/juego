@@ -161,3 +161,17 @@ Misma situación que antes: el encargo hablaba de `public/assets/[CARPETA…]` s
 - Rendimiento: un `ParticleEmitter` por tipo reutilizando texturas horneadas, tope de emisores visibles (≈ 24) y desactivados
   fuera de cámara.
 - Las fases de esta tanda quedan **a la espera de tu visto bueno** (pediste ver el reparto antes de seguir).
+
+
+---
+
+# Sketch Town integrado en `public/assets` (decisión de la Fase 0)
+
+| Pack | Autor | Enlace | Licencia | Dónde (servido por Vite) | Sprites | Losa | ¿Isométrico 2:1? |
+|---|---|---|---|---|---|---|---|
+| **Kenney Sketch Town 1.0** | Kenney | https://kenney.nl/assets/sketch-town | CC0 (`LICENSE-NOTICE.txt`: el original se perdió al mezclar carpetas) | `public/assets/sketch-town/Tiles/*_{N,E,S,W}.png` (87 piezas × 4 giros = 348) | PNG 256×352 | cara superior 232×116, grosor ≈103 | **Sí** |
+| **Kenney Sketch Town Expansion 1.1** | Kenney | https://kenney.nl/assets/sketch-town | CC0 (`License.txt` incluido) | `public/assets/sketch-town-expansion/Tiles/*_{N,E,S,W}.png` (59 × 4 = 236) | PNG 256×352 | igual | **Sí** |
+
+**Encajan con la proyección 64×32:** Sketch Town y su expansión (rombo exacto 2:1; reescala ×0,276). **No encajan:** Tiny Factory, Tiny Dungeon y Tiny Town (16 px cenitales; sólo como figuras de pie), Kenney Tanks (perfil), Space Shooter (cenital) y el humo (sin vista) — ver las secciones anteriores.
+
+Medidas reescaladas (×0,276): bloque de terreno ≈ 64×60 px (grosor 28), muro/torre 64×65, árbol 36×49, pino 36×65, roca 35×30, casa 64×60, tejado 64×42.

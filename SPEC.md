@@ -400,3 +400,11 @@ Decisiones (R):
 - Alcanzabilidad: test que comprueba que todas las entradas de recetas y costes de construcción son menas del mapa o salen de otra receta.
 - Panel de recetas (R3): se abre al colocar una fábrica o al seleccionarla ("Elegir receta"); categorías Materiales, Piezas, Munición, Torretas, Construcción, Combustible y Ciencia. Las bloqueadas salen en gris con el motivo (sin investigar / nivel de fábrica). Sobre la fábrica: icono del producto y rótulo de estado ("elige una receta", "falta X", "salida llena", "sin energía"). La energía que se muestra es el consumo de la fábrica (`power.demand.factory`) mientras fabrica.
 - Equilibrado (R5): sin retocar tiempos; el bot de `npm run sim` (con azufre y piedra) sobrevive 10 min con las semillas 1, 2, 3 y 7 (oleada 9).
+
+## Sketch Town: medir y decidir (Fase 0)
+- **Medidas** (PNG 256×352, medidas por píxeles con canvas): cara superior = rombo **2:1 de 232×116** (centro en 128,187); bloque entero 232×219 con ≈103 px de grosor lateral; muros y torres 232×234; árboles 129×179 (pino 130×234); rocas 125×109; vallas 142×118; casa (`building_center`) 232×219 y tejados 231×151.
+- **Proyección:** la del pack es exactamente 2:1, igual que la losa del juego (64×32). Opción elegida: **reescalar los sprites** a 0,276 (= 64/232) en lugar de adaptar la proyección al pack. Adaptarla obligaría a ampliar ×3,6 todos los edificios, NPCs, enemigos y cintas. Constantes en `src/view/sketch.ts`.
+- **Altura:** el grosor del bloque reescalado es ≈28 px y el relieve del juego sube 16 px por nivel (`Z_STEP`); no se cambia el paso de altura. Se apilarán o se rellenarán por código los huecos laterales entre niveles (Fase 1).
+- **Ubicación:** los archivos están dentro del proyecto (`assets-juego/` y la raíz) pero no en `public/`, así que Vite no los servía. Se **copian** (no se mueven) a `public/assets/sketch-town/` (pack 1.0, 348 PNG, 3,4 MB) y `public/assets/sketch-town-expansion/` (236 PNG, 2,1 MB), cada uno con su licencia. Se copian sólo `*_{N,E,S,W}.png`.
+- **Terreno de prueba:** `/terreno-prueba.html` (parámetros `ox`, `oy`, `w`, `h`) dibuja piezas reescaladas para valorar el encaje; sólo desarrollo.
+- Fases siguientes (terreno con rampas y zonas, murallas con conexiones y daño, decoración y casas, coherencia de estilo) a la espera de visto bueno.

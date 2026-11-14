@@ -98,3 +98,9 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] R3. Panel de recetas (categorías, motivo si no disponible, se abre al colocar o seleccionar una fábrica), estado e icono del producto sobre la fábrica.
 - [x] R4. Transporte (NPC y cintas con red) y construcción por componentes comprobados con tests (fabricas.test.ts, recetas.test.ts).
 - [x] R5. Tooltip de receta automático (qué produce, dónde se necesita), "se produce/usa en" de materiales al día, bot con azufre y piedra, sim: sobrevive 8 min.
+
+## Sketch Town (terreno, murallas, decoración)
+- [x] ST0. Pack copiado a public/assets, medidas, decisión (reescalar ×0,276), ASSETS/CREDITS/SPEC y terreno de prueba (/terreno-prueba.html).
+- [ ] ST1. Terreno con rampas y zonas (hierba, tierra, roca, arena, agua), yacimientos marcados.
+- [ ] ST2. Murallas con conexiones y daño, decoración con regla de bloqueo, casas.
+- [ ] ST3. Coherencia de estilo (sólo lista de propuestas).

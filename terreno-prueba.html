@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Terreno de prueba (Sketch Town)</title>
+    <style>
+      body { margin: 0; background: #1d2330; color: #e8ecf2; font-family: system-ui, sans-serif; }
+      header { padding: 8px 14px; background: #141820; border-bottom: 1px solid #39414f; font-size: 13px; display: flex; gap: 14px; align-items: center; }
+      canvas { display: block; margin: 0 auto; image-rendering: auto; }
+    </style>
+  </head>
+  <body>
+    <header><b>Terreno de prueba</b> Sketch Town reescalado a la losa del juego (64×32) <label>Zoom <input id="zoom" type="range" min="1" max="3" step="0.5" value="2" /></label></header>
+    <canvas id="c"></canvas>
+    <script type="module" src="/src/view/terrenoPrueba.ts"></script>
+  </body>
+</html>
