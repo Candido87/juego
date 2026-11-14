@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Galería 3D</title>
+<style>
+html,body{margin:0;height:100%;background:#dfe6ea;font:12px Arial;overflow:hidden}
+canvas{display:block}
+.l{position:absolute;transform:translate(-50%,0);color:#123;background:#fffc;padding:1px 4px;border-radius:3px;white-space:nowrap;pointer-events:none}
+#h{position:absolute;top:4px;left:6px;font-weight:bold}
+</style></head><body><div id="h"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+const SETS = {
+  agua: ['nature/ground_riverStraight','nature/ground_riverBend','nature/ground_riverCross','nature/ground_riverEnd','nature/ground_riverCorner','nature/ground_riverSplit','nature/ground_riverRocks','nature/ground_riverTile','nature/ground_grass','nature/ground_pathStraight','nature/platform_grass','nature/platform_beach','nature/platform_stone','nature/cliff_block_rock','nature/cliff_blockSlope_rock','nature/cliff_steps_rock','nature/cliff_waterfall_rock','nature/cliff_cornerLarge_rock','nature/lily_large','nature/bridge_wood'],
+  naturaleza: ['nature/tree_default','nature/tree_oak','nature/tree_pineTallA','nature/tree_fat','nature/tree_cone','nature/tree_small','nature/rock_largeA','nature/rock_tallA','nature/stone_largeA','nature/plant_bush','nature/flower_redA','nature/campfire_logs','nature/tent_detailedOpen','nature/tent_smallClosed','nature/fence_simple','nature/log_stack','nature/stump_round','nature/sign','forest/platform','forest/rocks-ramp','forest/tree','forest/tent','forest/patch-grass','forest/fence'],
+  fabrica: ['factory/conveyor','factory/conveyor-corner','factory/conveyor-junction-t','factory/conveyor-cross','factory/conveyor-stripe','factory/conveyor-bars','factory/pipe-large','factory/pipe-large-curve','factory/pipe-large-junction','factory/pipe-large-cross','factory/pipe-large-valve','factory/pipe-large-bump','factory/machine','factory/machine-window','factory/machine-fortified','factory/machine-connection-hole','factory/hopper-round','factory/hopper-square','factory/cog-a','factory/piston-round','factory/robot-arm-a','factory/crane','factory/structure-wall','factory/structure-corner-outer','factory/structure-tall','factory/structure-yellow-medium','factory/arrow','factory/box-large'],
+  industria: ['industrial/building-a','industrial/building-b','industrial/building-c','industrial/building-d','industrial/building-e','industrial/building-f','industrial/building-g','industrial/building-h','industrial/chimney-large','industrial/chimney-medium','industrial/chimney-small','industrial/detail-tank-large','industrial/water-tower','industrial/windmill','industrial/shipping-container-a','industrial/solar-panel-flat'],
+  personajes: ['characters/character-worker','characters/character-zombie','characters/character-raider','characters/character-robot','characters/character-alien','characters/character-knight','characters/character-soldier','characters/character-male-a','characters/character-female-a'],
+  armas: ['weapons/blaster-a','weapons/blaster-b','weapons/blaster-c','weapons/blaster-d','weapons/blaster-e','weapons/blaster-f','weapons/blaster-g','weapons/blaster-h','weapons/blaster-i','weapons/blaster-j','weapons/blaster-k','weapons/blaster-l','weapons/blaster-m','weapons/blaster-n','weapons/blaster-o','weapons/blaster-p','weapons/blaster-q','weapons/blaster-r'],
+};
+const q = new URLSearchParams(location.search); const set = q.get('set') || 'agua'; const cols = +(q.get('cols') || 6);
+document.getElementById('h').textContent = 'Galería 3D: ' + set;
+const names = SETS[set];
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xdfe6ea);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(4, 8, 5); scene.add(sun);
+const rows = Math.ceil(names.length / cols), S = 2.6;
+const W = cols * S, H = rows * S * 1.6;
+const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -100, 100);
+const aspect = innerWidth / innerHeight;
+cam.position.set(10, 8.2, 10); cam.lookAt(0, 0, 0);
+// vista cenital-inclinada con filas planas: usamos cámara frontal inclinada para ver cada modelo en su casilla
+cam.position.set(0, 9, 11); cam.lookAt(0, 0, 0);
+const half = Math.max(W / 2 / aspect, H / 2 * 0.62) + 0.4; cam.top = half; cam.bottom = -half; cam.left = -half * aspect; cam.right = half * aspect; cam.updateProjectionMatrix();
+const loader = new GLTFLoader(); const mixers = []; const labels = [];
+names.forEach((n, i) => {
+  const gx = (i % cols - (cols - 1) / 2) * S, gz = (Math.floor(i / cols) - (rows - 1) / 2) * S * 1.6;
+  loader.load(`/assets/3d/${n}.glb`, (g) => {
+    const root = SkeletonUtils.clone(g.scene); const box = new THREE.Box3().setFromObject(root); const sz = box.getSize(new THREE.Vector3());
+    const k = 2.0 / Math.max(sz.x, sz.y, sz.z, 0.01); const wrap = new THREE.Group(); wrap.add(root); root.scale.setScalar(k);
+    const b2 = new THREE.Box3().setFromObject(wrap); root.position.set(-(b2.min.x + b2.max.x) / 2, -b2.min.y, -(b2.min.z + b2.max.z) / 2);
+    wrap.position.set(gx, 0, gz); wrap.rotation.y = -0.6; scene.add(wrap);
+    if (g.animations.length) { const m = new THREE.AnimationMixer(root); const c = g.animations.find(a => a.name === 'walk') || g.animations[0]; m.clipAction(c).play(); mixers.push(m); }
+  }, undefined, (e) => console.error('fallo', n, e));
+  const d = document.createElement('div'); d.className = 'l'; d.textContent = n.split('/')[1]; document.body.appendChild(d); labels.push([d, new THREE.Vector3(gx, -0.05, gz + 1.2)]);
+});
+const clock = new THREE.Clock();
+let cw=0,ch=0;function fit(){ if(innerWidth===cw&&innerHeight===ch||!innerWidth)return; cw=innerWidth;ch=innerHeight; renderer.setSize(cw,ch); const a=cw/ch; const half=Math.max(W/2/a,H/2*0.62)+0.4; cam.top=half;cam.bottom=-half;cam.left=-half*a;cam.right=half*a;cam.updateProjectionMatrix(); }
+function frame() { fit(); const dt = clock.getDelta(); mixers.forEach(m => m.update(dt)); renderer.render(scene, cam);
+  labels.forEach(([d, p]) => { const v = p.clone().project(cam); d.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; d.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; });
+  requestAnimationFrame(frame); }
+frame(); window.__ready = true;
+</script></body></html>
