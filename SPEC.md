@@ -317,3 +317,12 @@ de trabajos) · 5 componentes en fábrica nivel 1 · 6 cintas sin energía · 7 
 14 laboratorio y árbol (investigador) · 15 resumen final y objetivo (sobrevivir N oleadas).
 **Dependencias:** los pasos 11, 13 y 14 necesitan murallas, laboratorio e investigador, que aún no están (M1–M7 del encargo de
 menús; murallas = fase G2). Hasta entonces esos pasos se definen pero se marcan `available: false` y se saltan solos.
+
+## Interfaz: descripciones, tooltips y menú por categorías (encargo "interfaz confusa")
+Sólo capa de interfaz: sin cambiar la lógica ni los números.
+- **Fase 1 – descripciones** (`src/game/descripciones.ts`): una entrada por edificio, material y rol. Sólo el texto corto (qué es / para qué sirve) es manual; costes, vida, producción por minuto, consumo, alcance, daño, "se produce en" y "se usa en" se **calculan de `config.ts`** (recetas, costes, munición, combustible). Test: todo tiene descripción y los datos coinciden con config.
+  - Decisión: los paquetes de ciencia aún no se gastan en nada (árbol pendiente); su "se usa en" dice "Investigación (árbol de tecnología)" y se rellenará solo con `CONFIG.tech`.
+  - Decisión: los costes de rol de `config.npc.roles` son un resto (ya no se contrata) y no se muestran.
+- **Fase 2 – tooltips**: ~300 ms de espera, dentro de la pantalla y colocados **encima del menú** sin tapar el botón señalado; coste en verde (tienes) / rojo (falta).
+- **Fase 3 – menú por categorías**: Extracción, Transporte, Industria, Energía, Defensa, Población, Servicios; una fila por categoría activa; Q/E o rueda para cambiar; el indicador de casilla va a un sitio fijo y pequeño.
+- **Fase 4 – paneles**: ayuda plegable (H o ?), Almacén y NPCs plegables con resumen, materiales agrupados por tipo, sin solapes a distintos tamaños.

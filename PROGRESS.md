@@ -55,6 +55,12 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 ### Aplicación de escritorio (Electron)
 - [x] EL1. Electron + electron-builder: `npm run electron:dev`, `npm run dist` (instalador en `release/`).
 
+### Interfaz clara (descripciones, tooltips, menú por categorías)
+- [x] UI1. descripciones.ts con datos leídos de config y tests.
+- [ ] UI2. Tooltips (menú, almacén, HUD) que no tapan el botón señalado.
+- [ ] UI3. Menú de construcción por categorías, atajos y casilla en sitio fijo.
+- [ ] UI4. Paneles plegables, ayuda con H, almacén agrupado, sin solapes.
+
 ### Resto de la hoja de ruta (después del rediseño)
 - [ ] 5. (E2) ~~Cintas motorizadas~~ (hecho en P4); queda sólo la regla "automatizado no pide abastecimiento".
 - [ ] 6. (E3) Alimentadores automáticos y torretas con abastecimiento automático.
