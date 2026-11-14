@@ -33,9 +33,53 @@ acumulador (amplía energía), torretas (balas, láser, fuego, hielo), muros (ma
 - Fábricas: entradas por cinta o por Transportista; salida a la cinta de delante, o se acumula y un
   Transportista la recoge al almacén. Taladros igual (salida a cinta o recogida).
 
-## Energía
-Red global sin cables (decisión simple): generadores queman carbón y llenan una batería global;
-capacidad = base + acumuladores. Láser y hielo gastan energía por disparo. Sin energía no disparan.
+## Electricidad y automatización (sustituye a la antigua "energía global")
+Dos modos que conviven:
+- **Manual (sin red)**: los NPCs hacen el trabajo físico. Las cintas sin energía **no se mueven**;
+  los Transportistas llevan piezas, munición y combustible a mano y recogen salidas.
+- **Automático (con red)**: cintas, fábricas, taladros y alimentadores conectados funcionan solos.
+  Si se corta la red, lo automatizado se para (o va más lento) y los NPCs vuelven a cubrirlo.
+
+### Red
+- **Postes**: se enlazan solos (cable) con otros postes a ≤ `wireRange`. Cada componente conexa de postes es una red.
+- Un edificio eléctrico se conecta a la red del **poste más cercano** a ≤ `supplyRadius` (Chebyshev).
+  Los edificios no enlazan redes entre sí (sólo los postes).
+- **Generadores**: combustión (carbón, por cinta/alimentador o NPC), solar (poca potencia, sin combustible, cara),
+  turbina de vapor (avanzada, más potencia por carbón).
+- **Baterías** (acumuladores): guardan el excedente y cubren los picos.
+- **Consumo** constante por edificio conectado (valores en `config.ts`).
+- **Apagón parcial**: satisfacción `s = min(1, (producción + descarga de baterías) / demanda)`.
+  Cada consumidor rinde `sinRed + (conRed − sinRed) · s` (multiplicadores en config).
+- **Prioridad**: los consumidores marcados como **críticos** (torretas por defecto) reciben energía antes;
+  el resto se reparte con la satisfacción que quede.
+- **Arranque**: un generador de combustión parado necesita combustible **y** que un Operario lo arranque
+  (trabajo "Arrancar"). Así la primera red se enciende sin electricidad previa.
+
+### Qué hace la energía (multiplicador sin red → con red)
+| Edificio | Sin red | Con red |
+|---|---|---|
+| Cinta / cinta rápida | 0 (parada) | 1 |
+| Taladro | 1 | 2 (taladro eléctrico) |
+| Fábrica | 0.5 (manual) | 1.5 |
+| Alimentador | 0 | 1 |
+| Torreta láser / hielo | 0 (no disparan aunque haya NPCs) | 1 |
+| Torreta de balas / fuego | 1 | 1 (no consumen; se automatizan con alimentador) |
+
+### Alimentador
+Edificio orientado: toma de la casilla de **atrás** (cinta, almacén o salida de fábrica/taladro) y mete en la de
+**delante** (fábrica, torreta, generador) lo que ésta acepte. Sólo con energía.
+- Un edificio **automatizado** (le apunta un alimentador o una cinta con energía) no genera trabajos de
+  abastecimiento salvo que esté vacío. Las salidas que caen en una cinta con energía no generan recogidas.
+
+### NPCs y electricidad
+- Nuevos trabajos: **Arrancar** generador (Operario), **Abastecer combustible** (Transportista), **Reparar**
+  postes/generadores (Constructor) con prioridad extra (`jobs.gridRepairBonus`).
+- Los enemigos atacan la infraestructura eléctrica (postes, generadores, baterías, solares) que tengan a
+  ≤ `enemies.infraAggroRange`: se paran a romperla y luego siguen.
+
+### Interfaz
+Cables entre postes, indicador sobre cada edificio eléctrico (⚡ conectado / bajo / sin energía),
+panel de redes (producción, consumo, batería), y marcar críticos.
 
 ## Torretas
 | Tipo | Construcción | Munición/energía | Rol |
@@ -70,7 +114,9 @@ capacidad = base + acumuladores. Láser y hielo gastan energía por disparo. Sin
 
 ## Investigación
 - Se paga con **paquetes de ciencia** del almacén al empezar; tarda `time` segundos. Una a la vez.
-- Ramas: Armamento, Defensa, Industria, Logística, Ingeniería (datos en `config.ts`).
+- Ramas: Armamento, Defensa, Industria, Logística, Ingeniería y **Energía y automatización**
+  (en orden: generador de combustión → postes y cables → cintas motorizadas → alimentadores → baterías →
+  solar → mejoras de rendimiento / turbina). Láser y hielo requieren esta rama. Datos en `config.ts`.
 - Pantalla propia (tecla T): nodos bloqueados / disponibles / investigados; coste al pasar el ratón.
 
 ## Oleadas
@@ -79,7 +125,12 @@ Aparecen en los bordes; más puntos de aparición con el tiempo.
 
 ## Decisiones simples (anotadas por el criterio "si dudas, lo más simple")
 1. Inventario global compartido entre núcleo y almacenes.
-2. Energía global sin cables.
+2. ~~Energía global sin cables~~ → sustituida por redes con postes (ver "Electricidad").
+   Postes se enlazan solos por distancia; cada edificio va al poste más cercano.
+12. Cintas: un único tipo que **sólo se mueve con energía** (más cinta rápida). Sin red no hay movimiento:
+    eso es el "modo manual" y lo cubren los Transportistas.
+13. Apagón parcial proporcional (no por prioridad de edificio salvo el flag "crítico").
+14. Los enemigos atacan infraestructura eléctrica cercana además de lo que les bloquea.
 3. Niveles de torreta globales por tipo.
 4. Los Constructores llevan ellos mismos los materiales de la obra (los Transportistas abastecen
    fábricas/torretas/generadores y recogen salidas).
