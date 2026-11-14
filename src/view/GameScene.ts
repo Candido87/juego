@@ -28,6 +28,8 @@ import {
   terrainKey,
   wallLook,
 } from './shapes';
+import { DecorLayer, preloadDecor } from './decorView';
+import { terrainTint, tintNoise } from './decor';
 import { isWallKind, wallDamage, wallMask } from './muros';
 import { factoryStatusText } from '../game/recetas';
 import { headIndex, turretBaseKey, turretHeadKey } from './turretModels';
@@ -117,6 +119,7 @@ export class GameScene extends Phaser.Scene {
 
   preload() {
     preloadSprites(this);
+    preloadDecor(this);
   }
 
   create(data: { seed?: number }) {
@@ -131,7 +134,8 @@ export class GameScene extends Phaser.Scene {
 
     this.sim = new Game({ seed: data?.seed ?? 7 });
     buildTextures(this);
-    this.buildTerrain();
+    this.buildTerrain(data?.seed ?? 7);
+    this.decor = new DecorLayer(this, this.sim.world, data?.seed ?? 7, this.sim.core, this.sim.spawns);
     // Banderas en los puntos de aparición enemiga.
     const flag = shapeInfo('marker_spawn');
     for (const s of this.sim.spawns) {
@@ -161,8 +165,11 @@ export class GameScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ terreno
 
-  private buildTerrain() {
+  private decor?: DecorLayer;
+
+  private buildTerrain(seed: number) {
     const world = this.sim.world;
+    const noise = tintNoise(seed);
     for (let y = 0; y < world.h; y++) {
       for (let x = 0; x < world.w; x++) {
         const z = heightAt(world, x, y);
@@ -174,7 +181,9 @@ export class GameScene extends Phaser.Scene {
         const key = terrainKey(oreAt(world, x, y), z, Math.min(ao, 2), (x + y) & 1);
         const info = shapeInfo(key);
         const pos = gridToScreen(x, y, 0);
-        this.add.image(pos.x, pos.y, key).setOrigin(info.originX, info.originY).setDepth(depthOf(x, y, L.terrain));
+        const tile = this.add.image(pos.x, pos.y, key).setOrigin(info.originX, info.originY).setDepth(depthOf(x, y, L.terrain));
+        // Zonas (tierra seca, hierba, roca): teñido continuo; las menas conservan su color.
+        if (oreAt(world, x, y) === Ore.None) tile.setTint(terrainTint(noise, x, y));
       }
     }
   }
@@ -907,6 +916,11 @@ export class GameScene extends Phaser.Scene {
       targets.push({ p: { x: p.x, y: p.y - 10 }, depth: this.moverDepth(m.x, m.y) });
     }
     const k = Math.min(1, dt * 12);
+    if (this.decor) {
+      const occupied = new Set<number>();
+      for (const b of this.sim.buildings.values()) for (let yy = 0; yy < b.d; yy++) for (let xx = 0; xx < b.w; xx++) occupied.add((b.y + yy) * this.sim.world.w + b.x + xx);
+      this.decor.update(occupied, targets, k, this.cameras.main.worldView);
+    }
     for (const [id, s] of this.bSprites) {
       const b = this.sim.buildings.get(id);
       const base = b && !b.built ? SITE_ALPHA : 1;

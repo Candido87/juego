@@ -35,7 +35,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [x] G1. Enemigos con sprites (balanceo y volteo por dirección; prisma de respaldo).
 - [x] G2. Murallas con sprites conectados (piedra/metal = castillo teñido, madera = valla) y 3 estados de daño (muros.ts, wallLook en shapes.ts; prisma de respaldo).
 - [x] G3. Interfaz con el UI Pack: marcos de panel, botones (gris/amarillo al pasar/azul activo/rojo), barras, cursor y fuente de títulos vía `public/assets/ui-pack/ui-pack.css` (sin tocar la lógica; iconos faltantes siguen generados por código en sprites.ts).
-- [ ] G4. Terreno con variantes, árboles y decoración procedural.
+- [x] G4. Terreno teñido por zonas (tierra seca, hierba, roca; transición continua), árboles, rocas, arbustos y flores procedurales con semilla (decor.ts, decorView.ts); sólo decoración (no bloquea ni se tala), nunca sobre menas, núcleo ni pasillo aparición→núcleo; se oculta bajo edificios y los árboles se vuelven semitransparentes sobre cursor, fantasma y enemigos.
 
 ### Segunda tanda de gráficos (tanques, naves, humo) — esperando visto bueno del reparto (ver ASSETS.md)
 - [x] T0. Inventario y propuesta (ASSETS.md, CREDITS.md).
