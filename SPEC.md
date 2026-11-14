@@ -398,3 +398,5 @@ Decisiones (R):
 - Búferes: entrada por material = `CONFIG.factory.inputBatches` × lo que pide la receta; salida = `CONFIG.factory.outCap`.
 - Cambiar de receta: lo que hay dentro vuelve a la salida (lo recoge un NPC o sale por cinta) y la producción en curso se cancela devolviendo sus entradas (lo más simple).
 - Alcanzabilidad: test que comprueba que todas las entradas de recetas y costes de construcción son menas del mapa o salen de otra receta.
+- Panel de recetas (R3): se abre al colocar una fábrica o al seleccionarla ("Elegir receta"); categorías Materiales, Piezas, Munición, Torretas, Construcción, Combustible y Ciencia. Las bloqueadas salen en gris con el motivo (sin investigar / nivel de fábrica). Sobre la fábrica: icono del producto y rótulo de estado ("elige una receta", "falta X", "salida llena", "sin energía"). La energía que se muestra es el consumo de la fábrica (`power.demand.factory`) mientras fabrica.
+- Equilibrado (R5): sin retocar tiempos; el bot de `npm run sim` (con azufre y piedra) sobrevive 10 min con las semillas 1, 2, 3 y 7 (oleada 9).
