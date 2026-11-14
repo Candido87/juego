@@ -14,6 +14,7 @@
 import Phaser from 'phaser';
 import { HALF_H, HALF_W, Z_STEP } from '../game/iso';
 import { BuildingKind, DX, DY, Dir, ENEMY_KINDS, EnemyKind, ITEM_IDS, ItemId, Ore, TurretKind } from '../game/types';
+import { HEAD_STEPS, MODELED, TURRET_CANVAS, TurretLook, drawTurretParts, headYaw, turretBaseKey, turretHeadKey, turretModel } from './turretModels';
 import { BILLBOARDS, DUNGEON_SHEET, ENEMY_SPRITES, Sheet, TILESHEET, TOP_TEXTURES, TopTexture, frameRect, rotationFor } from './sprites';
 
 /** Prisma: x,y,w,d en casillas (relativo a la esquina de la huella); z,h en píxeles. */
@@ -634,6 +635,28 @@ export function preloadSprites(scene: Phaser.Scene): void {
   for (const s of [TILESHEET, DUNGEON_SHEET]) if (!scene.textures.exists(s.key)) scene.load.image(s.key, s.url);
 }
 
+/** Hornea base y 16 cabezas de cada torreta modelada (el resto sigue con el prisma de respaldo). */
+function bakeTurrets(scene: Phaser.Scene, level = 1) {
+  const C = TURRET_CANVAS;
+  for (const kind of MODELED) {
+    const model = turretModel(kind, level);
+    const [bt, bctx] = canvasTexture(scene, turretBaseKey(kind, level), C.w, C.h);
+    drawTurretParts(bctx, 0, 0, model, 0, 'base');
+    bt.refresh();
+    SHAPE_INFO.set(turretBaseKey(kind, level), { originX: C.ox / C.w, originY: C.oy / C.h, tall: true, shadow: 'shadow_1' });
+    for (let i = 0; i < HEAD_STEPS; i++) {
+      const [ht, hctx] = canvasTexture(scene, turretHeadKey(kind, level, i), C.w, C.h);
+      drawTurretParts(hctx, 0, 0, model, headYaw(i), 'head');
+      ht.refresh();
+    }
+  }
+}
+
+/** Claves de la torreta modelada (base y cabezas) si existen sus texturas; si no, undefined (se usa el prisma). */
+export function turretLook(scene: Phaser.Scene, kind: string, level = 1): TurretLook | undefined {
+  return (MODELED as string[]).includes(kind) && scene.textures.exists(turretBaseKey(kind as TurretLook, level)) ? (kind as TurretLook) : undefined;
+}
+
 /** Genera todas las texturas (una vez por partida de Phaser). */
 export function buildTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists('core')) return;
@@ -642,6 +665,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists(DUNGEON_SHEET.key)) {
     for (const k of ENEMY_KINDS) bakeBillboard(scene, enemySpriteKey(k), ENEMY_SPRITES[k].frame, ENEMY_SPRITES[k].scale, DUNGEON_SHEET);
   }
+  bakeTurrets(scene);
   bakeShadow(scene, 'shadow_1', 1);
   bakeShadow(scene, 'shadow_2', 2);
   bakeShadow(scene, 'shadow_small', 0.5, true);

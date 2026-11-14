@@ -21,8 +21,10 @@ import {
   npcKey,
   shapeInfo,
   shapeKey,
+  turretLook,
   terrainKey,
 } from './shapes';
+import { headIndex, turretBaseKey, turretHeadKey } from './turretModels';
 import { getHud, itemName, ui } from './ui';
 
 interface BSprite {
@@ -33,6 +35,9 @@ interface BSprite {
   key: string;
   tall: boolean;
   alpha: number;
+  /** Cabeza giratoria de las torretas modeladas. */
+  head?: Phaser.GameObjects.Image;
+  headKey?: string;
 }
 
 interface Mover {
@@ -309,6 +314,10 @@ export class GameScene extends Phaser.Scene {
     if (k.S.isDown || k.DOWN.isDown) cam.scrollY += v;
   }
 
+  /** Último rumbo (radianes) hacia el que disparó cada torreta y fin de su retroceso. */
+  private turretYaw = new Map<number, number>();
+  private turretKick = new Map<number, number>();
+
   private syncBuildings() {
     const world = this.sim.world;
     const seen = new Set<number>();
@@ -333,11 +342,34 @@ export class GameScene extends Phaser.Scene {
             .setDepth(depthOf(b.x + b.w, b.y + b.d, L.shadow));
         }
         s = { img, shadow, key, tall: info.tall, alpha: 1 };
+        const look = turretLook(this, b.kind);
+        if (look) {
+          const bk = turretBaseKey(look, 1);
+          const bi = shapeInfo(bk);
+          img.setTexture(bk).setOrigin(bi.originX, bi.originY);
+          s.head = this.add.image(pos.x, pos.y, turretHeadKey(look, 1, 0)).setOrigin(bi.originX, bi.originY).setDepth(img.depth + 0.1);
+        }
         this.bSprites.set(b.id, s);
       } else if (s.key !== key) {
         const info = shapeInfo(key);
         s.img.setTexture(key).setOrigin(info.originX, info.originY);
         s.key = key;
+      }
+      if (s.head) {
+        const look = turretLook(this, b.kind)!;
+        const hk = turretHeadKey(look, 1, headIndex(this.turretYaw.get(b.id) ?? Math.PI / 4));
+        if (hk !== s.headKey) {
+          s.head.setTexture(hk);
+          s.headKey = hk;
+        }
+        const recoil = Math.max(0, (this.turretKick.get(b.id) ?? 0) - this.sim.time) * 10;
+        const yaw = this.turretYaw.get(b.id) ?? Math.PI / 4;
+        const pos = gridToScreen(b.x, b.y, heightAt(world, b.x, b.y));
+        // Retroceso: la cabeza se desplaza un poco hacia atrás respecto al rumbo.
+        s.head.setPosition(pos.x - (Math.cos(yaw) - Math.sin(yaw)) * recoil * 0.5, pos.y - (Math.cos(yaw) + Math.sin(yaw)) * recoil * 0.25);
+        if (!b.built) s.head.setTint(0xbfd4ff);
+        else if (b.markedForRemoval) s.head.setTint(0xff8080);
+        else s.head.clearTint();
       }
       s.shadow?.setVisible(b.built);
       if (!b.built) s.img.setTint(0xbfd4ff);
@@ -363,6 +395,7 @@ export class GameScene extends Phaser.Scene {
       s.img.destroy();
       s.shadow?.destroy();
       s.alarm?.destroy();
+      s.head?.destroy();
       this.bSprites.delete(id);
     }
   }
@@ -473,6 +506,8 @@ export class GameScene extends Phaser.Scene {
         const to = this.groundScreen(ev.toX, ev.toY);
         to.y -= 10;
         this.flashes.push({ kind: 'shot', color: SHOT_COLORS[ev.kind as TurretKind], a: from, b: to, ttl: 0.12, max: 0.12 });
+        this.turretYaw.set(ev.towerId, Math.atan2(ev.toY - ev.fromY, ev.toX - ev.fromX));
+        this.turretKick.set(ev.towerId, this.sim.time + 0.12);
       } else if (ev.type === 'kill') {
         const p = this.groundScreen(ev.x, ev.y);
         this.flashes.push({ kind: 'pop', color: 0xffd166, a: p, b: p, ttl: 0.35, max: 0.35 });
@@ -660,6 +695,7 @@ export class GameScene extends Phaser.Scene {
       }
       s.alpha += (want - s.alpha) * k;
       s.img.setAlpha(s.alpha);
+      s.head?.setAlpha(s.alpha);
     }
   }
 

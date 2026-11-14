@@ -352,3 +352,10 @@ Sólo capa de interfaz: sin cambiar la lógica ni los números.
 - **Almacén agrupado** por tipo con un título pequeño: Materias primas, Piezas y componentes, Combustible, Comida (los grupos vacíos no salen).
 - Decisión: el resumen "en falta" sólo cuenta lo relevante (lo que tienes, lo que piden las obras pendientes y la comida); al empezar no alarma por materias que aún no se tienen.
 - Decisión: el panel de ayuda es una capa superpuesta a propósito (se abre bajo el HUD y se cierra con H/Esc); no entra en la comprobación de solapes.
+
+
+## Torretas con aspecto de arma (T1)
+- Decisión: los packs Kenney Tanks (perfil) y Space Shooter (cenital) no encajan en 2:1; las torretas se construyen por código con un mini-renderizador de sólidos (`src/view/solids.ts`: polígonos convexos extruidos, 3 tonos por cara según la luz, contorno oscuro, orden por profundidad) y modelos en `turretModels.ts` (base fija + cabeza que gira).
+- La cabeza se hornea a 16 rumbos y gira hacia el último objetivo disparado; retroceso de 0,12 s. Se mantiene el prisma antiguo como respaldo en `SHAPES`.
+- Galería de desarrollo: `/galeria-torretas.html` (zoom y 4/8/16 rumbos). Sólo capa visual: no hay torreta de misiles en la lógica, así que no se modela.
+- Niveles: la lógica no tiene nivel por torreta aún; el modelo admite 1–3 (más cañones, blindaje y color) y en juego se usa el 1.
