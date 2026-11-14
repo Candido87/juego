@@ -21,6 +21,15 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [ ] P6. Vivienda y crecimiento de población.
 - [ ] P7. Interfaz (población, comida, gasolina, taller) y equilibrado con simulaciones.
 
+### Menús y árbol con población (después del rediseño; sustituye al antiguo 14 y parte del 16)
+- [ ] M1. Menú principal, pausa y opciones, con guardar y cargar partida.
+- [ ] M2. Menú de construcción por categorías, con bloqueo visual por tecnología.
+- [ ] M3. HUD y alertas.
+- [ ] M4. Laboratorio e investigador: investigación que avanza con un NPC asignado.
+- [ ] M5. Pantalla del árbol de tecnología con nodos, estados y tooltips.
+- [ ] M6. Desbloqueos reales (edificios, recetas, mejoras) y rama de Población y comida.
+- [ ] M7. Equilibrado con simulaciones y pulido de la interfaz.
+
 ### Resto de la hoja de ruta (después del rediseño)
 - [ ] 5. (E2) ~~Cintas motorizadas~~ (hecho en P4); queda sólo la regla "automatizado no pide abastecimiento".
 - [ ] 6. (E3) Alimentadores automáticos y torretas con abastecimiento automático.
@@ -31,7 +40,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [ ] 11. (T3) Variantes por nivel y estados (sin munición/energía, en construcción, dañada).
 - [ ] 12. (T4) Resto de tipos (hielo) con su modelo y efectos.
 - [ ] 13. (A5) Murallas y comportamiento de los enemigos ante ellas.
-- [ ] 14. (A6 + E6) Árbol de tecnología con pantalla propia, incluida la rama "Energía y automatización".
+- [ ] ~~14. (A6 + E6)~~ (sustituido por M4–M6) Árbol de tecnología con pantalla propia, incluida la rama "Energía y automatización".
 - [ ] 15. (A7) Variedad de enemigos y oleadas que exijan mezclar torretas.
 - [ ] 16. (E7 + T5) Interfaz: paneles de red, indicadores, cables; iconos de torretas en el menú y ficha al pasar el ratón.
 - [ ] 17. (A8 + E8) Equilibrado con `npm run sim` y pulido (incluida legibilidad con zoom).

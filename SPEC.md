@@ -239,3 +239,41 @@ Aparecen en los bordes; más puntos de aparición con el tiempo.
 9. Las obras no son sólidas hasta terminarse.
 10. Una sola fábrica genérica con receta elegible (incluye fundición).
 11. Mantenimiento por desgaste de uso (no por tiempo).
+
+## Menús e investigación con investigador (encargo "menús y árbol con población")
+**Qué cambia respecto a la investigación anterior:** antes se pagaba y avanzaba sola (sin edificio ni persona).
+Ahora hace falta un **Laboratorio** con **1 investigador** asignado (sacado de la población); sin él, se para.
+El coste en paquetes de ciencia se mantiene (se paga al empezar, como antes) y se añade la rama
+**Población y comida**. La antigua sección "Investigación" queda sustituida por ésta.
+
+### Menús
+- **Menú principal** (capa DOM sobre el mapa isométrico de fondo): nueva partida, continuar (si hay guardado),
+  opciones, salir (cierra la pestaña o muestra "puedes cerrar la ventana").
+- **Pausa** (Esc): continuar, guardar, opciones, volver al menú. Esc cierra antes cualquier panel abierto.
+- **Opciones** (guardadas en `localStorage`): volumen (efectos simples con WebAudio), cuadrícula, velocidad
+  (pausa, x1, x2, x3) y lista de controles.
+- **Guardado**: `serialize(game)` / `deserialize(data)` en lógica pura (testeado), una ranura en `localStorage`.
+- **Construcción por categorías**: Extracción, Transporte, Industria, Energía, Defensa, Población, Servicios.
+  Cada elemento: icono, nombre, componentes y atajo; bloqueado → gris con "Requiere: <tecnología>".
+- **HUD**: barra superior con población (libres/ocupados), comida, gasolina, energía producción/consumo,
+  oleada y cuenta atrás. Alertas: sin comida, apagón, núcleo atacado. Atajos en los tooltips.
+
+### Laboratorio e investigador
+- Laboratorio: edificio de Servicios (componentes). Botón "Asignar investigador": toma a una persona
+  (del rol con más gente, dejando al menos 1 fuera) y la convierte en **Investigador**; "Liberar" la devuelve
+  como Constructor. El investigador no hace otros trabajos.
+- Una tecnología a la vez. Ritmo = suma de laboratorios con investigador × energía del laboratorio ×
+  productividad por comida (con hambre se para: factor 0). Sin investigador → pausa, se conserva el progreso.
+- Si el investigador muere, el laboratorio queda vacío y la investigación se pausa hasta asignar otro.
+- Coste de cada nodo: paquetes de ciencia (Ciencia I en nivel 1, Ciencia II después) pagados al empezar
+  + tiempo de estudio.
+- Desbloqueos reales: edificios, recetas (incluido nivel 2 = "fábrica nivel 2"), mejoras de NPC,
+  capacidad de las casas, granjas mejores. (No hay límite de almacén, así que no hay mejoras de almacén.)
+- Ramas: Armamento, Defensa, Industria, Logística, Energía y automatización, Ingeniería, Población y comida.
+
+### Tensión de diseño (decisiones)
+- Con 3 personas, el taller (2) y el laboratorio (1) dejarían la colonia sin manos: la regla "dejar al menos 1
+  fuera" lo impide, y el jugador debe crecer antes (casas + granjas) para poder usarlos sin parar la obra.
+- Números orientativos: casa barata (2 bastidores), crecimiento cada 30 s con comida de sobra; el laboratorio
+  cuesta poco (bastidores + engranajes) y funciona sin red a la mitad de ritmo, para que sea viable en las
+  primeras oleadas; las primeras tecnologías cuestan 2–4 Ciencia I y 20–30 s de estudio.
