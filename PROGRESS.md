@@ -13,7 +13,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [x] 4. (E1) Redes eléctricas: generador de combustión, postes y cables, consumo/producción, apagón parcial.
 
 ### Rediseño de la economía base (prioritario, va antes del resto)
-- [ ] P1. Población de 3 NPCs, comida y granjas (consumo y escasez; derrota con población 0).
+- [x] P1. Población de 3 NPCs, comida y granjas (consumo y escasez; derrota con población 0).
 - [ ] P2. Componentes obligatorios para construir cualquier edificio y fábricas de nivel 1.
 - [ ] P3. Petróleo, bombas y refinería; generadores con gasolina.
 - [ ] P4. Cintas que consumen electricidad y modo manual completo por NPCs (absorbe el antiguo 5/E2).

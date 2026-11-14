@@ -38,6 +38,7 @@ export const ITEM_IDS = [
   'wall_plate',
   'science_1',
   'science_2',
+  'food',
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 
@@ -50,6 +51,7 @@ export const BUILD_KINDS = [
   'belt_fast',
   'storage',
   'factory',
+  'farm',
   'pole',
   'generator',
   'solar',

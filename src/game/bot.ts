@@ -122,17 +122,18 @@ const BOT_ORES: Ore[] = [Ore.Iron, Ore.Iron, Ore.Iron, Ore.Copper, Ore.Iron, Ore
 
 const BOT_FACTORIES =['iron_plate', 'gear', 'ammo', 'iron_plate', 'copper_plate', 'gear', 'ammo'];
 
-function placeFactory(game: Game, recipe: string): boolean {
-  if (!affordable(game, CONFIG.buildings.factory.cost)) return false;
+/** Coloca un edificio con salida pegado al núcleo, mirando hacia él (y le pone receta si es fábrica). */
+export function placeNextToCore(game: Game, kind: BuildKind, recipe?: string): boolean {
+  if (!affordable(game, CONFIG.buildings[kind].cost)) return false;
   const c = game.core;
   for (let y = c.y - 1; y <= c.y + c.d; y++) {
     for (let x = c.x - 1; x <= c.x + c.w; x++) {
       const t = { x, y };
       // Casilla vecina (no diagonal) al núcleo; dirección hacia él.
       for (let k = 0; k < 4; k++) {
-        if (!game.isCoreTile(x + DX[k], y + DY[k]) || !game.canPlace('factory', x, y).ok) continue;
-        const f = game.place('factory', t.x, t.y, k as Dir);
-        if (f) game.setRecipe(f.id, recipe);
+        if (!game.isCoreTile(x + DX[k], y + DY[k]) || !game.canPlace(kind, x, y).ok) continue;
+        const f = game.place(kind, t.x, t.y, k as Dir);
+        if (f && recipe) game.setRecipe(f.id, recipe);
         return !!f;
       }
     }
@@ -165,12 +166,15 @@ function regulate(game: Game): void {
 /** Realiza como mucho una acción. Devuelve una descripción o null si no hizo nada. */
 export function botTick(game: Game): string | null {
   regulate(game);
+  // Comida: una granja por cada 3 personas (más una de margen).
+  const farms = countKind(game, 'farm');
+  if (farms < 1 + Math.floor(game.population / 3) && placeNextToCore(game, 'farm')) return 'granja';
   const turrets = countKind(game, 'turret_bullet');
   if (turrets < 1 + Math.ceil(game.wave * 0.6)) {
     if (placeBestTurret(game, 'turret_bullet')) return 'torreta';
   }
   const factories = countKind(game, 'factory');
-  if (factories < BOT_FACTORIES.length && countKind(game, 'drill') >= 2 && placeFactory(game, BOT_FACTORIES[factories])) {
+  if (factories < BOT_FACTORIES.length && countKind(game, 'drill') >= 2 && placeNextToCore(game, 'factory', BOT_FACTORIES[factories])) {
     return 'fábrica';
   }
   const want: [string, number][] = [

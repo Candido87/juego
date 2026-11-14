@@ -83,7 +83,7 @@ describe('NPCs y cola de trabajos', () => {
     run(g, 3);
     g.remove(3, 3);
     run(g, 15);
-    expect(g.storage).toEqual(before);
+    expect({ ...g.storage, food: 0 }).toEqual({ ...before, food: 0 }); // la comida se come
     expect(g.buildingAt(3, 3)).toBeUndefined();
   });
 

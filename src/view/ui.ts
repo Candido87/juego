@@ -1,7 +1,7 @@
 /** Interfaz HTML superpuesta: barra de construcción, almacén, NPCs, cola de trabajos, selección. */
 import { count, entries, missing, total } from '../game/bag';
 import { CONFIG } from '../game/config';
-import type { Building, Game } from '../game/game';
+import { ROTATABLE, type Building, type Game } from '../game/game';
 import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
 import { BUILD_KINDS, Bag, BuildKind, Dir, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
 import { demandOf, isElectric } from '../game/power';
@@ -169,7 +169,7 @@ export class Hud {
     this.set('info', info);
     $('info').style.display = info ? 'block' : 'none';
     $('over').style.display = sim.gameOver ? 'flex' : 'none';
-    if (sim.gameOver) this.set('overText', `El núcleo ha caído en la oleada ${sim.wave}`);
+    if (sim.gameOver) this.set('overText', sim.npcs.length === 0 ? `La colonia se ha quedado sin gente (oleada ${sim.wave})` : `El núcleo ha caído en la oleada ${sim.wave}`);
     if (this.msgTimer > 0) {
       this.msgTimer -= dt;
       if (this.msgTimer <= 0) $('msg').style.display = 'none';
@@ -292,7 +292,7 @@ export class Hud {
       if (total(b.inv)) lines.push(`Contiene: ${bagText(b.inv)}`);
       if (total(b.out)) lines.push(`Salida: ${bagText(b.out)}`);
     }
-    const directional = ['belt', 'belt_fast', 'drill', 'factory', 'feeder'].includes(b.kind);
+    const directional = ROTATABLE.includes(b.kind);
     if (b.kind !== 'core') {
       lines.push(
         `<div style="margin-top:6px;display:flex;gap:4px">${directional ? '<button data-act="rotate">Girar</button>' : ''}

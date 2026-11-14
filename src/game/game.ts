@@ -95,6 +95,7 @@ export type GameEvent =
   | { type: 'built'; id: number }
   | { type: 'destroyed'; id: number; x: number; y: number }
   | { type: 'npcDied'; id: number; x: number; y: number }
+  | { type: 'npcLeft'; id: number; x: number; y: number }
   | { type: 'researched'; id: string }
   | { type: 'gameOver' };
 
@@ -133,7 +134,13 @@ export class Game {
   nextWaveIn: number = CONFIG.waves.firstDelay;
   gameOver = false;
   flowVersion = 0;
-  readonly stats = { delivered: 0, kills: 0, built: 0, npcDeaths: 0 };
+  readonly stats = { delivered: 0, kills: 0, built: 0, npcDeaths: 0, npcLeft: 0, foodEaten: 0 };
+  /** Comida: fracción de ración acumulada pendiente de comer. */
+  foodDebt = 0;
+  /** Hay hambre (no queda comida en el almacén). */
+  hungry = false;
+  /** Segundos de hambre seguida (para las marchas). */
+  hungerTime = 0;
   readonly unlockedBuildings = new Set<BuildKind>(CONFIG.startUnlocks.buildings);
   readonly unlockedRecipes = new Set<string>(CONFIG.startUnlocks.recipes);
   /** Bonificaciones de investigación. */
@@ -242,14 +249,28 @@ export class Game {
     this.events.push(e);
   }
 
+  /** Productividad de la población: 1 bien alimentada, menos con hambre. */
+  hungerFactor(): number {
+    return this.hungry ? CONFIG.food.hungryFactor : 1;
+  }
   npcSpeed(n: Npc): number {
-    return CONFIG.npc.roles[n.role].speed * (1 + this.bonus.npcSpeed);
+    return CONFIG.npc.roles[n.role].speed * (1 + this.bonus.npcSpeed) * this.hungerFactor();
   }
   npcCapacity(n: Npc): number {
     return CONFIG.npc.roles[n.role].capacity + this.bonus.npcCapacity;
   }
   npcWork(n: Npc): number {
-    return CONFIG.npc.roles[n.role].workRate * (1 + this.bonus.npcWork);
+    return CONFIG.npc.roles[n.role].workRate * (1 + this.bonus.npcWork) * this.hungerFactor();
+  }
+
+  /** Población total (NPCs vivos). */
+  get population(): number {
+    return this.npcs.length;
+  }
+
+  /** Comida que consume la población por minuto. */
+  foodPerMinute(): number {
+    return (this.npcs.length * CONFIG.food.perPerson * 60) / CONFIG.food.interval;
   }
 
   // ---------------------------------------------------------------- comandos
@@ -271,6 +292,9 @@ export class Game {
     }
     if (kind === 'drill' && oreAt(this.world, x, y) === Ore.None) {
       return { ok: false, reason: 'El taladro necesita mena' };
+    }
+    if (kind === 'farm' && oreAt(this.world, x, y) !== Ore.None) {
+      return { ok: false, reason: 'La granja necesita tierra libre' };
     }
     if (this.def(kind).solid) {
       const w = this.world.w;
@@ -307,7 +331,7 @@ export class Game {
 
   rotate(x: number, y: number, dir: Dir): boolean {
     const b = this.buildingAt(x, y);
-    if (!b || !['belt', 'belt_fast', 'drill', 'factory', 'feeder'].includes(b.kind)) return false;
+    if (!b || !ROTATABLE.includes(b.kind)) return false;
     b.dir = dir;
     return true;
   }
@@ -434,6 +458,8 @@ export class Game {
     this.time += dt;
     if (!this.noWaves) this.stepWaves(dt);
     this.stepGrid(dt);
+    this.stepFood(dt);
+    if (this.gameOver) return;
     this.jobs.update(this, dt);
     for (const n of [...this.npcs]) stepNpc(this, n, dt);
     this.stepBelts(dt);
@@ -555,13 +581,58 @@ export class Game {
   }
 
   killNpc(n: Npc): void {
+    this.dropNpc(n);
+    this.stats.npcDeaths++;
+    this.emit({ type: 'npcDied', id: n.id, x: n.x, y: n.y });
+    this.checkPopulation();
+  }
+
+  /** Una persona abandona la colonia (hambre). Lo que llevaba se pierde. */
+  npcLeave(n: Npc): void {
+    this.dropNpc(n);
+    this.stats.npcLeft++;
+    this.emit({ type: 'npcLeft', id: n.id, x: n.x, y: n.y });
+    this.checkPopulation();
+  }
+
+  private dropNpc(n: Npc): void {
     this.npcs = this.npcs.filter((o) => o !== n);
     if (n.jobId !== null) {
       const job = this.jobs.get(n.jobId);
       if (job) this.jobs.unassign(job);
     }
-    this.stats.npcDeaths++;
-    this.emit({ type: 'npcDied', id: n.id, x: n.x, y: n.y });
+  }
+
+  /** Sin población se pierde la partida. */
+  private checkPopulation(): void {
+    if (this.npcs.length === 0 && !this.gameOver) {
+      this.gameOver = true;
+      this.emit({ type: 'gameOver' });
+    }
+  }
+
+  /** La población come del almacén; sin comida hay hambre y, si dura, la gente se marcha. */
+  private stepFood(dt: number): void {
+    const F = CONFIG.food;
+    if (this.npcs.length === 0) return;
+    this.foodDebt += (dt * this.npcs.length * F.perPerson) / F.interval;
+    while (this.foodDebt >= 1) {
+      if (take(this.storage, 'food', 1) === 0) break;
+      this.foodDebt -= 1;
+      this.stats.foodEaten++;
+    }
+    if (this.foodDebt >= 1) {
+      this.foodDebt = 1; // no se acumula deuda infinita
+      this.hungry = true;
+      this.hungerTime += dt;
+      if (this.hungerTime >= F.starveGrace) {
+        this.hungerTime = F.starveGrace - F.leaveInterval;
+        this.npcLeave(this.npcs[this.npcs.length - 1]);
+      }
+    } else {
+      this.hungry = false;
+      this.hungerTime = 0;
+    }
   }
 
   /** Coste de entrar en una casilla para la ruta enemiga. */
@@ -736,15 +807,26 @@ export class Game {
     }
   }
 
+  /** Qué produce un extractor (taladro, granja...) y a qué ritmo. */
+  producerOf(b: Building): { item: ItemId; period: number; cap: number } | null {
+    if (b.kind === 'drill') {
+      const item = ORE_ITEM[oreAt(this.world, b.x, b.y)];
+      return item ? { item, period: CONFIG.drill.period, cap: CONFIG.drill.outCap } : null;
+    }
+    if (b.kind === 'farm') return { item: 'food', period: CONFIG.farm.period, cap: CONFIG.farm.outCap };
+    return null;
+  }
+
   private stepDrills(dt: number): void {
     for (const b of this.buildings.values()) {
-      if (b.kind !== 'drill' || !b.built) continue;
-      const item = ORE_ITEM[oreAt(this.world, b.x, b.y)];
-      if (item && count(b.out, item) < CONFIG.drill.outCap) {
+      if (!b.built) continue;
+      const p = this.producerOf(b);
+      if (!p) continue;
+      if (count(b.out, p.item) < p.cap) {
         b.timer += dt * powerMult(b);
-        if (b.timer >= CONFIG.drill.period) {
-          b.timer -= CONFIG.drill.period;
-          add(b.out, item, 1);
+        if (b.timer >= p.period) {
+          b.timer -= p.period;
+          add(b.out, p.item, 1);
         }
       }
       this.pushOutput(b);
@@ -896,6 +978,9 @@ export class Game {
     for (const n of [...this.npcs]) if (n.hp <= 0) this.killNpc(n);
   }
 }
+
+/** Edificios que se pueden girar (tienen salida o dirección). */
+export const ROTATABLE: BuildingKind[] = ['belt', 'belt_fast', 'drill', 'factory', 'feeder', 'farm'];
 
 export const ORE_ITEM: Record<number, ItemId | undefined> = {
   [Ore.Iron]: 'iron_ore',

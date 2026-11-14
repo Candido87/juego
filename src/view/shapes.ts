@@ -119,6 +119,8 @@ export const COLORS = {
   factory: 0x6d7f8f,
   generator: 0x5a4a3a,
   accumulator: 0x3f6f5a,
+  farm: 0x7a5530,
+  crop: 0x8fc43f,
   laser: 0xd94fd9,
   fire: 0xe8572a,
   frost: 0x7fd8ff,
@@ -146,6 +148,7 @@ export const ITEM_COLORS: Record<ItemId, number> = {
   wall_plate: 0x8fa3b8,
   science_1: 0xe53935,
   science_2: 0x1e88e5,
+  food: 0x9ccc65,
 };
 
 /** Colores de disparo por torreta. */
@@ -226,6 +229,20 @@ function factoryShape(dir: Dir): ShapeDef {
     ],
     decal: arrowDecal(dir, 22, COLORS.beltArrow, 0.6),
     tall: true,
+    shadow: 'shadow_1',
+  };
+}
+
+/** Granja: bancal de tierra con hileras de cultivo y un silo pequeño. */
+function farmShape(dir: Dir): ShapeDef {
+  const rows: Part[] = [0.18, 0.42, 0.66].map((y) => ({ x: 0.1, y, w: 0.56, d: 0.14, z: 5, h: 5, color: COLORS.crop }));
+  return {
+    parts: [
+      { x: 0.04, y: 0.04, w: 0.92, d: 0.92, z: 0, h: 5, color: COLORS.farm },
+      ...rows,
+      { x: 0.72, y: 0.12, w: 0.2, d: 0.2, z: 5, h: 22, color: 0xd9c9a0 },
+    ],
+    decal: arrowDecal(dir, 10, COLORS.beltArrow, 0.5),
     shadow: 'shadow_1',
   };
 }
@@ -356,6 +373,7 @@ for (let d = 0; d < 4; d++) {
   SHAPES[`belt_fast_${d}`] = beltShape(dir, true);
   SHAPES[`drill_${d}`] = drillShape(dir);
   SHAPES[`factory_${d}`] = factoryShape(dir);
+  SHAPES[`farm_${d}`] = farmShape(dir);
   SHAPES[`feeder_${d}`] = {
     parts: [
       { x: 0.15, y: 0.15, w: 0.7, d: 0.7, z: 0, h: 8, color: 0x4a6a5a },
@@ -375,7 +393,7 @@ export const MUZZLE_Z = 52;
 /** Altura de vuelo de los voladores (px). */
 export const FLY_Z = 28;
 
-const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'drill', 'factory', 'feeder']);
+const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'drill', 'factory', 'feeder', 'farm']);
 export function shapeKey(kind: BuildingKind, dir: Dir): string {
   return DIRECTIONAL.has(kind) ? `${kind}_${dir}` : kind;
 }

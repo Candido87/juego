@@ -446,6 +446,8 @@ export class GameScene extends Phaser.Scene {
         const p = this.groundScreen(ev.x, ev.y);
         this.flashes.push({ kind: 'death', color: 0xff5555, a: p, b: p, ttl: 0.8, max: 0.8 });
         getHud().flash('¡Un NPC ha muerto!');
+      } else if (ev.type === 'npcLeft') {
+        getHud().flash('Alguien se ha marchado por el hambre');
       } else if (ev.type === 'destroyed') {
         const p = this.groundScreen(ev.x + 0.5, ev.y + 0.5);
         this.flashes.push({ kind: 'death', color: 0xff9f43, a: p, b: p, ttl: 0.6, max: 0.6 });

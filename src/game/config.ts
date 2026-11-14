@@ -95,10 +95,11 @@ export const CONFIG = {
   step: 1 / 30,
 
   coreHp: 300,
-  startItems: { iron_plate: 60, gear: 24, copper_plate: 10, wood: 12, ammo: 40 } as Bag,
-  startNpcs: { constructor: 2, transporter: 2, operator: 1 } as Record<NpcRole, number>,
+  startItems: { iron_plate: 60, gear: 24, copper_plate: 10, wood: 12, ammo: 40, food: 30 } as Bag,
+  /** Población inicial: 3 personas. */
+  startNpcs: { constructor: 1, transporter: 1, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
-    buildings: ['drill', 'belt', 'storage', 'factory', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
+    buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
     recipes: ['iron_plate', 'copper_plate', 'gear', 'ammo', 'brick', 'circuit', 'battery', 'wall_plate', 'science_1', 'science_2'],
   },
 
@@ -118,6 +119,7 @@ export const CONFIG = {
     wall_plate: 'Placa de muro',
     science_1: 'Ciencia I',
     science_2: 'Ciencia II',
+    food: 'Comida',
   } as Record<ItemId, string>,
 
   buildings: {
@@ -126,6 +128,7 @@ export const CONFIG = {
     belt_fast: { name: 'Cinta rápida', cost: { iron_plate: 1, gear: 1 }, buildTime: 0.8, hp: 25, solid: false, size: [1, 1] },
     storage: { name: 'Almacén', cost: { iron_plate: 6, wood: 4 }, buildTime: 4, hp: 120, solid: true, size: [1, 1], storage: true },
     factory: { name: 'Fábrica', cost: { iron_plate: 8, gear: 4 }, buildTime: 5, hp: 100, solid: true, size: [1, 1] },
+    farm: { name: 'Granja', cost: { iron_plate: 4, wood: 4 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
     pole: { name: 'Poste', cost: { wood: 2, copper_plate: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
     generator: { name: 'Generador de combustión', cost: { iron_plate: 6, copper_plate: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
     solar: { name: 'Panel solar', cost: { copper_plate: 6, circuit: 3, iron_plate: 2 }, buildTime: 4, hp: 50, solid: true, size: [1, 1] },
@@ -144,6 +147,20 @@ export const CONFIG = {
 
   belt: { speed: 2, fastSpeed: 4 },
   drill: { period: 2, outCap: 6 },
+  /** Granja: 1 comida cada `period` s (sin red; con red, más rápido según power.mult.farm). */
+  farm: { period: 5, outCap: 8 },
+  /** Comida y hambre de la población. */
+  food: {
+    /** Cada persona come `perPerson` comida cada `interval` s. */
+    perPerson: 1,
+    interval: 20,
+    /** Con hambre, trabajo y velocidad de los NPCs se multiplican por esto. */
+    hungryFactor: 0.5,
+    /** Segundos de hambre seguida antes de que alguien se marche. */
+    starveGrace: 40,
+    /** Después, se marcha una persona cada tantos segundos. */
+    leaveInterval: 25,
+  },
   factory: { inputBatches: 3, outCap: 10 },
 
   /** Red eléctrica. Potencias en unidades/s; la energía de batería en unidades. */
@@ -153,9 +170,9 @@ export const CONFIG = {
     /** Distancia Chebyshev máxima entre un edificio y su poste. */
     supplyRadius: 2,
     /** Consumo de cada edificio conectado. */
-    demand: { belt: 0.5, belt_fast: 1, drill: 3, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6 } as Partial<Record<BuildKind, number>>,
+    demand: { belt: 0.5, belt_fast: 1, drill: 3, farm: 2, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6 } as Partial<Record<BuildKind, number>>,
     /** Multiplicador de rendimiento [sin red, con red]; con apagón se interpola según la satisfacción. */
-    mult: { drill: [1, 2], factory: [0.5, 1.5] } as Partial<Record<BuildKind, [number, number]>>,
+    mult: { drill: [1, 2], farm: [1, 2], factory: [0.5, 1.5] } as Partial<Record<BuildKind, [number, number]>>,
     generators: {
       generator: { power: 20, fuel: 'coal', burnTime: 8, fuelCap: 10 },
       turbine: { power: 60, fuel: 'coal', burnTime: 6, fuelCap: 10 },
