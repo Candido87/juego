@@ -45,6 +45,16 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - Pendiente de lógica (no tocada): **no existe torreta de misiles**; añadirla exige cambiar `game.ts` y `config.ts`.
 - Las fases G2 (murallas), G3 (interfaz) y G4 (terreno) de la primera tanda siguen pendientes.
 
+### Tutorial en el juego (depende de menús M1 y del laboratorio M4 para sus últimos pasos)
+- [ ] TU1. Motor del tutorial (tutorial.ts, textos aparte, progreso guardado) con tests.
+- [ ] TU2. Panel de instrucciones, resalte de elementos y mapa del tutorial.
+- [ ] TU3. Pasos 1-9 (cámara, construcción, modo manual, componentes, petróleo y electricidad, población y comida).
+- [ ] TU4. Pasos 10-15 (torretas, murallas, oleada de prueba, taller, laboratorio y árbol, final).
+- [ ] TU5. Menú de Ayuda, saltar/reiniciar, pulido.
+
+### Aplicación de escritorio (Electron)
+- [x] EL1. Electron + electron-builder: `npm run electron:dev`, `npm run dist` (instalador en `release/`).
+
 ### Resto de la hoja de ruta (después del rediseño)
 - [ ] 5. (E2) ~~Cintas motorizadas~~ (hecho en P4); queda sólo la regla "automatizado no pide abastecimiento".
 - [ ] 6. (E3) Alimentadores automáticos y torretas con abastecimiento automático.

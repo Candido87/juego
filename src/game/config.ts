@@ -328,6 +328,24 @@ export const CONFIG = {
   },
 
   tech: [] as TechNode[],
+
+  /** Tutorial: mapa pequeño y fijo con configuración propia (el juego normal no cambia). */
+  tutorial: {
+    seed: 7,
+    mapW: 24,
+    mapH: 24,
+    /** Almacén inicial del tutorial: sin menas (así "llegó mena al almacén" demuestra el transporte a mano). */
+    startItems: { frame: 14, gear: 12, wire: 8, pipe: 6, gun_part: 4, iron_plate: 20, copper_plate: 6, wood: 12, ammo: 20, food: 40, gasoline: 6 } as Bag,
+    /** Con 3 personas el taller y la obra se estorban: el tutorial acorta la llegada de gente. */
+    growthTimer: 5,
+    /** Población que el tutorial intenta alcanzar antes del taller. */
+    minPopulation: 4,
+    /** Bajas que debe causar la oleada de prueba para darla por superada. */
+    waveKills: 1,
+    /** El núcleo del tutorial no baja de esta vida (no se puede perder el tutorial). */
+    minCoreHp: 120,
+    storageKey: 'iso-factory-td:tutorial',
+  },
 };
 
 export type Config = typeof CONFIG;

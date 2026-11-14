@@ -288,3 +288,32 @@ El coste en paquetes de ciencia se mantiene (se paga al empezar, como antes) y s
 ### Gráficos de enemigos (Fase G1)
 - Enemigos: sprites de **Tiny Dungeon** (CC0) como figuras de pie (×2; el tanque ×3): normal = limo, rápido = araña, blindado = bestia acorazada, volador = murciélago (con altura de vuelo), tanque = cíclope. Registro en `sprites.ts` (`ENEMY_SPRITES`); los prismas de `shapes.ts` siguen como respaldo si no carga la hoja.
 - El pack no trae animaciones: el sprite se voltea según el movimiento en pantalla, se balancea al andar (más rápido cuanto más veloz) y se tiñe de naranja al arder o de azul al ralentizarse.
+
+## Tutorial dentro del juego (encargo "tutorial paso a paso")
+Opción **Tutorial** en el menú principal: partida guiada en un mapa pequeño y fijo (semilla fija, `TUTORIAL_CONFIG`
+propio en `tutorial.ts`/`config.ts`; el juego normal no cambia), con las primeras oleadas retrasadas hasta completar los pasos clave.
+
+### Motor (lógica pura, sin Phaser)
+- `src/game/tutorial.ts` define los **pasos como datos**: `{ id, title, text (clave de texto), done(game, ctx), highlight, grant? }`.
+  Los textos están aparte (`src/game/tutorialText.ts`, español) para poder editarlos o traducirlos.
+- `TutorialState`: `index`, `completed: Set<id>`, `skipped`. `stepTutorial(game, state)` avanza **sólo cuando `done()` es cierto**
+  (estado del juego, nunca un botón "siguiente"); si el jugador ya hizo algo antes de tiempo, el paso se marca cumplido y se
+  salta. Se puede **saltar un paso** o **todo el tutorial** y reiniciarlo desde el menú de pausa.
+- **Progreso guardado** (`localStorage`, clave propia) y recuperable.
+- **Nunca atasca**: cada paso tiene un `grant` que regala o repone el recurso necesario (componentes, gasolina, comida, munición)
+  si falta; el tutorial no cambia números del juego principal.
+- Test de recorrido completo con un bot, y tests de la máquina (avance, salto de cumplidos, guardado, sin bloqueo).
+
+### Interfaz
+- Panel en una esquina: objetivo actual, texto corto, "paso N de M". Resalte: borde brillante en el botón/herramienta,
+  flecha sobre la casilla de construcción y atenuación del resto de la pantalla cuando haga falta.
+- Menú **Ayuda** siempre accesible (controles y conceptos principales).
+
+### Pasos (se adaptan a lo que existe)
+1 cámara y zoom · 2 herramienta y categorías · 3 taladro sobre yacimiento · 4 modo manual (cintas paradas, NPCs a mano, cola
+de trabajos) · 5 componentes en fábrica nivel 1 · 6 cintas sin energía · 7 petróleo (bomba, refinería, gasolina) ·
+8 generador, postes y cables (las cintas se mueven solas) · 9 población y comida (3 personas, granjas, hambre) ·
+10 torreta de balas (munición a mano y automática) · 11 murallas · 12 oleada de prueba fácil · 13 taller (2 trabajadores) ·
+14 laboratorio y árbol (investigador) · 15 resumen final y objetivo (sobrevivir N oleadas).
+**Dependencias:** los pasos 11, 13 y 14 necesitan murallas, laboratorio e investigador, que aún no están (M1–M7 del encargo de
+menús; murallas = fase G2). Hasta entonces esos pasos se definen pero se marcan `available: false` y se saltan solos.
