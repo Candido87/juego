@@ -9,5 +9,14 @@ Licencia: https://creativecommons.org/publicdomain/zero/1.0/ · Apoyar a Kenney:
 | Tiny Factory | Kenney | https://kenney.nl/assets/tiny-factory | CC0 | Cintas, máquinas, NPCs, iconos (`public/assets/kenney/tiny-factory.png`) |
 | Tiny Dungeon | Kenney | https://kenney.nl/assets/tiny-dungeon | CC0 | Enemigos (`public/assets/kenney/tiny-dungeon.png`) |
 
-Se irán añadiendo aquí los packs que se usen en las siguientes fases (Sketch Town / Expansion, UI Pack).
-Sólo se listan los que realmente se cargan en el juego.
+## Previstos (están en `assets-juego/`, todavía sin cargar en el juego)
+
+| Pack | Autor | Enlace | Licencia | Uso previsto |
+|---|---|---|---|---|
+| Sketch Town + Sketch Town Expansion | Kenney | https://kenney.nl/assets/sketch-town | CC0 | Murallas, terreno, árboles, decoración |
+| UI Pack | Kenney | https://kenney.nl/assets/ui-pack | CC0 | Paneles, botones, barras, cursor, fuente |
+| Tanks | Kenney | https://kenney.nl/assets/tanks | CC0 | Enemigos blindados, proyectiles |
+| Space Shooter Redux / Extension | Kenney | https://kenney.nl/assets/space-shooter-redux | CC0 | Cabezas de torreta, naves voladoras, láseres |
+| Smoke Particle Pack | Kenney | https://kenney.nl/assets/smoke-particles | CC0 | Humo, explosiones, destellos |
+
+Cuando uno de estos packs se cargue de verdad en el juego, pasa a la tabla de arriba.

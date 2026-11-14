@@ -37,6 +37,14 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [ ] G3. Interfaz con el UI Pack (paneles, botones, barras, cursor, iconos).
 - [ ] G4. Terreno con variantes, árboles y decoración procedural.
 
+### Segunda tanda de gráficos (tanques, naves, humo) — esperando visto bueno del reparto (ver ASSETS.md)
+- [x] T0. Inventario y propuesta (ASSETS.md, CREDITS.md).
+- [ ] T1. Torretas: cabeza cenital proyectada y giratoria sobre base prismática, niveles y estados.
+- [ ] T2. Enemigos: tanques de perfil (blindados) y naves proyectadas con sombra (voladores).
+- [ ] T3. Humo y efectos con partículas ligeras.
+- Pendiente de lógica (no tocada): **no existe torreta de misiles**; añadirla exige cambiar `game.ts` y `config.ts`.
+- Las fases G2 (murallas), G3 (interfaz) y G4 (terreno) de la primera tanda siguen pendientes.
+
 ### Resto de la hoja de ruta (después del rediseño)
 - [ ] 5. (E2) ~~Cintas motorizadas~~ (hecho en P4); queda sólo la regla "automatizado no pide abastecimiento".
 - [ ] 6. (E3) Alimentadores automáticos y torretas con abastecimiento automático.

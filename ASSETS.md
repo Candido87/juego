@@ -92,3 +92,72 @@ sigue siendo el recurso, dibujado con estos árboles. Así no cambia la lógica 
 - Tratar `assets-juego/` y la raíz como los packs nuevos, ya que `[CARPETA…]` no estaba rellenado.
 - No mover ni borrar nada todavía; el saneado de duplicados (problema 8) lo propongo para antes de la Fase 4.
 - Los PNG grandes se reducen al hornear el atlas (escala 0,276); no se cargan sueltos.
+
+---
+
+# Segunda tanda: tanques, naves y humo (Fase 0 del encargo de torretas/enemigos/efectos)
+
+Misma situación que antes: el encargo hablaba de `public/assets/[CARPETA…]` sin rellenar; los archivos están en
+**`assets-juego/`** (que ahora pesa **16 MB**). Nada de esto está en `public/`.
+
+## Packs nuevos
+
+| # | Pack (identificado por contenido) | Dónde | Qué contiene | Licencia | Tamaños | Vista | Direcciones / animación | ¿Encaja con 64×32? |
+|---|---|---|---|---|---|---|---|---|
+| 7 | **Kenney Tanks** | `PNG/Default size/` (88 PNG, ×1), `PNG/Retina/` (88 PNG, ×2), `Spritesheet/tanks_spritesheet{Default,Retina}.png/.xml` | 5 diseños de tanque × 4 colores (Green, Desert, Grey, **Navy con una X blanca**), cada uno **completo** (`tank*N`) y **sólo casco** (`tank*_bodyN`); 7 orugas; **4 cañones sueltos** (`tanks_turret1–4`); 12 balas; 12 fotogramas de explosión; minas, cajas, barriles | CC0 (Kenney; sin archivo propio) | Tanque 75–92 × 59–69 px (×1); casco 55–84 × 39–53; cañón 20–48 × 9–15; Retina = el doble | **Lateral (perfil)**, mirando a la derecha | Sólo derecha (se voltea). Sin animación (la explosión son 12 fotogramas sueltos) | **No** (perfil, no isométrico) |
+| 8 | **Kenney Space Shooter Redux (+ Extension)** | `PNG/{Enemies,Parts,Lasers,Effects,Damage,Meteors,Power-ups,UI}/`, `Backgrounds/`, `Spritesheet/sheet.png|xml` (1024×1024), `Bonus/` (2 fuentes + 7 sonidos `.ogg`) | **20 naves enemigas** (5 diseños × Black/Blue/Green/Red, ≈ 82–104 × 84), **piezas** (8 cabinas × 4 colores, 8 alas × 4, 5 motores, **11 cañones `gun00–10`**, **`turretBase_big` 41×41 y `_small` 26×26**), 48 láseres (≈ 9×54), llamas `fire00–19` (16×40), escudos, estrellas, daños de nave, meteoritos, power-ups, botones, cursor, números | CC0 (Kenney; sin archivo propio) | Naves ≈ 90 px; cañones 14–21 × 33–52 | **Cenital** | Sin giros: se rotan por código. Llamas y escudos son variantes sueltas | **No** (cenital), pero **proyectable sobre el suelo** con transformación afín, como ya hacemos con las cintas |
+| 9 | **Kenney Smoke Particle Pack** | `PNG/Black smoke/` (25), `PNG/White puff/` (25), `PNG/Explosion/` (9), `PNG/Flash/` (9), `PNG/Fart/` (9) | Bocanadas de humo negro y blanco (25 formas cada una), 9 fotogramas de explosión, 9 de destello, 9 de humo verde | **CC0** (`assets-juego/License.txt`, ahora es el de este pack) | **340–420 px** (explosión 583×536, destello 550×496) | Sin vista (formas blandas) | Humo = formas sueltas; explosión y destello = secuencia de 9 | Sí (independiente de la proyección) |
+
+## Problemas detectados (tanda 2)
+
+1. **Ni tanques ni naves son isométricos.** Los tanques están de **perfil** (sólo hacia la derecha) y las naves **cenitales**.
+   Nada trae las 4 diagonales de nuestra proyección. Soluciones: tanques como figuras de pie volteadas según el movimiento
+   en pantalla; naves proyectadas **planas sobre el plano del suelo** (afín, rotadas por código) a una altura de vuelo,
+   con su sombra en el suelo.
+2. **Un tanque de perfil como base de torreta quedaría raro** (casco lateral con orugas sobre una losa isométrica). Para las
+   torretas del jugador el mejor material son las **piezas cenitales de Space Shooter** (`turretBase`, `gun`), que sí se
+   proyectan y giran sobre una base prismática.
+3. **No hay torreta de misiles en la lógica.** Las torretas del juego son balas, láser, fuego y hielo (decisión de SPEC). El
+   encargo pide "misil": **no lo hago** (sería lógica nueva en `game.ts`/`config.ts`). Si lo quieres, dímelo.
+4. **Estilos.** Tanques y Space Shooter son el mismo dibujo plano de Kenney (sombreado suave, **sin contorno**): combinan entre
+   sí y con el UI Pack. Chocan con Sketch Town (contorno marrón grueso) y con el pixel art de 16 px. Ya había tres estilos;
+   ahora son cinco. Es manejable si cada familia se limita a su función (mundo = Sketch, enemigos/torretas/efectos = Kenney
+   plano, NPCs = pixel art).
+5. **Escala.** Un tanque mide ≈ 80 px y la losa 64 de ancho: hay que reducirlo a ≈ ×0,45–0,55 (usando los Retina a ×0,25 para
+   que queden nítidos). Las naves (≈ 90 px) a ≈ ×0,4.
+6. **Peso.** Humos, explosiones y destellos son ≈ **6 MB** de PNG de ≈ 380 px: **inutilizables tal cual** como partículas. Se
+   hornean a ≈ 48–64 px (unas 10 formas de cada humo) en una sola textura.
+7. **Duplicados y sobrantes.** `Default size` y `Retina` son **el mismo arte a dos tamaños** (88 + 88); las hojas
+   `tanks_spritesheet*` y `sheet.png` repiten los PNG sueltos. **Sin usar**: meteoritos, power-ups, vidas, numerales, fondos,
+   `Fart`, `Damage`, `Bonus/*.ttf` (otra fuente Kenney); los `.ogg` podrían servir más adelante para el volumen de Opciones.
+   `assets-juego/License.txt` se pisó otra vez (ahora es el del pack de humo).
+8. **Licencias.** Los tres packs son CC0 (Kenney): se pueden publicar y usar comercialmente; el crédito es voluntario. Sin
+   problemas legales. Tanks y Space Shooter no traen archivo de licencia propio (los identifico por contenido).
+
+## Propuesta de reparto
+
+| Uso | Qué usar | Cómo | ¿Encaja? |
+|---|---|---|---|
+| **Torreta de balas** | Base prismática metálica + `turretBase_big` + cañón `gun03` (doble con nivel ≥ 2) | Cabeza **cenital proyectada sobre la cara superior**, 16 rumbos pre-horneados que giran hacia el objetivo; retroceso y destello (`Flash`) al disparar | **Sí** |
+| **Láser** | Base oscura + `turretBase_small` + `gun10` (largo y fino) teñido de cian | Misma técnica; rayo con `laserBlue*` y brillo pulsante | **Sí** |
+| **Lanzallamas** | Base ancha cobre + `turretBase_big` + `gun05` corto y grueso | Llamas `fire00–19` al disparar | **Sí** |
+| **Hielo** | Base azul + `turretBase_small` + `gun01` + cristales (prisma) | Destello cian | Parcial (sin material propio, se tiñe) |
+| **Misil** | — | **No existe en la lógica** | **No** |
+| **Nivel visible** | Más cañones, más tamaño y color de la base | Variantes horneadas por nivel (1–3) | Sí |
+| **Estados** | Sin munición/energía: cabeza apagada + alarma (ya hay); dañada: humo negro y grietas; en obra: translúcida (ya hay) | | Sí |
+| **Enemigos terrestres blindados** | **Tanques Navy** (con la **X blanca**, marca de enemigo) para *blindado* y *tanque* (diseño grande) | Figura de pie volteada por la dirección en pantalla; cañón suelto (`turret*`) apuntando a la torreta más cercana | Parcial (perfil) |
+| **Enemigos voladores** | **Naves enemigas Red/Black** | Plano proyectado en el suelo a altura de vuelo, rotado por el rumbo, **sombra en el suelo** | **Sí** |
+| **Resto de enemigos** | Seguimos con Tiny Dungeon (normal = limo, rápido = araña) | | Sí |
+| **Distinguirlos de las torretas del jugador** | Torretas en tonos **verde/azul/cobre**; enemigos **Navy con X / rojo / negro** | | Sí |
+| **Humo de producción** | `White puff` reducido sobre fábricas, refinerías y generadores en marcha | Pocas partículas, más con más actividad; ninguna si están parados o sin energía | Sí |
+| **Humo de daño** | `Black smoke` sobre edificios y torretas por debajo del 50 % de vida | | Sí |
+| **Chispas** | Generadas por código (generadores) | | Sí |
+| **Explosión / destello** | `Explosion` y `Flash` reducidos; `tank_explosion*` como alternativa | Al destruir enemigos y edificios, y fogonazo | Sí |
+| **Proyectiles** | `tank_bullet*` (balas), `laser*` (láser) | | Sí |
+| **No se usará** | Meteoritos, power-ups, vidas, numerales, fondos, `Fart`, minas, barriles (quizá cajas como decoración) | | — |
+
+## Decisiones
+- Las torretas **sólo cambian de aspecto**: lógica y números de `config.ts` intactos.
+- Rendimiento: un `ParticleEmitter` por tipo reutilizando texturas horneadas, tope de emisores visibles (≈ 24) y desactivados
+  fuera de cámara.
+- Las fases de esta tanda quedan **a la espera de tu visto bueno** (pediste ver el reparto antes de seguir).
