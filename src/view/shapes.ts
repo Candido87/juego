@@ -352,6 +352,16 @@ export const SHAPES: Record<string, ShapeDef> = {
     tall: true,
     shadow: 'shadow_1',
   },
+  workshop: {
+    parts: [
+      { x: 0.05, y: 0.05, w: 0.9, d: 0.9, z: 0, h: 18, color: 0x8a6a4a },
+      { x: 0.05, y: 0.05, w: 0.9, d: 0.9, z: 18, h: 6, color: 0xb5452f },
+      { x: 0.62, y: 0.15, w: 0.18, d: 0.18, z: 24, h: 12, color: 0x4a505a },
+      { x: 0.2, y: 0.82, w: 0.4, d: 0.12, z: 2, h: 12, color: 0x3a2a1a },
+    ],
+    tall: true,
+    shadow: 'shadow_1',
+  },
   pole: {
     parts: [
       { x: 0.42, y: 0.42, w: 0.16, d: 0.16, z: 0, h: 44, color: 0x7a5a3a },

@@ -340,8 +340,69 @@ export class Game {
     return true;
   }
 
+  /** Cambia el rol de un NPC (no se puede poner/quitar Mecánico a mano: eso lo hace el Taller). */
+  setRole(npcId: number, role: NpcRole): boolean {
+    const n = this.npcs.find((o) => o.id === npcId);
+    if (!n || n.role === role || role === 'mechanic' || n.role === 'mechanic') return false;
+    this.changeRole(n, role);
+    return true;
+  }
+
+  /** Cambia el rol soltando el trabajo actual; lo que llevaba vuelve al almacén. */
+  changeRole(n: Npc, role: NpcRole): void {
+    if (n.jobId !== null) {
+      const job = this.jobs.get(n.jobId);
+      if (job) this.jobs.unassign(job);
+      n.jobId = null;
+    }
+    addAll(this.storage, n.carry);
+    n.carry = {};
+    n.work = 0;
+    n.path = [];
+    n.role = role;
+  }
+
+  /** ¿Hay un taller terminado con mecánicos? (entonces los Constructores no reparan) */
+  hasWorkshop(): boolean {
+    return this.npcs.some((n) => n.role === 'mechanic');
+  }
+
+  /** Talleres terminados (y no marcados para desmontar). */
+  workshops(): Building[] {
+    return [...this.buildings.values()].filter((b) => b.kind === 'workshop' && b.built && !b.markedForRemoval);
+  }
+
+  /** Personas fuera del taller (y de otros puestos fijos). */
+  generalWorkers(): Npc[] {
+    return this.npcs.filter((n) => n.role !== 'mechanic');
+  }
+
+  /**
+   * Dotación de los talleres: cada uno quiere `workshop.workers` mecánicos. Se toman del rol con más gente
+   * (prefiriendo a quien esté libre) dejando al menos `minOutside` fuera. Si sobran mecánicos, vuelven a Constructor.
+   */
+  private staffWorkshops(): void {
+    const W = CONFIG.workshop;
+    const want = this.workshops().length * W.workers;
+    let mech = this.npcs.filter((n) => n.role === 'mechanic');
+    while (mech.length > want) {
+      this.changeRole(mech[mech.length - 1], 'constructor');
+      mech = mech.slice(0, -1);
+    }
+    while (mech.length < want) {
+      const pool = this.generalWorkers();
+      if (pool.length <= W.minOutside) break;
+      const byRole = new Map<NpcRole, number>();
+      for (const n of pool) byRole.set(n.role, (byRole.get(n.role) ?? 0) + 1);
+      pool.sort((a, b) => byRole.get(b.role)! - byRole.get(a.role)! || Number(a.jobId !== null) - Number(b.jobId !== null) || a.id - b.id);
+      this.changeRole(pool[0], 'mechanic');
+      mech.push(pool[0]);
+    }
+  }
+
   /** Contrata un NPC pagando piezas del almacén. */
   hire(role: NpcRole): Npc | null {
+    if (role === 'mechanic') return null;
     const cost = CONFIG.npc.roles[role].cost;
     if (!entries(cost).every(([i, n]) => count(this.storage, i) >= n)) return null;
     for (const [i, n] of entries(cost)) take(this.storage, i, n);
@@ -431,6 +492,7 @@ export class Game {
   }
 
   canHire(role: NpcRole): boolean {
+    if (role === 'mechanic') return false;
     return entries(CONFIG.npc.roles[role].cost).every(([i, n]) => count(this.storage, i) >= n);
   }
 
@@ -474,6 +536,7 @@ export class Game {
     if (!this.noWaves) this.stepWaves(dt);
     this.stepGrid(dt);
     this.stepFood(dt);
+    this.staffWorkshops();
     if (this.gameOver) return;
     this.jobs.update(this, dt);
     for (const n of [...this.npcs]) stepNpc(this, n, dt);
@@ -930,6 +993,33 @@ export class Game {
     this.removeDeadEnemies();
   }
 
+  /** Daña el edificio construido más cercano al enemigo (a ≤ enemyHitRadius de su huella). */
+  private hitBuildingNear(e: Enemy, dmg: number): void {
+    const tx = Math.floor(e.x);
+    const ty = Math.floor(e.y);
+    let best: Building | null = null;
+    let bestD = CONFIG.enemyHitRadius;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const b = this.buildingAt(tx + dx, ty + dy);
+        if (!b || !b.built || b.kind === 'core') continue;
+        const cx = Math.max(b.x, Math.min(e.x, b.x + b.w));
+        const cy = Math.max(b.y, Math.min(e.y, b.y + b.d));
+        const d = Math.hypot(e.x - cx, e.y - cy);
+        if (d <= bestD) {
+          bestD = d;
+          best = b;
+        }
+      }
+    }
+    if (!best) return;
+    best.hp -= dmg;
+    if (best.hp <= 0) {
+      this.emit({ type: 'destroyed', id: best.id, x: best.x, y: best.y });
+      this.deleteBuilding(best);
+    }
+  }
+
   private removeDeadEnemies(): void {
     const alive: Enemy[] = [];
     for (const e of this.enemies) {
@@ -982,7 +1072,8 @@ export class Game {
         e.tx = next.x;
         e.ty = next.y;
       }
-      // Daño a NPCs cercanos.
+      // Daño a NPCs y al edificio que tenga al lado.
+      if (def.dps > 0 && !e.flying) this.hitBuildingNear(e, def.dps * CONFIG.buildingDamageFactor * dt);
       if (def.dps > 0) {
         for (const n of this.npcs) {
           if (Math.hypot(n.x - e.x, n.y - e.y) <= CONFIG.enemyHitRadius) n.hp -= def.dps * dt;

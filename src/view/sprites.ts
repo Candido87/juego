@@ -48,6 +48,7 @@ export const BILLBOARDS: Record<string, number> = {
   npc_constructor: 120,
   npc_transporter: 110,
   npc_operator: 108,
+  npc_mechanic: 120,
   marker_spawn: 125,
   icon_alarm: 129,
 };
@@ -73,6 +74,7 @@ export const ROLE_ICONS: Record<NpcRole, number> = {
   constructor: 120,
   transporter: 110,
   operator: 108,
+  mechanic: 121,
 };
 
 export const JOB_ICONS: Record<JobType, number> = {

@@ -104,7 +104,7 @@ export const CONFIG = {
   /** Población inicial: 3 personas. */
   startNpcs: { constructor: 1, transporter: 1, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
-    buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'pump', 'refinery', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
+    buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'pump', 'refinery', 'workshop', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
     /** Recetas de nivel 1. Las de nivel 2 (circuito, batería, placa de muro, ciencia II) llegan con el árbol. */
     recipes: ['iron_plate', 'copper_plate', 'brick', 'gear', 'frame', 'wire', 'pipe', 'gun_part', 'ammo', 'tool_kit', 'science_1'],
   },
@@ -148,6 +148,7 @@ export const CONFIG = {
     farm: { name: 'Granja', cost: { frame: 2, gear: 1 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
     pump: { name: 'Bomba de petróleo', cost: { pipe: 2, frame: 2, gear: 1 }, buildTime: 4, hp: 70, solid: true, size: [1, 1] },
     refinery: { name: 'Refinería', cost: { pipe: 3, frame: 3, gear: 2 }, buildTime: 6, hp: 110, solid: true, size: [1, 1] },
+    workshop: { name: 'Taller', cost: { tool_kit: 4, frame: 3 }, buildTime: 6, hp: 120, solid: true, size: [1, 1] },
     pole: { name: 'Poste', cost: { wire: 2, frame: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
     generator: { name: 'Generador', cost: { frame: 3, gear: 2, wire: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
     solar: { name: 'Panel solar', cost: { circuit: 2, wire: 4, frame: 1 }, buildTime: 4, hp: 50, solid: true, size: [1, 1] },
@@ -207,7 +208,15 @@ export const CONFIG = {
     criticalByDefault: ['turret_laser', 'turret_frost'] as BuildKind[],
   },
   /** Cada unidad del primer material del coste repara esta fracción de la vida. */
-  repair: { fractionPerUnit: 0.34, secondsPerUnit: 0.6 },
+  repair: {
+    fractionPerUnit: 0.34,
+    secondsPerUnit: 0.6,
+    /** Ritmo de reparación de un Constructor (sin taller) y de un Mecánico. */
+    constructorFactor: 0.5,
+    mechanicFactor: 1.5,
+  },
+  /** Taller: personas que toma de la población; siempre deja al menos `minOutside` fuera. */
+  workshop: { workers: 2, minOutside: 1 },
   deconstruct: { refund: 0.5, timeFactor: 0.5 },
 
 
@@ -260,6 +269,7 @@ export const CONFIG = {
     roles: {
       constructor: { name: 'Constructor', cost: { iron_plate: 4, gear: 2 }, speed: 2.2, capacity: 12, hp: 40, workRate: 1 },
       transporter: { name: 'Transportista', cost: { iron_plate: 3, gear: 2 }, speed: 2.6, capacity: 10, hp: 35, workRate: 1 },
+      mechanic: { name: 'Mecánico', cost: {}, speed: 2.2, capacity: 8, hp: 40, workRate: 1 },
       operator: { name: 'Operario', cost: { iron_plate: 3, gear: 1, copper_plate: 2 }, speed: 2, capacity: 0, hp: 40, workRate: 1 },
     } as Record<NpcRole, NpcDef>,
     maintainTime: 2.5,
@@ -270,6 +280,8 @@ export const CONFIG = {
     priority: { build: 2, deconstruct: 1, repair: 3, supply: 2, collect: 1, maintain: 2, start: 4 } as Record<JobType, number>,
     /** Prioridad extra para torretas sin munición/energía. */
     urgentBonus: 3,
+    /** Prioridad extra al reparar infraestructura crítica (generadores, torretas, red). */
+    criticalRepairBonus: 2,
     /** Se pide abastecer cuando queda menos de esta fracción. */
     supplyBelow: 0.5,
     collectMin: 4,
@@ -283,6 +295,8 @@ export const CONFIG = {
   enemyPath: { wallCost: 8, buildingCost: 20 },
   /** Radio (casillas) en el que un enemigo daña a un NPC. */
   enemyHitRadius: 0.7,
+  /** Los enemigos terrestres dañan el edificio que tienen al lado con dps × este factor. */
+  buildingDamageFactor: 0.5,
 
   enemies: {
     grunt: { name: 'Normal', hp: 14, speed: 0.9, armor: 0, dps: 8, coreDamage: 10, flying: false },

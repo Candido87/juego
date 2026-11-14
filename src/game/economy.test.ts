@@ -255,3 +255,95 @@ describe('cintas eléctricas y modo manual', () => {
     expect(g.outputFlows(d)).toBe(true);
   });
 });
+
+describe('taller y reparaciones', () => {
+  it('al terminar el taller toma 2 personas como Mecánicos y deja 1 fuera', () => {
+    const g = flatGame();
+    instant(g, 'workshop', 6, 6);
+    run(g, 0.1);
+    const roles = g.npcs.map((n) => n.role);
+    expect(roles.filter((r) => r === 'mechanic').length).toBe(CONFIG.workshop.workers);
+    expect(g.generalWorkers().length).toBe(1);
+  });
+
+  it('con sólo 2 personas el taller toma 1 (siempre queda alguien fuera)', () => {
+    const g = flatGame();
+    g.npcs = g.npcs.slice(0, 2);
+    instant(g, 'workshop', 6, 6);
+    run(g, 0.1);
+    expect(g.npcs.filter((n) => n.role === 'mechanic').length).toBe(1);
+  });
+
+  it('los Mecánicos reparan gastando componentes; el Constructor no repara ni ellos construyen', () => {
+    const g = flatGame();
+    g.storage.food = 100;
+    instant(g, 'workshop', 6, 6);
+    const t = instant(g, 'turret_bullet', 4, 4);
+    t.hp = t.maxHp * 0.3;
+    const site = g.place('farm', 14, 14)!;
+    g.storage.frame = 0; // la obra no se puede terminar → el Constructor queda libre
+    const frames = 5;
+    g.storage.gun_part = frames;
+    run(g, 0.1);
+    const constructor = g.npcs.find((n) => n.role !== 'mechanic')!;
+    run(g, 30);
+    expect(t.hp).toBe(t.maxHp);
+    expect(count(g.storage, 'gun_part')).toBeLessThan(frames);
+    expect(site.built).toBe(false);
+    expect(constructor.jobId === null || g.jobs.get(constructor.jobId)!.type !== 'repair').toBe(true);
+  });
+
+  it('sin taller repara el Constructor, más despacio', () => {
+    const fix = (withShop: boolean) => {
+      const g = flatGame();
+      if (withShop) instant(g, 'workshop', 6, 6);
+      const t = instant(g, 'turret_bullet', 4, 4);
+      t.hp = t.maxHp * 0.3;
+      let s = 0;
+      while (t.hp < t.maxHp && s < 120) {
+        run(g, 0.5);
+        s += 0.5;
+      }
+      return s;
+    };
+    expect(CONFIG.repair.constructorFactor).toBeLessThan(CONFIG.repair.mechanicFactor);
+    expect(fix(false)).toBeGreaterThan(fix(true));
+  });
+
+  it('la infraestructura crítica se repara antes', () => {
+    const g = flatGame();
+    const gen = instant(g, 'generator', 4, 4);
+    const st = instant(g, 'storage', 6, 4);
+    gen.hp = gen.maxHp * 0.5;
+    st.hp = st.maxHp * 0.5;
+    g.jobs.refresh(g);
+    const pri = (id: number) => g.jobs.list().find((j) => j.type === 'repair' && j.buildingId === id)!.priority;
+    expect(pri(gen.id)).toBe(pri(st.id) + CONFIG.jobs.criticalRepairBonus);
+  });
+
+  it('los enemigos dañan los edificios que tienen al lado', () => {
+    const g = flatGame([], { waves: true });
+    g.npcs = [];
+    const wall = instant(g, 'farm', 2, 9); // junto al camino desde (0,10)
+    g.callWaveNow();
+    run(g, 15);
+    expect(wall.hp).toBeLessThan(wall.maxHp);
+  });
+
+  it('desmontar el taller devuelve a los mecánicos como Constructores', () => {
+    const g = flatGame();
+    const w = instant(g, 'workshop', 6, 6);
+    run(g, 0.1);
+    g.deleteBuilding(w);
+    run(g, 0.1);
+    expect(g.npcs.some((n) => n.role === 'mechanic')).toBe(false);
+  });
+
+  it('el jugador puede cambiar el rol de una persona, pero no hacerla Mecánico', () => {
+    const g = flatGame();
+    const n = g.npcs.find((o) => o.role === 'transporter')!;
+    expect(g.setRole(n.id, 'constructor')).toBe(true);
+    expect(n.role).toBe('constructor');
+    expect(g.setRole(n.id, 'mechanic')).toBe(false);
+  });
+});

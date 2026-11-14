@@ -46,6 +46,8 @@ interface Desired {
   item: ItemId | null;
   qty: number;
   urgent: boolean;
+  /** Prioridad extra (p. ej. reparar infraestructura crítica). */
+  bonus?: number;
 }
 
 /** Sistemas que añaden trabajos deseados (se amplía en otros módulos). */
@@ -59,8 +61,8 @@ export type { Desired };
 function baseJobs(game: Game, out: Desired[]): void {
   const J = CONFIG.jobs;
   for (const b of game.buildings.values()) {
-    const job = (type: JobType, item: ItemId | null = null, qty = 0, urgent = false) =>
-      out.push({ key: `${type}:${b.id}${item ? `:${item}` : ''}`, type, buildingId: b.id, item, qty, urgent });
+    const job = (type: JobType, item: ItemId | null = null, qty = 0, urgent = false, bonus = 0) =>
+      out.push({ key: `${type}:${b.id}${item ? `:${item}` : ''}`, type, buildingId: b.id, item, qty, urgent, bonus });
     if (!b.built) {
       job('build');
       continue;
@@ -71,7 +73,9 @@ function baseJobs(game: Game, out: Desired[]): void {
     }
     // Reparar: con el primer material de su coste.
     const repairItem = entries(game.def(b.kind).cost)[0]?.[0];
-    if (repairItem && b.hp < b.maxHp * J.repairBelow) job('repair', repairItem, 0, b.hp < b.maxHp * 0.35);
+    if (repairItem && b.hp < b.maxHp * J.repairBelow) {
+      job('repair', repairItem, 0, b.hp < b.maxHp * 0.35, isCriticalInfra(game, b) ? J.criticalRepairBonus : 0);
+    }
     // Abastecer entradas, munición y combustible.
     for (const item of game.inputsOf(b)) {
       if (!game.needsManualSupply(b, item)) continue;
@@ -89,6 +93,21 @@ function baseJobs(game: Game, out: Desired[]): void {
     // Mantenimiento por desgaste.
     if ((b.kind === 'factory' || b.kind === 'refinery' || game.turretDef(b)) && b.condition < J.maintainBelow) job('maintain', null, 0, b.condition <= 0);
   }
+}
+
+/** Infraestructura que se repara antes: generadores, torretas, postes y baterías. */
+export function isCriticalInfra(game: Game, b: Building): boolean {
+  return !!game.turretDef(b) || ['generator', 'turbine', 'solar', 'pole', 'accumulator'].includes(b.kind);
+}
+
+/**
+ * ¿Puede este NPC coger el trabajo? Los Mecánicos sólo reparan; los Constructores reparan
+ * únicamente si no hay un taller con mecánicos.
+ */
+export function canTake(game: Game, n: Npc, j: Job): boolean {
+  if (n.role === 'mechanic') return j.type === 'repair';
+  if (j.type === 'repair') return n.role === 'constructor' && !game.hasWorkshop();
+  return JOB_ROLE[j.type] === n.role;
 }
 
 /** ¿Puede empezarse ya el trabajo? (p. ej. hay material en el almacén). */
@@ -162,7 +181,7 @@ export class JobBoard {
         buildingId: d.buildingId,
         item: d.item,
         qty: d.qty,
-        priority: CONFIG.jobs.priority[d.type] + (d.urgent ? CONFIG.jobs.urgentBonus : 0),
+        priority: Math.min(CONFIG.jobs.maxPriority, CONFIG.jobs.priority[d.type] + (d.urgent ? CONFIG.jobs.urgentBonus : 0) + (d.bonus ?? 0)),
         npcId: null,
       };
       this.byKey.set(job.key, job);
@@ -183,7 +202,7 @@ export class JobBoard {
       let best: Job | null = null;
       let bestScore = -Infinity;
       for (const j of open) {
-        if (j.npcId !== null || JOB_ROLE[j.type] !== n.role) continue;
+        if (j.npcId !== null || !canTake(game, n, j)) continue;
         const b = game.buildings.get(j.buildingId);
         if (!b || !jobFeasible(game, j, b)) continue;
         const dist = Math.abs(b.x + b.w / 2 - n.x) + Math.abs(b.y + b.d / 2 - n.y);

@@ -198,7 +198,12 @@ function doStart(game: Game, n: Npc, _job: Job, b: Building, dt: number): Outcom
   return 'continue';
 }
 
-/** Constructor: repara con el primer material del coste del edificio. */
+/** Ritmo de reparación según quién repare. */
+function repairFactor(n: Npc): number {
+  return n.role === 'mechanic' ? CONFIG.repair.mechanicFactor : CONFIG.repair.constructorFactor;
+}
+
+/** Mecánico (o Constructor sin taller): repara con el primer componente del coste del edificio. */
 function doRepair(game: Game, n: Npc, job: Job, b: Building, dt: number): Outcome {
   const item = job.item!;
   if (b.hp >= b.maxHp) return 'done';
@@ -215,7 +220,7 @@ function doRepair(game: Game, n: Npc, job: Job, b: Building, dt: number): Outcom
   if (r === null) return 'abort';
   if (!r) return 'continue';
   n.work += dt * game.npcWork(n);
-  if (n.work >= CONFIG.repair.secondsPerUnit) {
+  if (n.work >= CONFIG.repair.secondsPerUnit / repairFactor(n)) {
     n.work = 0;
     take(n.carry, item, 1);
     b.hp = Math.min(b.maxHp, b.hp + b.maxHp * CONFIG.repair.fractionPerUnit);
