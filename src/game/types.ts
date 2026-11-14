@@ -18,7 +18,7 @@ export function dirBetween(a: Tile, b: Tile): Dir | null {
 }
 
 /** Tipos de mena del mapa. 0 = sin mena. */
-export const Ore = { None: 0, Iron: 1, Copper: 2, Coal: 3, Stone: 4, Wood: 5, Oil: 6 } as const;
+export const Ore = { None: 0, Iron: 1, Copper: 2, Coal: 3, Stone: 4, Wood: 5, Oil: 6, Sulfur: 7 } as const;
 export type Ore = (typeof Ore)[keyof typeof Ore];
 
 /** Todas las piezas/objetos que existen. */
@@ -46,6 +46,7 @@ export const ITEM_IDS = [
   'tool_kit',
   'oil',
   'gasoline',
+  'sulfur',
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 

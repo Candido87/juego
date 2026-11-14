@@ -120,7 +120,7 @@ function countKind(game: Game, kind: BuildKind): number {
 
 /** Fábricas que el bot quiere, en orden. Van pegadas al núcleo y le escupen la salida. */
 /** Menas que el bot explota, en orden. */
-const BOT_ORES: Ore[] = [Ore.Iron, Ore.Wood, Ore.Iron, Ore.Wood, Ore.Iron, Ore.Iron, Ore.Wood, Ore.Iron];
+const BOT_ORES: Ore[] = [Ore.Iron, Ore.Wood, Ore.Sulfur, Ore.Iron, Ore.Stone, Ore.Wood, Ore.Iron, Ore.Iron, Ore.Wood, Ore.Iron, Ore.Sulfur, Ore.Stone];
 
 const BOT_FACTORIES = ['iron_plate', 'frame', 'gear', 'ammo', 'gun_part', 'iron_plate', 'iron_plate', 'frame', 'gear', 'ammo'];
 

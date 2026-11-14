@@ -17,7 +17,7 @@ export interface GuiaHighlight {
   /** Elemento de la interfaz (id del DOM). */
   ui?: string;
   /** Zona del mapa que se señala con una flecha. */
-  target?: 'iron' | 'stone' | 'enemy_path' | 'core';
+  target?: 'iron' | 'sulfur' | 'stone' | 'enemy_path' | 'core';
 }
 
 export interface GuiaStep {
@@ -65,7 +65,8 @@ export const GUIA_STEPS: GuiaStep[] = [
   { id: 'storage', highlight: { tool: 'storage' }, build: 'storage', done: (g) => hasBuilt(g, 'storage') && (g.storage.iron_ore ?? 0) > 0 },
   { id: 'factory_plates', highlight: { tool: 'factory' }, build: 'factory', recipe: 'iron_plate', done: (g) => factoryWith(g, 'iron_plate') },
   { id: 'farm', highlight: { tool: 'farm' }, build: 'farm', done: (g) => hasBuilt(g, 'farm') },
-  { id: 'drill_stone', highlight: { tool: 'drill', target: 'stone' }, build: 'drill', done: (g) => drillOn(g, [Ore.Stone, Ore.Coal]) },
+  { id: 'drill_sulfur', highlight: { tool: 'drill', target: 'sulfur' }, build: 'drill', done: (g) => drillOn(g, [Ore.Sulfur]) },
+  { id: 'drill_stone', highlight: { tool: 'drill', target: 'stone' }, build: 'drill', done: (g) => drillOn(g, [Ore.Stone]) },
   { id: 'factory_ammo', highlight: { tool: 'factory' }, build: 'factory', recipe: 'ammo', done: (g) => factoryWith(g, 'ammo') },
   { id: 'factory_gun', highlight: { tool: 'factory' }, build: 'factory', recipe: 'gun_part', done: (g) => factoryWith(g, 'gun_part') },
   {
@@ -219,7 +220,7 @@ export function guideTargetTile(g: Game, target: NonNullable<GuiaHighlight['targ
     // Un tramo a unas 8 casillas del núcleo: sitio razonable para la primera torreta.
     return path[Math.max(0, path.length - 1 - CONFIG.guia.pathMarkDistance)] ?? null;
   }
-  const ores: Ore[] = target === 'iron' ? [Ore.Iron] : [Ore.Stone, Ore.Coal];
+  const ores: Ore[] = target === 'iron' ? [Ore.Iron] : target === 'sulfur' ? [Ore.Sulfur] : [Ore.Stone, Ore.Coal];
   let best: Tile | null = null;
   let bd = Infinity;
   for (let y = 0; y < g.world.h; y++) {

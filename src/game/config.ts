@@ -39,8 +39,21 @@ export interface TurretDef {
   ignoresArmor: boolean;
 }
 
+/** Categorías del panel de recetas. */
+export type RecipeCategory = 'materiales' | 'piezas' | 'municion' | 'torretas' | 'construccion' | 'combustible' | 'ciencia';
+export const RECIPE_CATEGORIES: { id: RecipeCategory; name: string }[] = [
+  { id: 'materiales', name: 'Materiales' },
+  { id: 'piezas', name: 'Piezas' },
+  { id: 'municion', name: 'Munición' },
+  { id: 'torretas', name: 'Torretas' },
+  { id: 'construccion', name: 'Construcción' },
+  { id: 'combustible', name: 'Combustible' },
+  { id: 'ciencia', name: 'Ciencia' },
+];
+
 export interface RecipeDef {
   name: string;
+  category: RecipeCategory;
   inputs: Bag;
   outputs: Bag;
   time: number;
@@ -117,6 +130,7 @@ export const CONFIG = {
     copper_ore: 'Mena de cobre',
     coal: 'Carbón',
     stone: 'Piedra',
+    sulfur: 'Azufre',
     wood: 'Madera',
     iron_plate: 'Placa de hierro',
     copper_plate: 'Placa de cobre',
@@ -255,22 +269,22 @@ export const CONFIG = {
 
   /** Recetas. tier 1 = fábrica normal; tier 2 = árbol de tecnología. */
   recipes: {
-    iron_plate: { name: 'Placa de hierro', inputs: { iron_ore: 1 }, outputs: { iron_plate: 1 }, time: 1.5, tier: 1 },
-    copper_plate: { name: 'Placa de cobre', inputs: { copper_ore: 1 }, outputs: { copper_plate: 1 }, time: 1.5, tier: 1 },
-    brick: { name: 'Ladrillo', inputs: { stone: 2 }, outputs: { brick: 1 }, time: 2, tier: 1 },
-    gear: { name: 'Engranaje', inputs: { iron_plate: 1 }, outputs: { gear: 1 }, time: 1.2, tier: 1 },
-    frame: { name: 'Bastidor', inputs: { iron_plate: 2, wood: 1 }, outputs: { frame: 2 }, time: 2, tier: 1 },
-    wire: { name: 'Cable', inputs: { copper_plate: 1 }, outputs: { wire: 2 }, time: 1, tier: 1 },
-    pipe: { name: 'Tubería', inputs: { iron_plate: 1 }, outputs: { pipe: 1 }, time: 1.2, tier: 1 },
-    gun_part: { name: 'Mecanismo de torreta', inputs: { gear: 1, iron_plate: 2 }, outputs: { gun_part: 1 }, time: 2.5, tier: 1 },
-    ammo: { name: 'Munición', inputs: { iron_plate: 1 }, outputs: { ammo: 6 }, time: 1.5, tier: 1 },
-    tool_kit: { name: 'Kit de taller', inputs: { gear: 2, frame: 1 }, outputs: { tool_kit: 1 }, time: 3, tier: 1 },
-    science_1: { name: 'Ciencia I', inputs: { copper_plate: 1, gear: 1 }, outputs: { science_1: 1 }, time: 4, tier: 1 },
-    circuit: { name: 'Circuito', inputs: { wire: 3, iron_plate: 1 }, outputs: { circuit: 1 }, time: 2.5, tier: 2 },
-    battery: { name: 'Batería', inputs: { copper_plate: 1, coal: 1 }, outputs: { battery: 1 }, time: 2.5, tier: 2 },
-    wall_plate: { name: 'Placa de muro', inputs: { iron_plate: 3 }, outputs: { wall_plate: 1 }, time: 2, tier: 2 },
-    gasoline: { name: 'Gasolina', inputs: { oil: 2 }, outputs: { gasoline: 1 }, time: 3, tier: 1, building: 'refinery' },
-    science_2: { name: 'Ciencia II', inputs: { circuit: 1, brick: 1 }, outputs: { science_2: 1 }, time: 6, tier: 2 },
+    iron_plate: { name: 'Placa de hierro', inputs: { iron_ore: 1 }, outputs: { iron_plate: 1 }, time: 1.5, tier: 1, category: 'materiales' },
+    copper_plate: { name: 'Placa de cobre', inputs: { copper_ore: 1 }, outputs: { copper_plate: 1 }, time: 1.5, tier: 1, category: 'materiales' },
+    brick: { name: 'Ladrillo', inputs: { stone: 2 }, outputs: { brick: 1 }, time: 2, tier: 1, category: 'materiales' },
+    gear: { name: 'Engranaje', inputs: { iron_plate: 1 }, outputs: { gear: 1 }, time: 1.2, tier: 1, category: 'piezas' },
+    frame: { name: 'Bastidor', inputs: { iron_plate: 2, wood: 1 }, outputs: { frame: 2 }, time: 2, tier: 1, category: 'piezas' },
+    wire: { name: 'Cable', inputs: { copper_plate: 1 }, outputs: { wire: 2 }, time: 1, tier: 1, category: 'piezas' },
+    pipe: { name: 'Tubería', inputs: { iron_plate: 1 }, outputs: { pipe: 1 }, time: 1.2, tier: 1, category: 'piezas' },
+    gun_part: { name: 'Mecanismo de torreta', inputs: { gear: 1, iron_plate: 2, stone: 1 }, outputs: { gun_part: 1 }, time: 2.5, tier: 1, category: 'torretas' },
+    ammo: { name: 'Munición', inputs: { iron_plate: 1, sulfur: 1 }, outputs: { ammo: 6 }, time: 1.5, tier: 1, category: 'municion' },
+    tool_kit: { name: 'Kit de taller', inputs: { gear: 2, frame: 1 }, outputs: { tool_kit: 1 }, time: 3, tier: 1, category: 'construccion' },
+    science_1: { name: 'Ciencia I', inputs: { copper_plate: 1, gear: 1 }, outputs: { science_1: 1 }, time: 4, tier: 1, category: 'ciencia' },
+    circuit: { name: 'Circuito', inputs: { wire: 3, iron_plate: 1 }, outputs: { circuit: 1 }, time: 2.5, tier: 2, category: 'piezas' },
+    battery: { name: 'Batería', inputs: { copper_plate: 1, coal: 1 }, outputs: { battery: 1 }, time: 2.5, tier: 2, category: 'piezas' },
+    wall_plate: { name: 'Placa de muro', inputs: { iron_plate: 3 }, outputs: { wall_plate: 1 }, time: 2, tier: 2, category: 'piezas' },
+    gasoline: { name: 'Gasolina', inputs: { oil: 2 }, outputs: { gasoline: 1 }, time: 3, tier: 1, category: 'combustible', building: 'refinery' },
+    science_2: { name: 'Ciencia II', inputs: { circuit: 1, brick: 1 }, outputs: { science_2: 1 }, time: 6, tier: 2, category: 'ciencia' },
   } as Record<string, RecipeDef>,
 
   npc: {

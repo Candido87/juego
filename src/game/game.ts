@@ -1150,6 +1150,7 @@ export const ORE_ITEM: Record<number, ItemId | undefined> = {
   [Ore.Stone]: 'stone',
   [Ore.Wood]: 'wood',
   [Ore.Oil]: 'oil',
+  [Ore.Sulfur]: 'sulfur',
 };
 
 /** Lista determinista de tipos de enemigo para una oleada según la tabla de config. */

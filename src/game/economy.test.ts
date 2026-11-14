@@ -138,7 +138,7 @@ describe('componentes y fábricas de nivel 1', () => {
     g.storage.gear = 0;
     const a = instant(g, 'factory', 6, 6, 3);
     g.setRecipe(a.id, 'gun_part');
-    a.inv = { gear: 2, iron_plate: 4 };
+    a.inv = { gear: 2, iron_plate: 4, stone: 2 };
     g.npcs = [];
     run(g, (2 * CONFIG.recipes.gun_part.time) / g.factorySpeed(a) + 0.5);
     expect(count(a.out, 'gun_part')).toBe(2);

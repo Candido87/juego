@@ -44,9 +44,13 @@ export const GUIA_TEXT: Record<string, (g: Game) => GuiaText> = {
     title: 'Comida',
     text: `Tienes ${g.population} personas y comen sin parar. Construye una granja (${costOf('farm')}) antes de que se acabe la comida.`,
   }),
+  drill_sulfur: () => ({
+    title: 'Azufre',
+    text: `Construye un taladro (${costOf('drill')}) sobre un yacimiento de azufre (amarillo): la munición se fabrica con ${recipeIn('ammo')}.`,
+  }),
   drill_stone: () => ({
     title: 'Piedra o carbón',
-    text: `Construye otro taladro (${costOf('drill')}) sobre piedra o carbón: los necesitarás para ladrillos, muros y munición de fuego.`,
+    text: `Construye otro taladro (${costOf('drill')}) sobre piedra: hace falta para los mecanismos de torreta (${recipeIn('gun_part')}) y los ladrillos.`,
   }),
   factory_ammo: () => ({
     title: 'Fábrica de munición',
@@ -80,7 +84,8 @@ export const GUIA_DONE: Record<string, string> = {
   storage: 'El hierro ya llega al almacén',
   factory_plates: 'Fábrica de placas lista',
   farm: 'Granja construida',
-  drill_stone: 'Segundo recurso en camino',
+  drill_sulfur: 'Azufre en camino',
+  drill_stone: 'Piedra en camino',
   factory_ammo: 'Munición en producción',
   factory_gun: 'Mecanismos en producción',
   turret: 'Torreta lista para disparar',

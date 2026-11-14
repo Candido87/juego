@@ -93,6 +93,7 @@ export const ITEM_TEXT: Record<ItemId, string> = {
   tool_kit: 'Kit de herramientas para el taller.',
   oil: 'Petróleo crudo: se refina en gasolina.',
   gasoline: 'Combustible de los generadores.',
+  sulfur: 'Azufre: yacimientos amarillos. Con hierro se fabrica la munición.',
 };
 
 /** Qué hace cada rol de la población. */
@@ -107,6 +108,7 @@ export const ROLE_TEXT: Record<NpcRole, { que: string; sirve: string }> = {
 export type ItemGroup = 'bruto' | 'pieza' | 'combustible' | 'comida';
 export const ITEM_GROUP: Record<ItemId, ItemGroup> = {
   iron_ore: 'bruto',
+  sulfur: 'bruto',
   copper_ore: 'bruto',
   stone: 'bruto',
   wood: 'bruto',

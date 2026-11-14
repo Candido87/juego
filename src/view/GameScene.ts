@@ -72,6 +72,7 @@ const ORE_NAMES: Record<number, string> = {
   [Ore.Stone]: 'piedra',
   [Ore.Wood]: 'bosque',
   [Ore.Oil]: 'petróleo',
+  [Ore.Sulfur]: 'azufre',
 };
 
 export class GameScene extends Phaser.Scene {

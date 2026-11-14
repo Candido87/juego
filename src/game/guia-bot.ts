@@ -57,8 +57,11 @@ export function guiaBotTick(g: Game, s: GuiaState): void {
     case 'farm':
       if (count(g, 'farm') === 0) placeNextToCore(g, 'farm');
       break;
+    case 'drill_sulfur':
+      placeDrill(g, [Ore.Sulfur]);
+      break;
     case 'drill_stone':
-      placeDrill(g, [Ore.Stone, Ore.Coal]);
+      placeDrill(g, [Ore.Stone]);
       break;
     case 'turret':
       if (count(g, 'turret_bullet') === 0) placeBestTurret(g, 'turret_bullet');

@@ -368,3 +368,33 @@ Sólo capa de interfaz: sin cambiar la lógica ni los números.
 - El bot (`guia-bot.ts`) que sigue la guía tiene torreta con munición hacia el segundo 60 en la semilla 7.
 - Vista: aviso fijo en la columna izquierda bajo el HUD (nunca tapa el mapa ni los menús), con ✕ (cerrar aviso), "Saltar guía" (desactiva, guardado) y, en la ayuda (H), "Reiniciar/Activar la guía". El progreso se guarda en localStorage, pero como aún no hay partidas guardadas, una partida nueva reinicia los pasos (sólo se conserva "desactivada"); cuando exista el guardado (M1) el progreso se asociará a la partida.
 - Equilibrado (GI5): sin retocar números. Con la guía el bot tiene torreta con munición a ~60 s; el bot simple de `npm run sim` llega a los 300 s con 2 torretas, 80 de munición y el núcleo a 300. La oleada 1 (2 normales) es muy holgada; las siguientes mantienen su ritmo (`interval` 35 s).
+
+
+## Recetas de fábrica y azufre (R)
+
+Cada fábrica produce **una receta a la vez**, elegida al colocarla o al hacer clic en ella; sin receta no produce y avisa "elige una receta". Las recetas disponibles dependen del nivel (`tier`, hoy fábrica de nivel 1) y de las tecnologías investigadas (`unlockedRecipes`); las no disponibles se ven en gris con el motivo. La refinería usa su propia receta (gasolina). Todo vive en `CONFIG.recipes` (materiales, cantidades, tiempo, categoría).
+
+| Categoría | Receta | Entradas | Salida | Tiempo | Edificio | Nivel |
+|---|---|---|---|---|---|---|
+| Materiales | Placa de hierro (`iron_plate`) | 1 Mena de hierro | 1 Placa de hierro | 1.5 s | factory | 1 |
+| Materiales | Placa de cobre (`copper_plate`) | 1 Mena de cobre | 1 Placa de cobre | 1.5 s | factory | 1 |
+| Materiales | Ladrillo (`brick`) | 2 Piedra | 1 Ladrillo | 2 s | factory | 1 |
+| Piezas | Engranaje (`gear`) | 1 Placa de hierro | 1 Engranaje | 1.2 s | factory | 1 |
+| Piezas | Bastidor (`frame`) | 2 Placa de hierro + 1 Madera | 2 Bastidor | 2 s | factory | 1 |
+| Piezas | Cable (`wire`) | 1 Placa de cobre | 2 Cable | 1 s | factory | 1 |
+| Piezas | Tubería (`pipe`) | 1 Placa de hierro | 1 Tubería | 1.2 s | factory | 1 |
+| Piezas | Circuito (`circuit`) | 3 Cable + 1 Placa de hierro | 1 Circuito | 2.5 s | factory | 2 |
+| Piezas | Batería (`battery`) | 1 Placa de cobre + 1 Carbón | 1 Batería | 2.5 s | factory | 2 |
+| Piezas | Placa de muro (`wall_plate`) | 3 Placa de hierro | 1 Placa de muro | 2 s | factory | 2 |
+| Munición | Munición (`ammo`) | 1 Placa de hierro + 1 Azufre | 6 Munición | 1.5 s | factory | 1 |
+| Torretas | Mecanismo de torreta (`gun_part`) | 1 Engranaje + 2 Placa de hierro + 1 Piedra | 1 Mecanismo de torreta | 2.5 s | factory | 1 |
+| Construcción | Kit de taller (`tool_kit`) | 2 Engranaje + 1 Bastidor | 1 Kit de taller | 3 s | factory | 1 |
+| Combustible | Gasolina (`gasoline`) | 2 Petróleo | 1 Gasolina | 3 s | refinery | 1 |
+| Ciencia | Ciencia I (`science_1`) | 1 Placa de cobre + 1 Engranaje | 1 Ciencia I | 4 s | factory | 1 |
+| Ciencia | Ciencia II (`science_2`) | 1 Circuito + 1 Ladrillo | 1 Ciencia II | 6 s | factory | 2 |
+
+Decisiones (R):
+- **Azufre** (`Ore.Sulfur`, ítem `sulfur`): yacimientos amarillos extraíbles con taladro; ruido propio (se genera después del resto, así las demás menas no cambian con la misma semilla) y parcela garantizada a 7 casillas del núcleo. Munición = placa de hierro + azufre; mecanismo de torreta = engranaje + 2 placas + piedra.
+- Búferes: entrada por material = `CONFIG.factory.inputBatches` × lo que pide la receta; salida = `CONFIG.factory.outCap`.
+- Cambiar de receta: lo que hay dentro vuelve a la salida (lo recoge un NPC o sale por cinta) y la producción en curso se cancela devolviendo sus entradas (lo más simple).
+- Alcanzabilidad: test que comprueba que todas las entradas de recetas y costes de construcción son menas del mapa o salen de otra receta.

@@ -157,6 +157,7 @@ export const ITEM_COLORS: Record<ItemId, number> = {
   tool_kit: 0xd84b3c,
   oil: 0x1a1420,
   gasoline: 0xf4d03f,
+  sulfur: 0xe6d83a,
 };
 
 /** Colores de disparo por torreta. */
@@ -474,6 +475,7 @@ const ORE_COLORS: Record<number, [number, number]> = {
   [Ore.Coal]: [0x45474c, 0x1c1c1c],
   [Ore.Stone]: [0x8f8b80, 0xc7c2b4],
   [Ore.Oil]: [0x2b2633, 0x0d0b10],
+  [Ore.Sulfur]: [0x8a7f2a, 0xf2e640],
 };
 
 export function terrainKey(ore: Ore, z: number, ao: number, alt: number): string {
@@ -674,7 +676,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   bakeShadow(scene, 'shadow_1', 1);
   bakeShadow(scene, 'shadow_2', 2);
   bakeShadow(scene, 'shadow_small', 0.5, true);
-  for (const ore of [Ore.None, Ore.Iron, Ore.Copper, Ore.Coal, Ore.Stone, Ore.Wood, Ore.Oil])
+  for (const ore of [Ore.None, Ore.Iron, Ore.Copper, Ore.Coal, Ore.Stone, Ore.Wood, Ore.Oil, Ore.Sulfur])
     for (let z = 0; z <= 2; z++)
       for (let ao = 0; ao <= 2; ao++)
         for (let alt = 0; alt <= 1; alt++) bake(scene, terrainKey(ore, z, ao, alt), terrainShape(ore, z, ao, alt));
