@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONFIG } from '../game/config';
 import { BUILD_KINDS, NPC_ROLES } from '../game/types';
-import { BILLBOARDS, JOB_ICONS, ROLE_ICONS, TILE_COUNT, TOOL_ICONS, TOP_TEXTURES, frameRect, rotationFor } from './sprites';
+import { BILLBOARDS, GENERATED_ICONS, JOB_ICONS, ROLE_ICONS, TILE_COUNT, TOOL_ICONS, TOP_TEXTURES, frameRect, rotationFor } from './sprites';
 
 describe('mapa de sprites (Kenney Tiny Factory)', () => {
   const frames = [
@@ -39,5 +39,22 @@ describe('mapa de sprites (Kenney Tiny Factory)', () => {
   it('el índice de casilla se convierte a su rectángulo', () => {
     expect(frameRect(0)).toEqual({ x: 0, y: 0, w: 16, h: 16 });
     expect(frameRect(13)).toEqual({ x: 16, y: 16, w: 16, h: 16 });
+  });
+});
+
+describe('iconos del menú de construcción', () => {
+  it('cada edificio tiene icono del pack o generado por código', () => {
+    for (const k of BUILD_KINDS) {
+      expect(TOOL_ICONS[k] !== undefined || GENERATED_ICONS[k] !== undefined, k).toBe(true);
+    }
+  });
+
+  it('los iconos generados caben en la cuadrícula de 16x16', () => {
+    for (const [k, rects] of Object.entries(GENERATED_ICONS)) {
+      expect(rects!.length, k).toBeGreaterThan(0);
+      for (const [x, y, w, h] of rects!) {
+        expect(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 16 && y + h <= 16, `${k} ${[x, y, w, h]}`).toBe(true);
+      }
+    }
   });
 });

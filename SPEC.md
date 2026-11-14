@@ -336,3 +336,11 @@ Sólo capa de interfaz: sin cambiar la lógica ni los números.
   - *Sobra*: sin obras pendientes que lo pidan y ≥ 8× el mayor coste que lo usa (o ≥ 60 si no se gasta construyendo: mena, munición, gasolina); la comida: ≥ 5 min de consumo.
 - Los edificios bloqueados muestran el motivo (`Requiere investigar: <tecnología>` cuando exista en el árbol).
 - Pendiente (Fase 3): el indicador "Casilla x,y" (`#info`) aún tapa el menú; pasa a un sitio fijo y pequeño.
+
+### Fase 3 de interfaz — menú por categorías (hecha)
+- Siete categorías (datos en `descripciones.ts`, lógica en `src/game/menu.ts`, con tests): Extracción, Transporte, Industria, Energía, Defensa, Población, Servicios. Cada edificio está en exactamente una.
+- Menú de dos filas: pestañas (con ‹Q y E›) y **una sola fila de botones** con los de la categoría activa. Cada botón: icono, atajo y nombre; los bloqueados van en gris con 🔒 y su tooltip dice el motivo; pulsarlos explica el motivo en vez de seleccionarlos.
+- Atajos: **1–9** eligen por posición dentro de la categoría activa (antes eran una lista plana de desbloqueados); **Q/E** cambian de categoría; la **rueda sobre el menú** también. La rueda sobre el mapa sigue siendo el zoom.
+- El indicador "Casilla x,y · altura" pasa a la fila superior del propio menú (ancho fijo, pequeño, con puntos suspensivos): ya no se superpone a nada.
+- Iconos: casillas del pack cuando existen; para granja, bomba, refinería, taller, casa y las cuatro torretas se **generan por código** (`GENERATED_ICONS` en `sprites.ts`, cuadrícula 16×16). Test: todo edificio tiene icono.
+- Decisión: el panel de Selección sube a `bottom: 110px` para no solaparse con el menú de dos filas.

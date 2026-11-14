@@ -3,11 +3,13 @@ import { count, entries, missing, total } from '../game/bag';
 import { CONFIG } from '../game/config';
 import { ROTATABLE, type Building, type Game } from '../game/game';
 import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
-import { BUILD_KINDS, Bag, BuildKind, Dir, FREE_ROLES, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
+import { CATEGORIES, CategoryId, categoryOf } from '../game/descripciones';
+import { categoryAvailable, cycleCategory, menuEntries } from '../game/menu';
+import { Bag, BuildKind, Dir, FREE_ROLES, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
 import { demandOf, isElectric } from '../game/power';
 import { ITEM_COLORS } from './shapes';
 import { TooltipManager } from './tooltip';
-import { JOB_ICONS, ROLE_ICONS, TILESHEET, TOOL_ICONS, frameRect } from './sprites';
+import { GENERATED_ICONS, JOB_ICONS, ROLE_ICONS, TILESHEET, TOOL_ICONS, frameRect } from './sprites';
 
 // ------------------------------------------------------------------ iconos del pack
 
@@ -38,6 +40,28 @@ export function iconHtml(frame: number | undefined, size = 20): string {
   return `<img src="${url}" width="${size}" height="${size}" style="image-rendering:pixelated;vertical-align:middle;margin-right:4px">`;
 }
 
+/** Icono de un edificio: casilla del pack o, si no hay, uno generado por código. */
+const genCache = new Map<string, string>();
+export function toolIcon(kind: BuildKind, size = 20): string {
+  if (TOOL_ICONS[kind] !== undefined) return iconHtml(TOOL_ICONS[kind], size);
+  const spec = GENERATED_ICONS[kind];
+  if (!spec) return '';
+  let url = genCache.get(kind);
+  if (!url) {
+    const c = document.createElement('canvas');
+    c.width = 16;
+    c.height = 16;
+    const ctx = c.getContext('2d')!;
+    for (const [x, y, w, h, color] of spec) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, w, h);
+    }
+    url = c.toDataURL();
+    genCache.set(kind, url);
+  }
+  return `<img src="${url}" width="${size}" height="${size}" style="image-rendering:pixelated;vertical-align:middle;margin-right:4px">`;
+}
+
 export type Tool = BuildKind | 'remove' | null;
 
 export const ui = {
@@ -45,6 +69,8 @@ export const ui = {
   dir: 0 as Dir,
   paused: false,
   selected: null as number | null,
+  /** Categoría activa del menú de construcción. */
+  category: 'transport' as CategoryId,
 };
 
 /** Flechas en pantalla para cada dirección de la cuadrícula (+x va abajo-derecha en isométrico). */
@@ -70,11 +96,26 @@ export class Hud {
   constructor() {
     new TooltipManager(() => this.sim);
     $('toolbar').addEventListener('click', (ev) => {
-      const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-tool]');
+      const target = ev.target as HTMLElement;
+      const tab = target.closest<HTMLElement>('[data-cat]');
+      if (tab) return this.setCategory(tab.dataset.cat as CategoryId);
+      const step = target.closest<HTMLElement>('[data-catstep]');
+      if (step) return this.setCategory(cycleCategory(ui.category, Number(step.dataset.catstep) as 1 | -1));
+      const btn = target.closest<HTMLButtonElement>('button[data-tool]');
       if (!btn) return;
       const tool = btn.dataset.tool as Tool;
+      if (tool && tool !== 'remove') return this.pick(tool as BuildKind);
       this.setTool(ui.tool === tool ? null : tool);
     });
+    // La rueda sobre el menú cambia de categoría.
+    $('toolbar').addEventListener(
+      'wheel',
+      (ev) => {
+        ev.preventDefault();
+        this.setCategory(cycleCategory(ui.category, ev.deltaY > 0 ? 1 : -1));
+      },
+      { passive: false },
+    );
     $('pause').addEventListener('click', () => this.togglePause());
     $('restart').addEventListener('click', () => this.onRestart());
     $('callWave').addEventListener('click', () => this.sim?.callWaveNow());
@@ -140,9 +181,27 @@ export class Hud {
     });
   }
 
-  /** Herramientas disponibles (desbloqueadas), en orden. Las teclas 1..9 las seleccionan. */
-  tools(): BuildKind[] {
-    return this.sim ? BUILD_KINDS.filter((k) => this.sim!.unlockedBuildings.has(k)) : [];
+  /** Edificios de la categoría activa, en orden. Las teclas 1..9 eligen por posición. */
+  categoryKinds(): BuildKind[] {
+    return CATEGORIES.find((c) => c.id === ui.category)!.kinds;
+  }
+
+  /** Elige un edificio; si está bloqueado explica el motivo en vez de seleccionarlo. */
+  pick(kind: BuildKind): void {
+    const e = this.sim ? menuEntries(this.sim, categoryOf(kind)).find((x) => x.kind === kind) : undefined;
+    if (e?.locked) return this.flash(`${CONFIG.buildings[kind].name}: ${e.locked}`);
+    this.setTool(ui.tool === kind ? null : kind);
+  }
+
+  setCategory(id: CategoryId): void {
+    ui.category = id;
+    this.toolsKey = '';
+    this.panelTimer = 0;
+    if (this.sim) this.renderTools(this.sim);
+  }
+
+  cycleCategory(dir: 1 | -1): void {
+    this.setCategory(cycleCategory(ui.category, dir));
   }
 
   rotate() {
@@ -173,7 +232,7 @@ export class Hud {
     this.set('next', String(Math.ceil(sim.nextWaveIn)));
     this.set('dir', DIR_ARROWS[ui.dir]);
     this.set('info', info);
-    $('info').style.display = info ? 'block' : 'none';
+    $('info').style.visibility = info ? 'visible' : 'hidden';
     $('over').style.display = sim.gameOver ? 'flex' : 'none';
     if (sim.gameOver) this.set('overText', sim.npcs.length === 0 ? `La colonia se ha quedado sin gente (oleada ${sim.wave})` : `El núcleo ha caído en la oleada ${sim.wave}`);
     if (this.msgTimer > 0) {
@@ -192,17 +251,22 @@ export class Hud {
   }
 
   private renderTools(sim: Game) {
-    const tools = this.tools();
-    const key = tools.join(',');
+    const list = menuEntries(sim, ui.category);
+    const key = ui.category + '|' + list.map((e) => e.kind + (e.locked ? '!' : '')).join(',') + '|' + CATEGORIES.map((c) => (categoryAvailable(sim, c.id) ? 1 : 0)).join('');
     if (key === this.toolsKey) return;
     this.toolsKey = key;
-    $('tools').innerHTML = tools
-      .map((k, i) => {
-        const def = sim.def(k);
-        return `<button data-tool="${k}" data-tip="build:${k}" data-key="${i < 9 ? i + 1 : ''}">${iconHtml(TOOL_ICONS[k])}${i < 9 ? `${i + 1} · ` : ''}${def.name}</button>`;
+    const tabs = CATEGORIES.map(
+      (c) => `<button class="tab${c.id === ui.category ? ' active' : ''}${categoryAvailable(sim, c.id) ? '' : ' locked'}" data-cat="${c.id}">${c.name}</button>`,
+    ).join('');
+    $('cats').innerHTML = `<button class="step" data-catstep="-1" title="Categoría anterior (Q)">‹ Q</button>${tabs}<button class="step" data-catstep="1" title="Categoría siguiente (E)">E ›</button>`;
+    $('tools').innerHTML = list
+      .map((e) => {
+        const def = sim.def(e.kind);
+        const keyLabel = e.key ? `<span class="kbd">${e.key}</span>` : '';
+        return `<button class="tbtn${e.locked ? ' locked' : ''}" data-tool="${e.kind}" data-tip="build:${e.kind}" data-key="${e.key}">${toolIcon(e.kind)}${keyLabel}${def.name}${e.locked ? ' 🔒' : ''}</button>`;
       })
       .join('');
-    this.setTool(ui.tool && ui.tool !== 'remove' && !tools.includes(ui.tool) ? null : ui.tool);
+    this.setTool(ui.tool);
   }
 
   /** Población, comida, gasolina, energía y taller de un vistazo. */

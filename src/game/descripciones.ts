@@ -306,3 +306,26 @@ export function itemLines(item: ItemId): string[] {
 }
 
 export const ALL_ITEMS: readonly ItemId[] = ITEM_IDS;
+
+// ---------------------------------------------------------------- categorías del menú de construcción
+
+export type CategoryId = 'extraction' | 'transport' | 'industry' | 'energy' | 'defense' | 'population' | 'services';
+
+export interface Category {
+  id: CategoryId;
+  name: string;
+  kinds: BuildKind[];
+}
+
+/** Categorías del menú de construcción. Cada edificio está en exactamente una (lo comprueba un test). */
+export const CATEGORIES: Category[] = [
+  { id: 'extraction', name: 'Extracción', kinds: ['drill', 'pump'] },
+  { id: 'transport', name: 'Transporte', kinds: ['belt', 'belt_fast', 'feeder', 'storage'] },
+  { id: 'industry', name: 'Industria', kinds: ['factory', 'refinery'] },
+  { id: 'energy', name: 'Energía', kinds: ['pole', 'generator', 'solar', 'turbine', 'accumulator'] },
+  { id: 'defense', name: 'Defensa', kinds: ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'wall_wood', 'wall_stone', 'wall_metal'] },
+  { id: 'population', name: 'Población', kinds: ['farm', 'house'] },
+  { id: 'services', name: 'Servicios', kinds: ['workshop'] },
+];
+
+export const categoryOf = (kind: BuildKind): CategoryId => CATEGORIES.find((c) => c.kinds.includes(kind))!.id;

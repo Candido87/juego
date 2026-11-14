@@ -169,9 +169,11 @@ export class GameScene extends Phaser.Scene {
         ui.selected = null;
       } else if (k === 'x') hud.setTool('remove');
       else if (k === 'p') hud.togglePause();
+      else if (k === 'q') hud.cycleCategory(-1);
+      else if (k === 'e') hud.cycleCategory(1);
       else if (/^[1-9]$/.test(k)) {
-        const t = hud.tools()[Number(k) - 1];
-        if (t) hud.setTool(t);
+        const t = hud.categoryKinds()[Number(k) - 1];
+        if (t) hud.pick(t);
       }
     });
 

@@ -31,11 +31,19 @@
       .npcrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; line-height: 2; }
       .job { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 4px; align-items: center; line-height: 1.7; font-size: 12px; }
       .job button { padding: 0 6px; }
-      #selected { right: 8px; bottom: 70px; width: 270px; display: none; }
-      #toolbar { bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 40px); justify-content: center; }
+      #selected { right: 8px; bottom: 110px; width: 270px; display: none; }
+      #toolbar { bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; width: max-content; max-width: calc(100% - 40px); box-sizing: border-box; }
+      #toprow, #toolrow { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; }
+      #cats { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
       #tools { display: flex; gap: 4px; flex-wrap: wrap; }
+      .tab { padding: 3px 9px; border-radius: 12px; background: #232a35; }
+      .tab.active { background: #3d5a80; border-color: #98c1d9; }
+      .step { padding: 3px 6px; color: #8b95a5; background: transparent; border-color: transparent; }
+      .tbtn.locked, .tab.locked { opacity: 0.45; filter: grayscale(0.8); }
+      .tbtn.locked:hover { border-color: #46505f; }
+      .kbd { display: inline-block; min-width: 12px; text-align: center; margin-right: 4px; padding: 0 3px; border-radius: 3px; background: #11151c; color: #ffd166; font-size: 11px; }
       #dir { min-width: 22px; text-align: center; font-size: 17px; }
-      #info { bottom: 62px; left: 50%; transform: translateX(-50%); min-height: 16px; font-size: 12px; white-space: nowrap; }
+      #info { display: inline-block; width: 150px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #msg { top: 120px; left: 50%; transform: translateX(-50%); display: none; color: #ffd166; font-size: 15px; }
       #over { inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: rgba(10, 12, 18, 0.7); border: 0; border-radius: 0; font-size: 22px; }
       #tech { inset: 40px; display: none; overflow: auto; padding: 14px 18px; }
@@ -80,11 +88,16 @@
     </div>
     <div id="selected" class="panel"></div>
     <div id="toolbar" class="panel">
-      <div id="tools"></div>
-      <button data-tool="remove">X · Quitar</button>
-      <span class="muted">Dir (R)</span><span id="dir">↘</span>
+      <div id="toprow">
+        <div id="cats"></div>
+        <span class="muted">Dir (R)</span><span id="dir">↘</span>
+        <span id="info" class="muted"></span>
+      </div>
+      <div id="toolrow">
+        <div id="tools"></div>
+        <button data-tool="remove" data-key="X">X · Quitar</button>
+      </div>
     </div>
-    <div id="info" class="panel"></div>
     <div id="msg" class="panel"></div>
     <div id="tech" class="panel"></div>
     <div id="tip" class="panel"></div>
