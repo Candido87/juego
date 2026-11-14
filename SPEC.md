@@ -359,3 +359,10 @@ Sólo capa de interfaz: sin cambiar la lógica ni los números.
 - La cabeza se hornea a 16 rumbos y gira hacia el último objetivo disparado; retroceso de 0,12 s. Se mantiene el prisma antiguo como respaldo en `SHAPES`.
 - Galería de desarrollo: `/galeria-torretas.html` (zoom y 4/8/16 rumbos). Sólo capa visual: no hay torreta de misiles en la lógica, así que no se modela.
 - Niveles: la lógica no tiene nivel por torreta aún; el modelo admite 1–3 (más cañones, blindaje y color) y en juego se usa el 1.
+
+## Primera oleada y guía de inicio (GI)
+- Primera oleada a los 300 s (`CONFIG.waves.firstDelay`); las siguientes siguen `interval`. La oleada 1 trae `firstCount` = 2 enemigos normales. El HUD muestra la cuenta atrás en m:ss. "Adelantar oleada" pide confirmación (`window.confirm`) si no hay ninguna torreta colocada.
+- La guía de inicio (`guia-inicio.ts`) es un modo ligero en la partida normal y NO reutiliza el motor del tutorial guiado (`tutorial.ts`, partida aparte con recursos repuestos y pasos obligatorios). Son dos modos separados: la guía no repone nada, no bloquea y se evalúa sobre el estado real, así que salta lo ya hecho y admite otro orden.
+- Un solo objetivo visible cada vez: el primer paso sin cumplir; los pasos con hora (aviso de oleada a 60 s, oleada en curso) tienen prioridad. Cerrar un aviso lo oculta; desactivar la guía se guarda y no se repite en otras partidas; reabrirla (desde la ayuda) la reinicia.
+- Adaptación a lo que existe: no hay azufre ni elección de receta por nivel de fábrica todavía, así que el paso "azufre" es un taladro sobre piedra o carbón; la munición usa la receta actual (placa de hierro). Los textos leen costes y recetas de `config.ts`.
+- El bot (`guia-bot.ts`) que sigue la guía tiene torreta con munición hacia el segundo 60 en la semilla 7.

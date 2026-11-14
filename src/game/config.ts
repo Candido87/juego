@@ -349,6 +349,15 @@ export const CONFIG = {
   },
 
   /** Tutorial: mapa pequeño y fijo con configuración propia (el juego normal no cambia). */
+  /** Guía de inicio (avisos ligeros en la partida normal). */
+  guia: {
+    /** Segundos antes de la oleada en que se avisa con la lista de comprobación. */
+    waveWarning: 60,
+    /** Duración (s) del aviso corto de paso cumplido. */
+    toastSeconds: 2.5,
+    storageKey: 'iso-factory-td:guia',
+  },
+
   tutorial: {
     seed: 7,
     mapW: 24,
