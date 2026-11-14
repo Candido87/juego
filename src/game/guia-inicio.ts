@@ -8,7 +8,7 @@
  */
 import { CONFIG } from './config';
 import type { Building, Game } from './game';
-import { BuildKind, Ore } from './types';
+import { BuildKind, Ore, Tile } from './types';
 import { oreAt } from './world';
 
 export interface GuiaHighlight {
@@ -203,4 +203,34 @@ export function shortage(g: Game, st: GuiaStep): Record<string, number> {
     if (m > 0) out[item] = m;
   }
   return out;
+}
+
+// ---------------------------------------------------------------- casilla señalada
+
+/** Casilla que debe señalar la flecha de un paso: mena libre más cercana al núcleo, tramo de camino enemigo o el núcleo. */
+export function guideTargetTile(g: Game, target: NonNullable<GuiaHighlight['target']>): Tile | null {
+  const cx = g.core.x + g.core.w / 2;
+  const cy = g.core.y + g.core.d / 2;
+  if (target === 'core') return { x: g.core.x, y: g.core.y };
+  if (target === 'enemy_path') {
+    const sp = g.spawns[0];
+    if (!sp) return null;
+    const path = g.pathFrom(sp);
+    // Un tramo a unas 8 casillas del núcleo: sitio razonable para la primera torreta.
+    return path[Math.max(0, path.length - 1 - CONFIG.guia.pathMarkDistance)] ?? null;
+  }
+  const ores: Ore[] = target === 'iron' ? [Ore.Iron] : [Ore.Stone, Ore.Coal];
+  let best: Tile | null = null;
+  let bd = Infinity;
+  for (let y = 0; y < g.world.h; y++) {
+    for (let x = 0; x < g.world.w; x++) {
+      if (!ores.includes(oreAt(g.world, x, y)) || g.buildingAt(x, y)) continue;
+      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+      if (d < bd) {
+        bd = d;
+        best = { x, y };
+      }
+    }
+  }
+  return best;
 }

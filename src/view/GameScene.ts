@@ -577,11 +577,27 @@ export class GameScene extends Phaser.Scene {
     return [gridToScreen(x, y, z), gridToScreen(x + w, y, z), gridToScreen(x + w, y + d, z), gridToScreen(x, y + d, z)];
   }
 
+  /** Flecha que rebota y rombo sobre la casilla que recomienda la guía de inicio. */
+  private drawGuideMark(g: Phaser.GameObjects.Graphics, world: typeof this.sim.world) {
+    const t = getHud().guia.targetTile();
+    if (!t) return;
+    const z = heightAt(world, t.x, t.y);
+    const pts = this.tileOutline(t.x, t.y, 1, 1, z);
+    const pulse = 0.5 + 0.5 * Math.sin(this.sim.time * 5);
+    g.lineStyle(3, 0xffd166, 0.5 + 0.5 * pulse).strokePoints(pts, true);
+    const c = gridToScreen(t.x + 0.5, t.y + 0.5, z);
+    const y = c.y - 26 - Math.abs(Math.sin(this.sim.time * 4)) * 8;
+    g.fillStyle(0xffd166, 0.95).fillTriangle(c.x, y + 14, c.x - 9, y, c.x + 9, y);
+    g.lineStyle(1.5, 0x3a2d05, 1).strokeTriangle(c.x, y + 14, c.x - 9, y, c.x + 9, y);
+  }
+
   private drawOverlay() {
     const g = this.overlay;
     g.clear();
     this.ghost.setVisible(false);
     const world = this.sim.world;
+
+    this.drawGuideMark(g, world);
 
     const sel = ui.selected !== null ? this.sim.buildings.get(ui.selected) : undefined;
     if (ui.selected !== null && !sel) ui.selected = null;

@@ -3,6 +3,7 @@ import { count, entries, missing, total } from '../game/bag';
 import { CONFIG } from '../game/config';
 import { ROTATABLE, type Building, type Game } from '../game/game';
 import { formatClock } from '../game/format';
+import { GuiaView } from './guia';
 import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
 import { CATEGORIES, CategoryId, categoryOf } from '../game/descripciones';
 import { HELP_CONCEPTS, HELP_CONTROLS } from '../game/ayuda';
@@ -189,8 +190,12 @@ export class Hud {
     this.setTool(ui.tool);
   }
 
+  /** Guía de inicio (avisos y resaltes). */
+  readonly guia = new GuiaView();
+
   bind(sim: Game) {
     this.sim = sim;
+    this.guia.bind(sim);
     this.toolsKey = '';
     this.panelTimer = 0;
     ui.selected = null;
@@ -219,8 +224,12 @@ export class Hud {
     el.style.display = open ? 'block' : 'none';
     if (!open) return;
     const rows = (list: [string, string][]) => `<table>${list.map(([k, t]) => `<tr><td>${k}</td><td>${t}</td></tr>`).join('')}</table>`;
-    el.innerHTML = `<h3>Controles <button id="helpClose" title="Cerrar (H o Esc)">✕</button></h3>${rows(HELP_CONTROLS)}<h3>Conceptos principales</h3>${rows(HELP_CONCEPTS)}`;
+    el.innerHTML = `<h3>Controles <button id="helpClose" title="Cerrar (H o Esc)">✕</button></h3>${rows(HELP_CONTROLS)}<h3>Conceptos principales</h3>${rows(HELP_CONCEPTS)}<h3>Guía de inicio</h3><p class="muted" style="margin:2px 0 6px">Avisos con un objetivo cada vez para empezar bien${this.guia.disabled ? ' (ahora desactivada)' : ''}.</p><button id="guideReopen">${this.guia.disabled ? 'Activar la guía de inicio' : 'Reiniciar la guía de inicio'}</button>`;
     $('helpClose').addEventListener('click', () => this.closeHelp());
+    $('guideReopen').addEventListener('click', () => {
+      this.guia.reopen();
+      this.closeHelp();
+    });
   }
 
   /** Cierra la ayuda; devuelve true si estaba abierta (para que Esc cierre primero los paneles). */
@@ -292,6 +301,7 @@ export class Hud {
     this.set('core', String(Math.max(0, Math.ceil(sim.coreHp))));
     this.set('wave', String(sim.wave));
     this.set('next', formatClock(sim.nextWaveIn));
+    this.guia.update(sim, dt);
     this.set('dir', DIR_ARROWS[ui.dir]);
     this.set('info', info);
     $('info').style.visibility = info ? 'visible' : 'hidden';

@@ -355,6 +355,8 @@ export const CONFIG = {
     waveWarning: 60,
     /** Duración (s) del aviso corto de paso cumplido. */
     toastSeconds: 2.5,
+    /** A cuántas casillas del núcleo (siguiendo el camino enemigo) se marca el sitio para la torreta. */
+    pathMarkDistance: 8,
     storageKey: 'iso-factory-td:guia',
   },
 

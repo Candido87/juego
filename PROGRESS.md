@@ -88,6 +88,6 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 ## Primera oleada a 5:00 y guía de inicio
 - [x] GI1. Primera oleada a los 5:00 (config.waves.firstDelay=300), cuenta atrás m:ss en el HUD, oleada 1 suave (firstCount=2), confirmación al adelantar sin torretas.
 - [x] GI2. Motor de la guía (guia-inicio.ts, textos en guia-inicio-textos.ts, bot guia-bot.ts) con tests y guardado.
-- [ ] GI3. Pop-ups y resaltes visuales.
-- [ ] GI4. Secuencia completa en la UI: cerrar, saltar y reabrir desde la ayuda.
+- [x] GI3. Pop-ups (panel fijo bajo el HUD, translúcido), resalte de botón/categoría y flecha sobre la casilla recomendada.
+- [x] GI4. Secuencia de 11 pasos en la UI: cerrar aviso, saltar guía y reiniciarla desde la ayuda (H).
 - [ ] GI5. Ajuste con `npm run sim`.
