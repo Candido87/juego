@@ -23,3 +23,14 @@ Cuando uno de estos packs se cargue de verdad en el juego, pasa a la tabla de ar
 
 - **Sketch Town 1.0 y Sketch Town Expansion 1.1** — Kenney (https://kenney.nl/assets/sketch-town), CC0. Copiados a `public/assets/sketch-town/` y `public/assets/sketch-town-expansion/` para terreno, murallas y decoración (en integración).
 - **UI Pack** — Kenney (https://kenney.nl/assets/ui-pack), CC0. Paneles, botones, barras, cursor y fuente Kenney Future Narrow, copiados a `public/assets/ui-pack/` (sólo lo usado) y aplicados por `ui-pack.css`.
+
+
+## Modelos 3D (rama `vista-3d`, CC0, Kenney)
+
+Copiados a `public/assets/3d/<pack>/` (cada carpeta con su `License.txt`):
+
+- **City Kit Industrial 2.0** — https://kenney.nl/assets/city-kit-industrial — `public/assets/3d/industrial/`
+- **Factory Kit 3.0** — https://kenney.nl/assets/factory-kit — `public/assets/3d/factory/`
+- **Mini Characters 2.0** — https://kenney.nl/assets/mini-characters — `public/assets/3d/characters/`
+- **Blaster Kit 2.1** — https://kenney.nl/assets/blaster-kit — `public/assets/3d/weapons/`
+- **Mini Forest 1.0** — https://kenney.nl/assets/mini-forest — `public/assets/3d/forest/`

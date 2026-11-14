@@ -113,3 +113,10 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [ ] H5. Cadena completa a defensa, orden/tiempos con `npm run sim` (el bot usa cintas, energía y tuberías).
 - Gráficos (murallas/interfaz/terreno) van en su propia sesión.
 - H5 parcial: `npm run sim` usa el bot de la guía (cintas, postes, bomba y tuberías) junto al bot sencillo, pero ahora **pierde en las oleadas 7-8** (antes sobrevivía 10 min). Pendiente: equilibrar la economía tras la guía (bastidores/engranajes). No verificado en pantalla: flechas de puertos, ruta de ejemplo y alcance de postes.
+
+
+## Vista 3D (rama `vista-3d`, prototipo, no se mezcla con `main`)
+- [x] 3D-0. Inventario de packs 3D, copia a `public/assets/3d/`, `ASSETS.md`/`CREDITS.md` y propuesta de mapa de uso. **Parado a la espera del visto bueno.**
+- [ ] 3D-1. Three.js: cámara isométrica, terreno, edificios, cintas/tuberías, NPC, enemigo, torreta con cañón.
+- [ ] 3D-2. Rendimiento: instanciado, mallas unidas, medición de FPS.
+- [ ] 3D-3. Comparación honesta con la vista 2D en `SPEC.md`.
