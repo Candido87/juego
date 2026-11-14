@@ -68,6 +68,12 @@ export class Hud {
       if (act === 'remove') this.sim.remove(b.x, b.y);
       this.panelTimer = 0;
     });
+    $('selected').addEventListener('change', (ev) => {
+      const sel = ev.target as HTMLSelectElement;
+      const b = this.selectedBuilding();
+      if (sel.dataset.act === 'recipe' && b && this.sim) this.sim.setRecipe(b.id, sel.value || null);
+      this.panelTimer = 0;
+    });
     $('techBtn').style.display = CONFIG.tech.length ? '' : 'none';
     this.setTool(ui.tool);
   }
@@ -201,6 +207,7 @@ export class Hud {
       return;
     }
     el.style.display = 'block';
+    if (el.contains(document.activeElement) && document.activeElement?.tagName === 'SELECT') return;
     const def = sim.def(b.kind);
     const lines: string[] = [`<h3>${def.name}</h3>`];
     if (!b.built) {
@@ -210,6 +217,21 @@ export class Hud {
     } else {
       lines.push(`Vida: <b>${Math.ceil(b.hp)}</b> / ${b.maxHp}`);
       if (b.markedForRemoval) lines.push('<span class="bad">Marcado para desmontar</span>');
+      if (b.kind === 'factory') {
+        const opts = ['<option value="">— sin receta —</option>']
+          .concat(
+            Object.entries(CONFIG.recipes)
+              .filter(([id]) => sim.unlockedRecipes.has(id))
+              .map(([id, r]) => {
+                const ins = entries(r.inputs).map(([i, n]) => `${n} ${itemName(i)}`).join(' + ');
+                const outs = entries(r.outputs).map(([i, n]) => `${n} ${itemName(i)}`).join(' + ');
+                return `<option value="${id}" ${b.recipe === id ? 'selected' : ''}>${r.name}: ${ins} → ${outs}</option>`;
+              }),
+          )
+          .join('');
+        lines.push(`Receta: <select data-act="recipe" style="max-width:250px">${opts}</select>`);
+        if (b.recipe && b.craft > 0) lines.push(`Fabricando: <b>${Math.floor((b.craft / CONFIG.recipes[b.recipe].time) * 100)}%</b>`);
+      }
       if (total(b.inv)) lines.push(`Contiene: ${bagText(b.inv)}`);
       if (total(b.out)) lines.push(`Salida: ${bagText(b.out)}`);
     }

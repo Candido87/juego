@@ -164,6 +164,58 @@ describe('economía y cintas', () => {
   });
 });
 
+describe('piezas y recetas', () => {
+  it('el mapa tiene hierro, cobre, carbón, piedra y bosque', () => {
+    const w = generateWorld(7, 40, 40);
+    for (const o of [Ore.Iron, Ore.Copper, Ore.Coal, Ore.Stone, Ore.Wood]) expect(Array.from(w.ore)).toContain(o);
+  });
+
+  it('mena → fábrica (placas) → cinta → núcleo', () => {
+    // Taladro (2,9) → cintas (3,9),(4,9) → fábrica (5,9) → cintas (6..8,9) → núcleo (9,9).
+    const g = flatGame([[2, 9, Ore.Iron]]);
+    instant(g, 'drill', 2, 9, 0);
+    instant(g, 'belt', 3, 9, 0);
+    instant(g, 'belt', 4, 9, 0);
+    const f = instant(g, 'factory', 5, 9, 0);
+    for (let x = 6; x <= 8; x++) instant(g, 'belt', x, 9, 0);
+    expect(g.setRecipe(f.id, 'iron_plate')).toBe(true);
+    const before = count(g.storage, 'iron_plate');
+    run(g, 30);
+    expect(count(g.storage, 'iron_plate') - before).toBeGreaterThanOrEqual(8);
+    expect(count(g.storage, 'iron_ore')).toBe(0);
+  });
+
+  it('la fábrica sólo acepta las entradas de su receta, con tope', () => {
+    const g = flatGame();
+    const f = instant(g, 'factory', 5, 5, 0);
+    g.setRecipe(f.id, 'circuit');
+    expect(g.capacityFor(f, 'copper_plate')).toBe(2 * CONFIG.factory.inputBatches);
+    expect(g.capacityFor(f, 'iron_ore')).toBe(0);
+    expect(g.pushItem(5, 5, 'iron_ore', 0)).toBe(false);
+    expect(g.pushItem(5, 5, 'copper_plate', 0)).toBe(true);
+  });
+
+  it('una receta transforma entradas en salidas en su tiempo', () => {
+    const g = flatGame();
+    const f = instant(g, 'factory', 5, 5, 0);
+    g.setRecipe(f.id, 'gear');
+    f.inv = { iron_plate: 4 };
+    run(g, CONFIG.recipes.gear.time * 2 / CONFIG.factory.speed + 0.2);
+    expect(count(f.out, 'gear')).toBe(2);
+    expect(count(f.inv, 'iron_plate')).toBe(0);
+  });
+
+  it('no deja poner recetas bloqueadas ni en otros edificios', () => {
+    const g = flatGame();
+    const t = instant(g, 'turret_bullet', 5, 5);
+    const f = instant(g, 'factory', 6, 6);
+    g.unlockedRecipes.delete('science_2');
+    expect(g.setRecipe(t.id, 'gear')).toBe(false);
+    expect(g.setRecipe(f.id, 'science_2')).toBe(false);
+    expect(g.setRecipe(f.id, 'nope')).toBe(false);
+  });
+});
+
 describe('oleadas', () => {
   it('sin defensas los enemigos dañan el núcleo', () => {
     const g = flatGame([], { waves: true });

@@ -98,8 +98,8 @@ export const CONFIG = {
   startItems: { iron_plate: 60, gear: 24, copper_plate: 10, wood: 12, ammo: 40 } as Bag,
   startNpcs: { constructor: 2, transporter: 0, operator: 0 } as Record<NpcRole, number>,
   startUnlocks: {
-    buildings: ['drill', 'belt', 'turret_bullet'] as BuildKind[],
-    recipes: [] as string[],
+    buildings: ['drill', 'belt', 'storage', 'factory', 'turret_bullet'] as BuildKind[],
+    recipes: ['iron_plate', 'copper_plate', 'gear', 'ammo', 'brick', 'circuit', 'battery', 'wall_plate', 'science_1', 'science_2'],
   },
 
   items: {
@@ -140,7 +140,8 @@ export const CONFIG = {
 
   belt: { speed: 2, fastSpeed: 4 },
   drill: { period: 2, outCap: 6 },
-  factory: { inputBatches: 3, outCap: 10 },
+  /** speed: multiplicador de velocidad de fabricación (manual, sin energía). */
+  factory: { inputBatches: 3, outCap: 10, speed: 1 },
   /** Cada unidad del primer material del coste repara esta fracción de la vida. */
   repair: { fractionPerUnit: 0.34, secondsPerUnit: 0.6 },
   deconstruct: { refund: 0.5, timeFactor: 0.5 },

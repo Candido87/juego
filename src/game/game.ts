@@ -309,6 +309,34 @@ export class Game {
     return this.spawnNpc(role);
   }
 
+  /** Cambia la receta de una fábrica. Lo que tenía dentro pasa a la salida para que se recoja. */
+  setRecipe(id: number, recipe: string | null): boolean {
+    const b = this.buildings.get(id);
+    if (!b || b.kind !== 'factory') return false;
+    if (recipe !== null && (!CONFIG.recipes[recipe] || !this.unlockedRecipes.has(recipe))) return false;
+    if (b.recipe === recipe) return true;
+    addAll(b.out, b.inv);
+    b.inv = {};
+    b.recipe = recipe;
+    b.craft = 0;
+    return true;
+  }
+
+  /** Cuántas unidades de `item` caben como entrada en el edificio (0 = no lo acepta). */
+  capacityFor(b: Building, item: ItemId): number {
+    if (!b.built) return 0;
+    if (b.kind === 'factory' && b.recipe) {
+      const need = CONFIG.recipes[b.recipe].inputs[item] ?? 0;
+      return need * CONFIG.factory.inputBatches;
+    }
+    return 0;
+  }
+
+  /** Lo que todavía cabe de `item`. */
+  room(b: Building, item: ItemId): number {
+    return Math.max(0, this.capacityFor(b, item) - count(b.inv, item));
+  }
+
   canHire(role: NpcRole): boolean {
     return entries(CONFIG.npc.roles[role].cost).every(([i, n]) => count(this.storage, i) >= n);
   }
@@ -354,6 +382,7 @@ export class Game {
     for (const n of [...this.npcs]) stepNpc(this, n, dt);
     this.stepBelts(dt);
     this.stepDrills(dt);
+    this.stepFactories(dt);
     this.stepTurrets(dt);
     this.stepEnemies(dt);
     if (this.coreHp <= 0) {
@@ -548,13 +577,51 @@ export class Game {
       this.emit({ type: 'deliver', item });
       return true;
     }
-    if ((b.kind === 'belt' || b.kind === 'belt_fast') && b.item === null && b.dir !== opposite(dir)) {
+    if (b.kind === 'belt' || b.kind === 'belt_fast') {
+      if (b.item !== null || b.dir === opposite(dir)) return false;
       b.item = item;
       b.beltProgress = 0;
       return true;
     }
+    if (this.room(b, item) > 0) {
+      add(b.inv, item, 1);
+      return true;
+    }
     return false;
   }
+
+  /** Velocidad de fabricación (se amplía con energía y desgaste). */
+  factorySpeed(_b: Building): number {
+    return CONFIG.factory.speed;
+  }
+
+  private stepFactories(dt: number): void {
+    for (const b of this.buildings.values()) {
+      if (b.kind !== 'factory' || !b.built) continue;
+      this.pushOutput(b);
+      if (!b.recipe) continue;
+      const r = CONFIG.recipes[b.recipe];
+      if (b.craft === 0) {
+        if (!entries(r.inputs).every(([i, n]) => count(b.inv, i) >= n)) continue;
+        let outTotal = 0;
+        for (const [, n] of entries(b.out)) outTotal += n;
+        let produced = 0;
+        for (const [, n] of entries(r.outputs)) produced += n;
+        if (outTotal + produced > CONFIG.factory.outCap) continue;
+        for (const [i, n] of entries(r.inputs)) take(b.inv, i, n);
+        b.craft = 1e-9;
+      }
+      b.craft += dt * this.factorySpeed(b);
+      if (b.craft >= r.time) {
+        b.craft = 0;
+        addAll(b.out, r.outputs);
+        this.onCrafted(b);
+      }
+    }
+  }
+
+  /** Gancho tras fabricar (desgaste, estadísticas). */
+  protected onCrafted(_b: Building): void {}
 
   private stepBelts(dt: number): void {
     for (const b of this.buildings.values()) {
