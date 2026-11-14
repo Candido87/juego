@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hojas de sprites (inventario de assets)</title>
+<style>
+  body { background:#1d2430; color:#dde; font:12px sans-serif; margin:8px }
+  .sheet { position:relative; display:inline-block; margin:0 16px 16px 0; vertical-align:top }
+  img { image-rendering:pixelated; display:block }
+  .c { position:absolute; width:51px; height:51px; font-size:9px; color:#ff0; box-sizing:border-box; border:1px solid rgba(255,255,0,.15); text-shadow:0 0 2px #000 }
+</style>
+<div id="o"></div>
+<script>
+const sheets = [
+  ['assets-juego/Tilemap/tilemap_packed.png', 'assets-juego (hoja 16 px)'],
+  ['Tilemap/tilemap_packed.png', 'raíz (hoja 16 px)'],
+  ['public/assets/kenney/tiny-factory.png', 'public (Tiny Factory integrado)'],
+];
+const S = 3, T = 16;
+for (const [src, name] of sheets) {
+  const d = document.createElement('div'); d.className = 'sheet';
+  d.innerHTML = `<div>${name}</div><div style="position:relative"><img src="/${src}" style="width:${192*S}px"><div class="g"></div></div>`;
+  document.getElementById('o').appendChild(d);
+  const g = d.querySelector('.g');
+  for (let i = 0; i < 132; i++) {
+    const e = document.createElement('div'); e.className = 'c'; e.textContent = i;
+    e.style.left = (i % 12) * T * S + 'px'; e.style.top = Math.floor(i / 12) * T * S + 'px';
+    g.appendChild(e);
+  }
+}
+</script>

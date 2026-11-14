@@ -30,6 +30,13 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [ ] M6. Desbloqueos reales (edificios, recetas, mejoras) y rama de Población y comida.
 - [ ] M7. Equilibrado con simulaciones y pulido de la interfaz.
 
+### Fases de gráficos (packs nuevos de Kenney; sólo capa visual, sin tocar la lógica)
+- [x] G0. Inventario de assets → ASSETS.md (problemas y propuesta).
+- [ ] G1. Enemigos con sprites (balanceo y volteo por dirección; prisma de respaldo).
+- [ ] G2. Murallas con sprites conectados y estados de daño.
+- [ ] G3. Interfaz con el UI Pack (paneles, botones, barras, cursor, iconos).
+- [ ] G4. Terreno con variantes, árboles y decoración procedural.
+
 ### Resto de la hoja de ruta (después del rediseño)
 - [ ] 5. (E2) ~~Cintas motorizadas~~ (hecho en P4); queda sólo la regla "automatizado no pide abastecimiento".
 - [ ] 6. (E3) Alimentadores automáticos y torretas con abastecimiento automático.
