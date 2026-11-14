@@ -67,6 +67,15 @@ export interface Building {
   markedForRemoval: boolean;
 }
 
+/** Estado visible de una fábrica. */
+export interface FactoryStatus {
+  state: 'none' | 'norecipe' | 'producing' | 'missing' | 'full';
+  /** Materiales que faltan (estado 'missing'). */
+  missing?: ItemId[];
+  /** Produce, pero sin la red eléctrica (más despacio). */
+  lowPower?: boolean;
+}
+
 export interface Enemy {
   id: number;
   kind: EnemyKind;
@@ -461,11 +470,31 @@ export class Game {
     if (!b || b.kind !== 'factory') return false;
     if (recipe !== null && !this.recipesFor(b).includes(recipe)) return false;
     if (b.recipe === recipe) return true;
+    // Lo que hay dentro vuelve a la salida (lo recoge un NPC o sale por cinta) y la producción en curso se cancela devolviendo sus entradas.
+    if (b.recipe && b.craft > 0) addAll(b.out, CONFIG.recipes[b.recipe].inputs);
     addAll(b.out, b.inv);
     b.inv = {};
     b.recipe = recipe;
     b.craft = 0;
     return true;
+  }
+
+  /** Estado de una fábrica o refinería para mostrarlo sobre el edificio. */
+  factoryStatus(b: Building): FactoryStatus {
+    if (!isCrafter(b.kind) || !b.built) return { state: 'none' };
+    if (!b.recipe) return { state: 'norecipe' };
+    const r = CONFIG.recipes[b.recipe];
+    if (b.craft > 0) return { state: 'producing', lowPower: powerMult(b) < 1 };
+    const missingItems = entries(r.inputs)
+      .filter(([i, n]) => count(b.inv, i) < n)
+      .map(([i]) => i);
+    if (missingItems.length) return { state: 'missing', missing: missingItems };
+    let outTotal = 0;
+    for (const [, n] of entries(b.out)) outTotal += n;
+    let produced = 0;
+    for (const [, n] of entries(r.outputs)) produced += n;
+    if (outTotal + produced > CONFIG.factory.outCap) return { state: 'full' };
+    return { state: 'producing', lowPower: powerMult(b) < 1 };
   }
 
   /** Recetas que puede fabricar este edificio: desbloqueadas, de su nivel y de su tipo de edificio. */

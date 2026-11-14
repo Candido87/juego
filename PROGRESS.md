@@ -91,3 +91,10 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] GI3. Pop-ups (panel fijo bajo el HUD, translúcido), resalte de botón/categoría y flecha sobre la casilla recomendada.
 - [x] GI4. Secuencia de 11 pasos en la UI: cerrar aviso, saltar guía y reiniciarla desde la ayuda (H).
 - [x] GI5. Comprobado con `npm run sim` (semilla 7): a los 300 s llega la oleada 1 con 2 torretas y 80 de munición, núcleo intacto; sin cambios de números.
+
+## Recetas de fábrica y azufre
+- [x] R1. Tabla de recetas en config.ts y SPEC.md (categorías), azufre en el mapa (mena, material, parcela cerca del núcleo), alcanzabilidad por test.
+- [x] R2. Motor: estado de fábrica (`factoryStatus`), búferes, cambio de receta que devuelve materiales, tests de manual y automático.
+- [ ] R3. Panel de selección de recetas (categorías, motivo si no disponible) y estado/icono sobre la fábrica.
+- [ ] R4. Integración con transporte y construcción por componentes (comprobar con el panel).
+- [ ] R5. Tooltips automáticos de recetas, bot de `npm run sim` y equilibrado.
