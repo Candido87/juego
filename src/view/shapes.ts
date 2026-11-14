@@ -149,6 +149,11 @@ export const ITEM_COLORS: Record<ItemId, number> = {
   science_1: 0xe53935,
   science_2: 0x1e88e5,
   food: 0x9ccc65,
+  frame: 0x9e7b55,
+  wire: 0xff8a3d,
+  pipe: 0x7f8c99,
+  gun_part: 0x5c6b7a,
+  tool_kit: 0xd84b3c,
 };
 
 /** Colores de disparo por torreta. */

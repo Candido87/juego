@@ -90,3 +90,55 @@ describe('granjas', () => {
     expect(count(g.storage, 'food')).toBeGreaterThan(100 - 9);
   });
 });
+
+describe('componentes y fábricas de nivel 1', () => {
+  const ORES = ['iron_ore', 'copper_ore', 'coal', 'stone', 'oil'];
+
+  it('todo edificio exige al menos un componente y ninguna mena', () => {
+    for (const [kind, def] of Object.entries(CONFIG.buildings)) {
+      const items = Object.keys(def.cost);
+      expect(items.some((i) => CONFIG.components.includes(i as never)), kind).toBe(true);
+      expect(items.some((i) => ORES.includes(i)), kind).toBe(false);
+    }
+  });
+
+  it('sin los componentes la obra no se termina; al llegar, sí', () => {
+    const g = flatGame();
+    g.storage.gun_part = 0;
+    const t = g.place('turret_bullet', 4, 4)!;
+    run(g, 20);
+    expect(t.built).toBe(false);
+    g.storage.gun_part = 2;
+    run(g, 20);
+    expect(t.built).toBe(true);
+  });
+
+  it('los componentes salen de recetas de nivel 1 en la fábrica', () => {
+    const g = flatGame();
+    const f = instant(g, 'factory', 5, 5);
+    for (const c of ['frame', 'gear', 'wire', 'pipe', 'gun_part', 'tool_kit', 'ammo']) {
+      expect(CONFIG.recipes[c].tier, c).toBe(1);
+      expect(g.setRecipe(f.id, c), c).toBe(true);
+    }
+  });
+
+  it('la fábrica de nivel 1 no hace recetas de nivel 2 aunque estén desbloqueadas', () => {
+    const g = flatGame();
+    const f = instant(g, 'factory', 5, 5);
+    g.unlockedRecipes.add('circuit');
+    expect(CONFIG.recipes.circuit.tier).toBe(2);
+    expect(g.setRecipe(f.id, 'circuit')).toBe(false);
+    expect(g.recipesFor(f)).not.toContain('circuit');
+  });
+
+  it('cadena manual: placas → engranajes → mecanismos de torreta', () => {
+    const g = flatGame();
+    g.storage.gear = 0;
+    const a = instant(g, 'factory', 6, 6, 3);
+    g.setRecipe(a.id, 'gun_part');
+    a.inv = { gear: 2, iron_plate: 4 };
+    g.npcs = [];
+    run(g, (2 * CONFIG.recipes.gun_part.time) / g.factorySpeed(a) + 0.5);
+    expect(count(a.out, 'gun_part')).toBe(2);
+  });
+});

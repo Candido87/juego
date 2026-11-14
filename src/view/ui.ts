@@ -278,7 +278,7 @@ export class Hud {
         const opts = ['<option value="">— sin receta —</option>']
           .concat(
             Object.entries(CONFIG.recipes)
-              .filter(([id]) => sim.unlockedRecipes.has(id))
+              .filter(([id]) => sim.recipesFor(b).includes(id))
               .map(([id, r]) => {
                 const ins = entries(r.inputs).map(([i, n]) => `${n} ${itemName(i)}`).join(' + ');
                 const outs = entries(r.outputs).map(([i, n]) => `${n} ${itemName(i)}`).join(' + ');

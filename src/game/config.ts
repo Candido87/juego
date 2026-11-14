@@ -44,6 +44,10 @@ export interface RecipeDef {
   inputs: Bag;
   outputs: Bag;
   time: number;
+  /** Nivel de fábrica necesario (1 = fábrica normal; 2+ = árbol de tecnología). */
+  tier: number;
+  /** Edificio que la fabrica (por defecto la fábrica genérica). */
+  building?: BuildKind;
 }
 
 export interface NpcDef {
@@ -95,13 +99,18 @@ export const CONFIG = {
   step: 1 / 30,
 
   coreHp: 300,
-  startItems: { iron_plate: 60, gear: 24, copper_plate: 10, wood: 12, ammo: 40, food: 30 } as Bag,
+  /** Almacén inicial: componentes para las primeras obras, algo de materia prima, munición y comida. */
+  startItems: { frame: 20, gear: 14, wire: 6, gun_part: 4, pipe: 4, iron_plate: 30, copper_plate: 10, wood: 16, ammo: 40, food: 30 } as Bag,
   /** Población inicial: 3 personas. */
   startNpcs: { constructor: 1, transporter: 1, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
     buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
-    recipes: ['iron_plate', 'copper_plate', 'gear', 'ammo', 'brick', 'circuit', 'battery', 'wall_plate', 'science_1', 'science_2'],
+    /** Recetas de nivel 1. Las de nivel 2 (circuito, batería, placa de muro, ciencia II) llegan con el árbol. */
+    recipes: ['iron_plate', 'copper_plate', 'brick', 'gear', 'frame', 'wire', 'pipe', 'gun_part', 'ammo', 'tool_kit', 'science_1'],
   },
+
+  /** Componentes: lo que piden los edificios para construirse (fabricados, no materia prima). */
+  components: ['frame', 'gear', 'wire', 'pipe', 'gun_part', 'tool_kit', 'circuit', 'battery', 'wall_plate'] as ItemId[],
 
   items: {
     iron_ore: 'Mena de hierro',
@@ -113,35 +122,41 @@ export const CONFIG = {
     copper_plate: 'Placa de cobre',
     gear: 'Engranaje',
     ammo: 'Munición',
-    circuit: 'Componente',
+    circuit: 'Circuito',
     brick: 'Ladrillo',
     battery: 'Batería',
     wall_plate: 'Placa de muro',
     science_1: 'Ciencia I',
     science_2: 'Ciencia II',
     food: 'Comida',
+    frame: 'Bastidor',
+    wire: 'Cable',
+    pipe: 'Tubería',
+    gun_part: 'Mecanismo de torreta',
+    tool_kit: 'Kit de taller',
   } as Record<ItemId, string>,
 
+  /** Coste = componentes (el primero es el que se gasta al reparar). */
   buildings: {
-    drill: { name: 'Taladro', cost: { iron_plate: 4, gear: 2 }, buildTime: 3, hp: 60, solid: true, size: [1, 1] },
-    belt: { name: 'Cinta', cost: { iron_plate: 1 }, buildTime: 0.6, hp: 20, solid: false, size: [1, 1] },
-    belt_fast: { name: 'Cinta rápida', cost: { iron_plate: 1, gear: 1 }, buildTime: 0.8, hp: 25, solid: false, size: [1, 1] },
-    storage: { name: 'Almacén', cost: { iron_plate: 6, wood: 4 }, buildTime: 4, hp: 120, solid: true, size: [1, 1], storage: true },
-    factory: { name: 'Fábrica', cost: { iron_plate: 8, gear: 4 }, buildTime: 5, hp: 100, solid: true, size: [1, 1] },
-    farm: { name: 'Granja', cost: { iron_plate: 4, wood: 4 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
-    pole: { name: 'Poste', cost: { wood: 2, copper_plate: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
-    generator: { name: 'Generador de combustión', cost: { iron_plate: 6, copper_plate: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
-    solar: { name: 'Panel solar', cost: { copper_plate: 6, circuit: 3, iron_plate: 2 }, buildTime: 4, hp: 50, solid: true, size: [1, 1] },
-    turbine: { name: 'Turbina de vapor', cost: { iron_plate: 10, circuit: 4, brick: 4 }, buildTime: 7, hp: 120, solid: true, size: [1, 1] },
-    accumulator: { name: 'Batería', cost: { battery: 4, iron_plate: 2 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
-    feeder: { name: 'Alimentador', cost: { iron_plate: 2, gear: 2, circuit: 1 }, buildTime: 1.5, hp: 40, solid: true, size: [1, 1] },
-    turret_bullet: { name: 'Torreta de balas', cost: { iron_plate: 6, gear: 3 }, buildTime: 4, hp: 100, solid: true, size: [1, 1] },
-    turret_laser: { name: 'Torreta láser', cost: { copper_plate: 6, circuit: 4 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
-    turret_fire: { name: 'Lanzallamas', cost: { iron_plate: 6, brick: 4, gear: 2 }, buildTime: 5, hp: 120, solid: true, size: [1, 1] },
-    turret_frost: { name: 'Torreta de hielo', cost: { copper_plate: 4, circuit: 3, battery: 1 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
-    wall_wood: { name: 'Muro de madera', cost: { wood: 3 }, buildTime: 1.5, hp: 120, solid: true, size: [1, 1] },
-    wall_stone: { name: 'Muro de piedra', cost: { brick: 3 }, buildTime: 2.5, hp: 320, solid: true, size: [1, 1] },
-    wall_metal: { name: 'Muro de metal', cost: { wall_plate: 2 }, buildTime: 3.5, hp: 750, solid: true, size: [1, 1] },
+    drill: { name: 'Taladro', cost: { frame: 1, gear: 2 }, buildTime: 3, hp: 60, solid: true, size: [1, 1] },
+    belt: { name: 'Cinta', cost: { gear: 1 }, buildTime: 0.6, hp: 20, solid: false, size: [1, 1] },
+    belt_fast: { name: 'Cinta rápida', cost: { gear: 1, wire: 1 }, buildTime: 0.8, hp: 25, solid: false, size: [1, 1] },
+    storage: { name: 'Almacén', cost: { frame: 3 }, buildTime: 4, hp: 120, solid: true, size: [1, 1], storage: true },
+    factory: { name: 'Fábrica', cost: { frame: 3, gear: 2 }, buildTime: 5, hp: 100, solid: true, size: [1, 1] },
+    farm: { name: 'Granja', cost: { frame: 2, gear: 1 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
+    pole: { name: 'Poste', cost: { wire: 2, frame: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
+    generator: { name: 'Generador', cost: { frame: 3, gear: 2, wire: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
+    solar: { name: 'Panel solar', cost: { circuit: 2, wire: 4, frame: 1 }, buildTime: 4, hp: 50, solid: true, size: [1, 1] },
+    turbine: { name: 'Turbina', cost: { frame: 4, pipe: 4, circuit: 4 }, buildTime: 7, hp: 120, solid: true, size: [1, 1] },
+    accumulator: { name: 'Batería', cost: { battery: 4, frame: 1 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
+    feeder: { name: 'Alimentador', cost: { gear: 2, frame: 1, circuit: 1 }, buildTime: 1.5, hp: 40, solid: true, size: [1, 1] },
+    turret_bullet: { name: 'Torreta de balas', cost: { gun_part: 2, frame: 1 }, buildTime: 4, hp: 100, solid: true, size: [1, 1] },
+    turret_laser: { name: 'Torreta láser', cost: { circuit: 4, wire: 4, frame: 2 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
+    turret_fire: { name: 'Lanzallamas', cost: { gun_part: 2, pipe: 2, brick: 2 }, buildTime: 5, hp: 120, solid: true, size: [1, 1] },
+    turret_frost: { name: 'Torreta de hielo', cost: { gun_part: 1, circuit: 3, battery: 1 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
+    wall_wood: { name: 'Muro de madera', cost: { frame: 1, wood: 3 }, buildTime: 1.5, hp: 120, solid: true, size: [1, 1] },
+    wall_stone: { name: 'Muro de piedra', cost: { frame: 1, brick: 3 }, buildTime: 2.5, hp: 320, solid: true, size: [1, 1] },
+    wall_metal: { name: 'Muro de metal', cost: { wall_plate: 2, frame: 1 }, buildTime: 3.5, hp: 750, solid: true, size: [1, 1] },
   } as Record<BuildKind, BuildingDef>,
   coreDef: { name: 'Núcleo', cost: {}, buildTime: 0, hp: 300, solid: true, size: [2, 2], storage: true } as BuildingDef,
 
@@ -161,7 +176,8 @@ export const CONFIG = {
     /** Después, se marcha una persona cada tantos segundos. */
     leaveInterval: 25,
   },
-  factory: { inputBatches: 3, outCap: 10 },
+  /** Fábrica (nivel 1): sólo recetas con tier ≤ `tier`. */
+  factory: { inputBatches: 3, outCap: 10, tier: 1 },
 
   /** Red eléctrica. Potencias en unidades/s; la energía de batería en unidades. */
   power: {
@@ -214,17 +230,23 @@ export const CONFIG = {
   /** Desgaste por uso; un Operario lo repone. */
   wear: { factoryPerCraft: 0.02, turretPerShot: 0.004, lowThreshold: 0.5, lowEfficiency: 0.5 },
 
+  /** Recetas. tier 1 = fábrica normal; tier 2 = árbol de tecnología. */
   recipes: {
-    iron_plate: { name: 'Placa de hierro', inputs: { iron_ore: 1 }, outputs: { iron_plate: 1 }, time: 1.5 },
-    copper_plate: { name: 'Placa de cobre', inputs: { copper_ore: 1 }, outputs: { copper_plate: 1 }, time: 1.5 },
-    gear: { name: 'Engranaje', inputs: { iron_plate: 2 }, outputs: { gear: 1 }, time: 1.2 },
-    ammo: { name: 'Munición', inputs: { iron_plate: 1 }, outputs: { ammo: 4 }, time: 1.5 },
-    brick: { name: 'Ladrillo', inputs: { stone: 2 }, outputs: { brick: 1 }, time: 2 },
-    circuit: { name: 'Componente', inputs: { copper_plate: 2, iron_plate: 1 }, outputs: { circuit: 1 }, time: 2.5 },
-    battery: { name: 'Batería', inputs: { copper_plate: 1, coal: 1 }, outputs: { battery: 1 }, time: 2.5 },
-    wall_plate: { name: 'Placa de muro', inputs: { iron_plate: 3 }, outputs: { wall_plate: 1 }, time: 2 },
-    science_1: { name: 'Ciencia I', inputs: { copper_plate: 1, gear: 1 }, outputs: { science_1: 1 }, time: 4 },
-    science_2: { name: 'Ciencia II', inputs: { circuit: 1, brick: 1 }, outputs: { science_2: 1 }, time: 6 },
+    iron_plate: { name: 'Placa de hierro', inputs: { iron_ore: 1 }, outputs: { iron_plate: 1 }, time: 1.5, tier: 1 },
+    copper_plate: { name: 'Placa de cobre', inputs: { copper_ore: 1 }, outputs: { copper_plate: 1 }, time: 1.5, tier: 1 },
+    brick: { name: 'Ladrillo', inputs: { stone: 2 }, outputs: { brick: 1 }, time: 2, tier: 1 },
+    gear: { name: 'Engranaje', inputs: { iron_plate: 1 }, outputs: { gear: 1 }, time: 1.2, tier: 1 },
+    frame: { name: 'Bastidor', inputs: { iron_plate: 2, wood: 1 }, outputs: { frame: 2 }, time: 2, tier: 1 },
+    wire: { name: 'Cable', inputs: { copper_plate: 1 }, outputs: { wire: 2 }, time: 1, tier: 1 },
+    pipe: { name: 'Tubería', inputs: { iron_plate: 1 }, outputs: { pipe: 1 }, time: 1.2, tier: 1 },
+    gun_part: { name: 'Mecanismo de torreta', inputs: { gear: 1, iron_plate: 2 }, outputs: { gun_part: 1 }, time: 2.5, tier: 1 },
+    ammo: { name: 'Munición', inputs: { iron_plate: 1 }, outputs: { ammo: 4 }, time: 1.5, tier: 1 },
+    tool_kit: { name: 'Kit de taller', inputs: { gear: 2, frame: 1 }, outputs: { tool_kit: 1 }, time: 3, tier: 1 },
+    science_1: { name: 'Ciencia I', inputs: { copper_plate: 1, gear: 1 }, outputs: { science_1: 1 }, time: 4, tier: 1 },
+    circuit: { name: 'Circuito', inputs: { wire: 3, iron_plate: 1 }, outputs: { circuit: 1 }, time: 2.5, tier: 2 },
+    battery: { name: 'Batería', inputs: { copper_plate: 1, coal: 1 }, outputs: { battery: 1 }, time: 2.5, tier: 2 },
+    wall_plate: { name: 'Placa de muro', inputs: { iron_plate: 3 }, outputs: { wall_plate: 1 }, time: 2, tier: 2 },
+    science_2: { name: 'Ciencia II', inputs: { circuit: 1, brick: 1 }, outputs: { science_2: 1 }, time: 6, tier: 2 },
   } as Record<string, RecipeDef>,
 
   npc: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { count } from './bag';
+import { count, entries } from './bag';
 import { botTick } from './bot';
 import { CONFIG } from './config';
 import { Game } from './game';
@@ -36,14 +36,12 @@ describe('rutas', () => {
 describe('NPCs y cola de trabajos', () => {
   it('colocar crea una obra; un Constructor la levanta gastando piezas', () => {
     const g = flatGame();
-    const plates = count(g.storage, 'iron_plate');
-    const gears = count(g.storage, 'gear');
+    const before = { ...g.storage };
     const b = g.place('turret_bullet', 4, 4)!;
     expect(b.built).toBe(false);
     run(g, 30);
     expect(b.built).toBe(true);
-    expect(count(g.storage, 'iron_plate')).toBe(plates - 6);
-    expect(count(g.storage, 'gear')).toBe(gears - 3);
+    for (const [i, n] of entries(CONFIG.buildings.turret_bullet.cost)) expect(count(g.storage, i)).toBe(count(before, i) - n);
   });
 
   it('sin NPCs no se construye nada', () => {
@@ -89,13 +87,14 @@ describe('NPCs y cola de trabajos', () => {
 
   it('desmontar lo hace un Constructor y devuelve el 50 %', () => {
     const g = flatGame();
-    const before = count(g.storage, 'iron_plate');
+    const [item, n] = entries(CONFIG.buildings.turret_bullet.cost)[0];
+    const before = count(g.storage, item);
     const b = instant(g, 'turret_bullet', 4, 4);
     g.remove(4, 4);
     expect(b.markedForRemoval).toBe(true);
     run(g, 20);
     expect(g.buildingAt(4, 4)).toBeUndefined();
-    expect(count(g.storage, 'iron_plate')).toBe(before + Math.floor(6 * CONFIG.deconstruct.refund));
+    expect(count(g.storage, item)).toBe(before + Math.floor(n * CONFIG.deconstruct.refund));
   });
 
   it('contratar cuesta piezas y añade un NPC', () => {
@@ -170,11 +169,11 @@ describe('piezas y recetas', () => {
   it('la fábrica sólo acepta las entradas de su receta, con tope', () => {
     const g = flatGame();
     const f = instant(g, 'factory', 5, 5, 0);
-    g.setRecipe(f.id, 'circuit');
-    expect(g.capacityFor(f, 'copper_plate')).toBe(2 * CONFIG.factory.inputBatches);
+    g.setRecipe(f.id, 'gun_part');
+    expect(g.capacityFor(f, 'iron_plate')).toBe(2 * CONFIG.factory.inputBatches);
     expect(g.capacityFor(f, 'iron_ore')).toBe(0);
     expect(g.pushItem(5, 5, 'iron_ore', 0)).toBe(false);
-    expect(g.pushItem(5, 5, 'copper_plate', 0)).toBe(true);
+    expect(g.pushItem(5, 5, 'iron_plate', 0)).toBe(true);
   });
 
   it('una receta transforma entradas en salidas en su tiempo', () => {
@@ -182,7 +181,7 @@ describe('piezas y recetas', () => {
     g.npcs = []; // sin Transportistas que traigan más placas
     const f = instant(g, 'factory', 5, 5, 0);
     g.setRecipe(f.id, 'gear');
-    f.inv = { iron_plate: 4 };
+    f.inv = { iron_plate: 2 * CONFIG.recipes.gear.inputs.iron_plate! };
     run(g, (CONFIG.recipes.gear.time * 2) / g.factorySpeed(f) + 0.2);
     expect(count(f.out, 'gear')).toBe(2);
     expect(count(f.inv, 'iron_plate')).toBe(0);

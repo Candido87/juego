@@ -39,6 +39,11 @@ export const ITEM_IDS = [
   'science_1',
   'science_2',
   'food',
+  'frame',
+  'wire',
+  'pipe',
+  'gun_part',
+  'tool_kit',
 ] as const;
 export type ItemId = (typeof ITEM_IDS)[number];
 

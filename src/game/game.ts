@@ -348,13 +348,22 @@ export class Game {
   setRecipe(id: number, recipe: string | null): boolean {
     const b = this.buildings.get(id);
     if (!b || b.kind !== 'factory') return false;
-    if (recipe !== null && (!CONFIG.recipes[recipe] || !this.unlockedRecipes.has(recipe))) return false;
+    if (recipe !== null && !this.recipesFor(b).includes(recipe)) return false;
     if (b.recipe === recipe) return true;
     addAll(b.out, b.inv);
     b.inv = {};
     b.recipe = recipe;
     b.craft = 0;
     return true;
+  }
+
+  /** Recetas que puede fabricar este edificio: desbloqueadas, de su nivel y de su tipo de edificio. */
+  recipesFor(b: Building): string[] {
+    if (b.kind !== 'factory') return [];
+    return Object.keys(CONFIG.recipes).filter((id) => {
+      const r = CONFIG.recipes[id];
+      return this.unlockedRecipes.has(id) && r.tier <= CONFIG.factory.tier && (r.building ?? 'factory') === 'factory';
+    });
   }
 
   /** Cuántas unidades de `item` caben como entrada en el edificio (0 = no lo acepta). */
