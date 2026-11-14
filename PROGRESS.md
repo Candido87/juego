@@ -4,7 +4,7 @@
 - [x] Hito 0 — Vista isométrica, lógica pura, cintas, taladros, torre básica, oleadas, tests.
 
 ## Hitos de la ampliación
-- [ ] 1. Sistema de NPCs y cola de trabajos (construcción por NPC con una sola torreta de balas).
+- [x] 1. Sistema de NPCs y cola de trabajos (construcción por NPC con una sola torreta de balas).
 - [ ] 2. Piezas y recetas nuevas; las construcciones consumen piezas concretas.
 - [ ] 3. Transportistas: reparto de munición y piezas por NPC.
 - [ ] 4. Torretas láser (energía) y de fuego (combustible), con sus costes y materiales.

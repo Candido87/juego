@@ -1,15 +1,26 @@
 /**
  * Vista isométrica. Lee el estado de `Game` cada fotograma y lo dibuja; nunca contiene
- * reglas de juego. Toda la interacción se traduce a comandos (place/remove/rotate).
+ * reglas de juego. Toda la interacción se traduce a comandos (place/remove/rotate/hire...).
  */
 import Phaser from 'phaser';
 import { CONFIG } from '../game/config';
-import { FOOTPRINT, Game } from '../game/game';
+import { Game } from '../game/game';
 import { HALF_H, HALF_W, Vec2, depthOf, gridToScreen, occludes, pickTile } from '../game/iso';
-import { DX, DY, Dir, Ore, Tile, dirBetween } from '../game/types';
+import { DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { MAX_HEIGHT, heightAt, heightAtPoint, oreAt } from '../game/world';
-import { ENEMY_KEY, MUZZLE_Z, buildTextures, itemKey, shapeInfo, shapeKey, terrainKey } from './shapes';
-import { getHud, ui } from './ui';
+import {
+  FLY_Z,
+  MUZZLE_Z,
+  SHOT_COLORS,
+  buildTextures,
+  enemyKey,
+  itemKey,
+  npcKey,
+  shapeInfo,
+  shapeKey,
+  terrainKey,
+} from './shapes';
+import { getHud, itemName, ui } from './ui';
 
 interface BSprite {
   img: Phaser.GameObjects.Image;
@@ -19,8 +30,14 @@ interface BSprite {
   alpha: number;
 }
 
+interface Mover {
+  img: Phaser.GameObjects.Image;
+  shadow: Phaser.GameObjects.Image;
+}
+
 interface Flash {
-  kind: 'shot' | 'pop';
+  kind: 'shot' | 'pop' | 'death';
+  color: number;
   a: Vec2;
   b: Vec2;
   ttl: number;
@@ -28,14 +45,22 @@ interface Flash {
 }
 
 /** Capas dentro de una misma diagonal (ver depthOf). */
-const L = { terrain: 0, shadow: 1, belt: 2, item: 3, building: 5, ghost: 7 };
+const L = { terrain: 0, shadow: 1, belt: 2, item: 3, building: 5, mover: 6, ghost: 7 };
 const OVERLAY_DEPTH = 1e6;
-const ORE_NAMES: Record<number, string> = { [Ore.Iron]: 'hierro', [Ore.Copper]: 'cobre' };
+const SITE_ALPHA = 0.42;
+const ORE_NAMES: Record<number, string> = {
+  [Ore.Iron]: 'hierro',
+  [Ore.Copper]: 'cobre',
+  [Ore.Coal]: 'carbón',
+  [Ore.Stone]: 'piedra',
+  [Ore.Wood]: 'bosque',
+};
 
 export class GameScene extends Phaser.Scene {
   private sim!: Game;
   private bSprites = new Map<number, BSprite>();
-  private eSprites = new Map<number, Phaser.GameObjects.Image>();
+  private eSprites = new Map<number, Mover>();
+  private nSprites = new Map<number, Mover>();
   private items: Phaser.GameObjects.Image[] = [];
   private flashes: Flash[] = [];
   private fx!: Phaser.GameObjects.Graphics;
@@ -56,6 +81,7 @@ export class GameScene extends Phaser.Scene {
     // La escena se reutiliza al reiniciar: limpiar estado.
     this.bSprites = new Map();
     this.eSprites = new Map();
+    this.nSprites = new Map();
     this.items = [];
     this.flashes = [];
     this.pathsVersion = -1;
@@ -68,7 +94,7 @@ export class GameScene extends Phaser.Scene {
     this.paths = this.add.graphics().setDepth(OVERLAY_DEPTH - 3);
     this.overlay = this.add.graphics().setDepth(OVERLAY_DEPTH - 1);
     this.fx = this.add.graphics().setDepth(OVERLAY_DEPTH);
-    this.ghost = this.add.image(0, 0, 'tower').setVisible(false).setAlpha(0.6);
+    this.ghost = this.add.image(0, 0, 'core').setVisible(false).setAlpha(0.6);
 
     const cam = this.cameras.main;
     const c = this.sim.core;
@@ -79,17 +105,16 @@ export class GameScene extends Phaser.Scene {
     this.setupInput();
 
     const hud = getHud();
+    hud.bind(this.sim);
     hud.onRestart = () => this.scene.restart({ seed: Math.floor(Math.random() * 1e9) });
-    hud.onCallWave = () => this.sim.callWaveNow();
   }
 
   // ------------------------------------------------------------------ terreno
 
   private buildTerrain() {
-    const { w, h } = this.sim.world;
     const world = this.sim.world;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
+    for (let y = 0; y < world.h; y++) {
+      for (let x = 0; x < world.w; x++) {
         const z = heightAt(world, x, y);
         // Oclusión ambiental: vecinas más altas hacia la luz (arriba-izquierda) oscurecen la casilla.
         let ao = 0;
@@ -109,21 +134,26 @@ export class GameScene extends Phaser.Scene {
   private setupInput() {
     const cam = this.cameras.main;
     this.input.mouse?.disableContextMenu();
-    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT') as Record<string, Phaser.Input.Keyboard.Key>;
 
     this.input.keyboard!.on('keydown', (ev: KeyboardEvent) => {
       const hud = getHud();
-      if (ev.key === 'r' || ev.key === 'R') hud.rotate();
-      else if (ev.key === 'Escape') hud.setTool(null);
-      else if (ev.key === '1') hud.setTool('drill');
-      else if (ev.key === '2') hud.setTool('belt');
-      else if (ev.key === '3') hud.setTool('tower');
-      else if (ev.key === '4') hud.setTool('remove');
+      const k = ev.key.toLowerCase();
+      if (k === 'r') hud.rotate();
+      else if (k === 'escape') {
+        hud.setTool(null);
+        ui.selected = null;
+      } else if (k === 'x') hud.setTool('remove');
+      else if (k === 'p') hud.togglePause();
+      else if (/^[1-9]$/.test(k)) {
+        const t = hud.tools()[Number(k) - 1];
+        if (t) hud.setTool(t);
+      }
     });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       this.updateHover();
-      if (p.button === 0 && p.event.shiftKey && ui.tool === 'belt' && this.hover) {
+      if (p.button === 0 && p.event.shiftKey && (ui.tool === 'belt' || ui.tool === 'belt_fast') && this.hover) {
         this.painting = { ...this.hover };
         this.placeAt(this.hover);
         return;
@@ -150,8 +180,10 @@ export class GameScene extends Phaser.Scene {
       const wasClick = this.drag.down && !this.drag.moved;
       this.drag.down = false;
       if (!wasClick) return;
-      if (p.button === 2) getHud().setTool(null);
-      else if (p.button === 0) this.onClick();
+      if (p.button === 2) {
+        getHud().setTool(null);
+        ui.selected = null;
+      } else if (p.button === 0) this.onClick();
     });
 
     this.input.on('wheel', (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
@@ -168,9 +200,8 @@ export class GameScene extends Phaser.Scene {
     const t = this.hover;
     if (!t) return;
     if (ui.tool === null) {
-      // Sin herramienta: clic gira cintas y taladros.
-      const b = this.sim.buildingAt(t.x, t.y);
-      if (b && (b.kind === 'belt' || b.kind === 'drill')) this.sim.rotate(t.x, t.y, ((b.dir + 1) % 4) as Dir);
+      // Sin herramienta: seleccionar edificio.
+      ui.selected = this.sim.buildingAt(t.x, t.y)?.id ?? null;
       return;
     }
     this.placeAt(t);
@@ -197,14 +228,13 @@ export class GameScene extends Phaser.Scene {
     while ((cur.x !== target.x || cur.y !== target.y) && guard++ < 64) {
       const dx: number = target.x - cur.x;
       const dy: number = target.y - cur.y;
-      const next: Tile = Math.abs(dx) >= Math.abs(dy)
-        ? { x: cur.x + Math.sign(dx), y: cur.y }
-        : { x: cur.x, y: cur.y + Math.sign(dy) };
+      const next: Tile =
+        Math.abs(dx) >= Math.abs(dy) ? { x: cur.x + Math.sign(dx), y: cur.y } : { x: cur.x, y: cur.y + Math.sign(dy) };
       const dir = dirBetween(cur, next)!;
       ui.dir = dir;
       this.sim.rotate(cur.x, cur.y, dir);
       const existing = this.sim.buildingAt(next.x, next.y);
-      if (existing?.kind === 'belt') this.sim.rotate(next.x, next.y, dir);
+      if (existing?.kind === ui.tool) this.sim.rotate(next.x, next.y, dir);
       else if (!existing) this.placeAt(next);
       cur = next;
     }
@@ -230,7 +260,7 @@ export class GameScene extends Phaser.Scene {
 
     this.syncBuildings();
     this.syncItems();
-    this.syncEnemies();
+    this.syncMovers();
     this.consumeEvents();
     this.drawPaths();
     this.drawOverlay();
@@ -260,18 +290,18 @@ export class GameScene extends Phaser.Scene {
       if (!s) {
         const info = shapeInfo(key);
         const pos = gridToScreen(b.x, b.y, heightAt(world, b.x, b.y));
-        const [fw, fd] = FOOTPRINT[b.kind];
+        const flat = b.kind === 'belt' || b.kind === 'belt_fast';
         const img = this.add
           .image(pos.x, pos.y, key)
           .setOrigin(info.originX, info.originY)
-          .setDepth(depthOf(b.x + fw - 1, b.y + fd - 1, b.kind === 'belt' ? L.belt : L.building));
+          .setDepth(depthOf(b.x + b.w - 1, b.y + b.d - 1, flat ? L.belt : L.building));
         let shadow: Phaser.GameObjects.Image | undefined;
         if (info.shadow) {
           const si = shapeInfo(info.shadow);
           shadow = this.add
             .image(pos.x, pos.y, info.shadow)
             .setOrigin(si.originX, si.originY)
-            .setDepth(depthOf(b.x + fw, b.y + fd, L.shadow));
+            .setDepth(depthOf(b.x + b.w, b.y + b.d, L.shadow));
         }
         s = { img, shadow, key, tall: info.tall, alpha: 1 };
         this.bSprites.set(b.id, s);
@@ -280,6 +310,10 @@ export class GameScene extends Phaser.Scene {
         s.img.setTexture(key).setOrigin(info.originX, info.originY);
         s.key = key;
       }
+      s.shadow?.setVisible(b.built);
+      if (!b.built) s.img.setTint(0xbfd4ff);
+      else if (b.markedForRemoval) s.img.setTint(0xff8080);
+      else s.img.clearTint();
     }
     for (const [id, s] of this.bSprites) {
       if (seen.has(id)) continue;
@@ -293,15 +327,15 @@ export class GameScene extends Phaser.Scene {
     let i = 0;
     const world = this.sim.world;
     for (const b of this.sim.buildings.values()) {
-      if (b.kind !== 'belt' || b.item === Ore.None) continue;
+      if ((b.kind !== 'belt' && b.kind !== 'belt_fast') || b.item === null) continue;
       let img = this.items[i];
       if (!img) {
-        img = this.add.image(0, 0, itemKey(Ore.Iron));
+        img = this.add.image(0, 0, itemKey('iron_ore'));
         this.items.push(img);
       }
       const key = itemKey(b.item);
       const info = shapeInfo(key);
-      const t = b.progress - 0.5;
+      const t = b.beltProgress - 0.5;
       const pos = gridToScreen(b.x + 0.5 + t * DX[b.dir], b.y + 0.5 + t * DY[b.dir], heightAt(world, b.x, b.y));
       img.setTexture(key).setOrigin(info.originX, info.originY).setPosition(pos.x, pos.y);
       img.setDepth(depthOf(b.x, b.y, L.item)).setVisible(true);
@@ -310,28 +344,55 @@ export class GameScene extends Phaser.Scene {
     for (; i < this.items.length; i++) this.items[i].setVisible(false);
   }
 
-  private enemyScreen(x: number, y: number): Vec2 {
+  private groundScreen(x: number, y: number): Vec2 {
     return gridToScreen(x, y, heightAtPoint(this.sim.world, x, y));
   }
 
-  private syncEnemies() {
-    const seen = new Set<number>();
-    const info = shapeInfo(ENEMY_KEY);
-    for (const e of this.sim.enemies) {
-      seen.add(e.id);
-      let img = this.eSprites.get(e.id);
-      if (!img) {
-        img = this.add.image(0, 0, ENEMY_KEY).setOrigin(info.originX, info.originY);
-        this.eSprites.set(e.id, img);
-      }
-      const p = this.enemyScreen(e.x, e.y);
-      const bob = Math.abs(Math.sin(this.sim.time * 8 + e.id)) * 2;
-      img.setPosition(p.x, p.y - bob).setDepth(depthOf(e.x - 0.5, e.y - 0.5, 6));
+  private moverDepth(x: number, y: number): number {
+    return depthOf(x - 0.5, y - 0.5, L.mover);
+  }
+
+  /** Enemigos y NPCs: imagen + sombrita, mismo orden de profundidad que el resto. */
+  private syncMover(map: Map<number, Mover>, id: number, key: string, x: number, y: number, lift: number, bob: number) {
+    let m = map.get(id);
+    if (!m) {
+      const info = shapeInfo(key);
+      const si = shapeInfo('shadow_small');
+      m = {
+        img: this.add.image(0, 0, key).setOrigin(info.originX, info.originY),
+        shadow: this.add.image(0, 0, 'shadow_small').setOrigin(si.originX, si.originY),
+      };
+      map.set(id, m);
     }
-    for (const [id, img] of this.eSprites) {
-      if (seen.has(id)) continue;
-      img.destroy();
-      this.eSprites.delete(id);
+    const p = this.groundScreen(x, y);
+    m.shadow.setPosition(p.x, p.y).setDepth(depthOf(x - 0.5, y - 0.5, L.shadow));
+    m.img.setPosition(p.x, p.y - lift - bob).setDepth(this.moverDepth(x, y) + (lift > 0 ? 2 : 0));
+  }
+
+  private syncMovers() {
+    const seenE = new Set<number>();
+    for (const e of this.sim.enemies) {
+      seenE.add(e.id);
+      const bob = Math.abs(Math.sin(this.sim.time * 8 + e.id)) * 2;
+      this.syncMover(this.eSprites, e.id, enemyKey(e.kind), e.x, e.y, e.flying ? FLY_Z : 0, bob);
+    }
+    const seenN = new Set<number>();
+    for (const n of this.sim.npcs) {
+      seenN.add(n.id);
+      const moving = n.path.length > 0;
+      const bob = moving ? Math.abs(Math.sin(this.sim.time * 12 + n.id)) * 1.5 : 0;
+      this.syncMover(this.nSprites, n.id, npcKey(n.role), n.x, n.y, 0, bob);
+    }
+    for (const [map, seen] of [
+      [this.eSprites, seenE],
+      [this.nSprites, seenN],
+    ] as const) {
+      for (const [id, m] of map) {
+        if (seen.has(id)) continue;
+        m.img.destroy();
+        m.shadow.destroy();
+        map.delete(id);
+      }
     }
   }
 
@@ -341,16 +402,25 @@ export class GameScene extends Phaser.Scene {
       if (ev.type === 'shot') {
         const from = gridToScreen(ev.fromX, ev.fromY, heightAt(world, Math.floor(ev.fromX), Math.floor(ev.fromY)));
         from.y -= MUZZLE_Z;
-        const to = this.enemyScreen(ev.toX, ev.toY);
+        const to = this.groundScreen(ev.toX, ev.toY);
         to.y -= 10;
-        this.flashes.push({ kind: 'shot', a: from, b: to, ttl: 0.12, max: 0.12 });
+        this.flashes.push({ kind: 'shot', color: SHOT_COLORS[ev.kind as TurretKind], a: from, b: to, ttl: 0.12, max: 0.12 });
       } else if (ev.type === 'kill') {
-        const p = this.enemyScreen(ev.x, ev.y);
-        this.flashes.push({ kind: 'pop', a: p, b: p, ttl: 0.35, max: 0.35 });
+        const p = this.groundScreen(ev.x, ev.y);
+        this.flashes.push({ kind: 'pop', color: 0xffd166, a: p, b: p, ttl: 0.35, max: 0.35 });
+      } else if (ev.type === 'npcDied') {
+        const p = this.groundScreen(ev.x, ev.y);
+        this.flashes.push({ kind: 'death', color: 0xff5555, a: p, b: p, ttl: 0.8, max: 0.8 });
+        getHud().flash('¡Un NPC ha muerto!');
+      } else if (ev.type === 'destroyed') {
+        const p = this.groundScreen(ev.x + 0.5, ev.y + 0.5);
+        this.flashes.push({ kind: 'death', color: 0xff9f43, a: p, b: p, ttl: 0.6, max: 0.6 });
       } else if (ev.type === 'coreHit') {
         this.cameras.main.shake(120, 0.004);
       } else if (ev.type === 'wave') {
         getHud().flash(`¡Oleada ${ev.wave}!`);
+      } else if (ev.type === 'researched') {
+        getHud().flash('Investigación completada');
       }
     }
   }
@@ -366,9 +436,8 @@ export class GameScene extends Phaser.Scene {
       const pts = this.sim.pathFrom(s).map((t) => gridToScreen(t.x + 0.5, t.y + 0.5, heightAt(world, t.x, t.y)));
       g.lineStyle(2, 0xff6b6b, 0.25);
       g.strokePoints(pts, false);
-      const sp = pts[0];
       g.fillStyle(0xff6b6b, 0.5);
-      g.fillEllipse(sp.x, sp.y, 40, 20);
+      g.fillEllipse(pts[0].x, pts[0].y, 40, 20);
     }
   }
 
@@ -380,9 +449,18 @@ export class GameScene extends Phaser.Scene {
     const g = this.overlay;
     g.clear();
     this.ghost.setVisible(false);
+    const world = this.sim.world;
+
+    const sel = ui.selected !== null ? this.sim.buildings.get(ui.selected) : undefined;
+    if (ui.selected !== null && !sel) ui.selected = null;
+    if (sel) {
+      const pts = this.tileOutline(sel.x, sel.y, sel.w, sel.d, heightAt(world, sel.x, sel.y));
+      g.lineStyle(2, 0x6fd3ff, 1).strokePoints(pts, true);
+      if (sel.kind in CONFIG.turrets) this.drawRange(sel, heightAt(world, sel.x, sel.y), CONFIG.turrets[sel.kind as TurretKind].range, 0x6fd3ff);
+    }
+
     const t = this.hover;
     if (!t) return;
-    const world = this.sim.world;
     const z = heightAt(world, t.x, t.y);
     let color = 0xffffff;
 
@@ -408,47 +486,58 @@ export class GameScene extends Phaser.Scene {
         .setDepth(depthOf(t.x, t.y, L.ghost))
         .setTint(ok ? 0xb8ffbf : 0xff8080)
         .setVisible(true);
-      if (ui.tool === 'tower') this.drawRange(t, z, color);
-    } else {
-      const b = this.sim.buildingAt(t.x, t.y);
-      if (b?.kind === 'tower') this.drawRange(b, heightAt(world, b.x, b.y), 0x4fc3f7);
+      if (ui.tool in CONFIG.turrets) this.drawRange(t, z, CONFIG.turrets[ui.tool as TurretKind].range, color);
     }
     const pts = this.tileOutline(t.x, t.y, 1, 1, z);
     g.fillStyle(color, 0.18).fillPoints(pts, true);
     g.lineStyle(2, color, 0.9).strokePoints(pts, true);
   }
 
-  private drawRange(t: Tile, z: number, color: number) {
+  private drawRange(t: Tile, z: number, r: number, color: number) {
     const c = gridToScreen(t.x + 0.5, t.y + 0.5, z);
-    const r = CONFIG.tower.range;
     // Un círculo en la cuadrícula es una elipse 2:1 en pantalla.
     this.overlay.lineStyle(1.5, color, 0.7);
     this.overlay.strokeEllipse(c.x, c.y, 2 * r * HALF_W * Math.SQRT2, 2 * r * HALF_H * Math.SQRT2);
   }
 
+  private bar(g: Phaser.GameObjects.Graphics, x: number, y: number, f: number, color: number) {
+    g.fillStyle(0x000000, 0.6).fillRect(x - 11, y, 22, 4);
+    g.fillStyle(color, 1).fillRect(x - 10, y + 1, 20 * Math.max(0, Math.min(1, f)), 2);
+  }
+
   private drawFx(dt: number) {
     const g = this.fx;
     g.clear();
+    const world = this.sim.world;
     for (const e of this.sim.enemies) {
-      const p = this.enemyScreen(e.x, e.y);
-      const f = Math.max(0, e.hp / e.maxHp);
-      g.fillStyle(0x000000, 0.6).fillRect(p.x - 11, p.y - 36, 22, 4);
-      g.fillStyle(f > 0.5 ? 0x7dff8a : f > 0.25 ? 0xffd166 : 0xff5555, 1).fillRect(p.x - 10, p.y - 35, 20 * f, 2);
+      const p = this.groundScreen(e.x, e.y);
+      const f = e.hp / e.maxHp;
+      this.bar(g, p.x, p.y - 36 - (e.flying ? FLY_Z : 0), f, f > 0.5 ? 0x7dff8a : f > 0.25 ? 0xffd166 : 0xff5555);
+    }
+    for (const n of this.sim.npcs) {
+      if (n.hp >= n.maxHp) continue;
+      const p = this.groundScreen(n.x, n.y);
+      this.bar(g, p.x, p.y - 34, n.hp / n.maxHp, 0x6fd3ff);
+    }
+    for (const b of this.sim.buildings.values()) {
+      const top = gridToScreen(b.x + b.w / 2, b.y + b.d / 2, heightAt(world, b.x, b.y));
+      if (!b.built) this.bar(g, top.x, top.y - 10, b.progress, 0x6fd3ff);
+      else if (b.hp < b.maxHp) this.bar(g, top.x, top.y - 50, b.hp / b.maxHp, 0xff9f43);
     }
     this.flashes = this.flashes.filter((f) => (f.ttl -= dt) > 0);
     for (const f of this.flashes) {
       const a = f.ttl / f.max;
       if (f.kind === 'shot') {
-        g.lineStyle(2, 0x9be7ff, a).lineBetween(f.a.x, f.a.y, f.b.x, f.b.y);
+        g.lineStyle(2, f.color, a).lineBetween(f.a.x, f.a.y, f.b.x, f.b.y);
       } else {
-        const r = 6 + (1 - a) * 18;
-        g.lineStyle(2, 0xffd166, a).strokeEllipse(f.a.x, f.a.y - 6, r * 2, r);
+        const r = 6 + (1 - a) * (f.kind === 'death' ? 26 : 18);
+        g.lineStyle(2, f.color, a).strokeEllipse(f.a.x, f.a.y - 6, r * 2, r);
       }
     }
   }
 
   /**
-   * Edificios altos que tapan al cursor/fantasma o a un enemigo se vuelven semitransparentes.
+   * Edificios altos que tapan al cursor, a un enemigo o a un NPC se vuelven semitransparentes.
    * La comprobación es pura (iso.occludes): está delante en profundidad y cubre el punto en pantalla.
    */
   private updateOcclusion(dt: number) {
@@ -456,19 +545,22 @@ export class GameScene extends Phaser.Scene {
     if (this.hover) {
       const z = heightAt(this.sim.world, this.hover.x, this.hover.y);
       const p = gridToScreen(this.hover.x + 0.5, this.hover.y + 0.5, z);
-      targets.push({ p, depth: depthOf(this.hover.x, this.hover.y, L.ghost) });
-      targets.push({ p: { x: p.x, y: p.y - 20 }, depth: depthOf(this.hover.x, this.hover.y, L.ghost) });
+      const depth = depthOf(this.hover.x, this.hover.y, L.ghost);
+      targets.push({ p, depth }, { p: { x: p.x, y: p.y - 20 }, depth });
     }
-    for (const e of this.sim.enemies) {
-      const p = this.enemyScreen(e.x, e.y);
-      targets.push({ p: { x: p.x, y: p.y - 8 }, depth: depthOf(e.x - 0.5, e.y - 0.5, 6) });
+    for (const m of [...this.sim.enemies, ...this.sim.npcs]) {
+      const p = this.groundScreen(m.x, m.y);
+      targets.push({ p: { x: p.x, y: p.y - 10 }, depth: this.moverDepth(m.x, m.y) });
     }
     const k = Math.min(1, dt * 12);
-    for (const s of this.bSprites.values()) {
-      if (!s.tall) continue;
-      const bounds = s.img.getBounds();
-      const hidden = targets.some((t) => occludes(bounds, s.img.depth, t.p, t.depth));
-      const want = hidden ? 0.35 : 1;
+    for (const [id, s] of this.bSprites) {
+      const b = this.sim.buildings.get(id);
+      const base = b && !b.built ? SITE_ALPHA : 1;
+      let want = base;
+      if (s.tall) {
+        const bounds = s.img.getBounds();
+        if (targets.some((t) => occludes(bounds, s.img.depth, t.p, t.depth))) want = Math.min(base, 0.35);
+      }
       s.alpha += (want - s.alpha) * k;
       s.img.setAlpha(s.alpha);
     }
@@ -480,9 +572,10 @@ export class GameScene extends Phaser.Scene {
     const world = this.sim.world;
     const parts = [`Casilla ${t.x},${t.y} · altura ${heightAt(world, t.x, t.y)}`];
     const ore = oreAt(world, t.x, t.y);
-    if (ore !== Ore.None) parts.push(`Mena: ${ORE_NAMES[ore]}`);
+    if (ore !== Ore.None) parts.push(`Recurso: ${ORE_NAMES[ore]}`);
     const b = this.sim.buildingAt(t.x, t.y);
-    if (b) parts.push(`Edificio: ${b.kind}`);
+    if (b) parts.push(`${this.sim.def(b.kind).name}${b.built ? '' : ' (obra)'}`);
+    if (b?.kind === 'belt' && b.item) parts.push(itemName(b.item));
     if (ui.tool && ui.tool !== 'remove') {
       const c = this.sim.canPlace(ui.tool, t.x, t.y);
       if (!c.ok) parts.push(`✗ ${c.reason}`);

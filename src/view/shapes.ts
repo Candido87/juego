@@ -3,15 +3,15 @@
  *
  * Cada modelo es una lista de prismas isométricos (cajas) generados por código; cada
  * prisma se pinta con 3 caras de distinto tono (arriba, izquierda, derecha) para dar volumen.
- * En `buildTextures` se "hornean" a texturas de Phaser con una clave (p. ej. 'tower', 'belt_2').
+ * En `buildTextures` se "hornean" a texturas de Phaser con una clave (p. ej. 'turret_laser', 'belt_2').
  *
- * PARA PASAR A SPRITES REALES: carga imágenes con las mismas claves (this.load.image('tower', ...))
+ * PARA PASAR A SPRITES REALES: carga imágenes con las mismas claves (this.load.image('turret_laser', ...))
  * y registra su punto de anclaje en SHAPE_INFO (originX/originY = dónde cae la esquina superior
  * de la casilla a altura 0). El resto del código sólo usa shapeKey()/shapeInfo().
  */
 import Phaser from 'phaser';
 import { HALF_H, HALF_W, Z_STEP } from '../game/iso';
-import { BuildingKind, DX, DY, Dir, Ore } from '../game/types';
+import { BuildingKind, DX, DY, Dir, ENEMY_KINDS, EnemyKind, ITEM_IDS, ItemId, NPC_ROLES, NpcRole, Ore, TurretKind } from '../game/types';
 
 /** Prisma: x,y,w,d en casillas (relativo a la esquina de la huella); z,h en píxeles. */
 export interface Part {
@@ -36,7 +36,7 @@ export interface ShapeDef {
   decal?: (g: Phaser.GameObjects.Graphics, P: P3) => void;
   /** Prismas invisibles que sólo amplían el tamaño de la textura. */
   bounds?: Part[];
-  /** Objetos altos: se vuelven semitransparentes si tapan al jugador/cursor. */
+  /** Objetos altos: se vuelven semitransparentes si tapan al cursor, enemigos o NPCs. */
   tall?: boolean;
   /** Clave de la sombra suave a usar (o ninguna). */
   shadow?: string;
@@ -54,22 +54,70 @@ export interface ShapeInfo {
 export const COLORS = {
   grass: [0x5b8a3c, 0x6b9a45, 0x7caa50],
   dirt: 0x6e5034,
-  iron: 0x7f8794,
-  ironVein: 0xc9d1dc,
-  copper: 0x9a6a3e,
-  copperVein: 0xf0a35a,
   belt: 0x353a42,
+  beltFast: 0x2f3e56,
   beltArrow: 0xf2c14e,
+  beltArrowFast: 0x6fd3ff,
+  metal: 0x7d8796,
+  metalLight: 0x9aa5b4,
+  dark: 0x4a505a,
   drill: 0xd08a2e,
-  drillHead: 0x5d636e,
-  tower: 0x7d8796,
-  towerCol: 0x9aa5b4,
-  towerTop: 0x4fc3f7,
   core: 0x3d5a80,
   coreTop: 0x98c1d9,
   coreGem: 0xffd166,
-  enemy: 0xd64545,
-  enemyHead: 0x7a1f1f,
+  storage: 0x8b6b45,
+  factory: 0x6d7f8f,
+  generator: 0x5a4a3a,
+  accumulator: 0x3f6f5a,
+  laser: 0xd94fd9,
+  fire: 0xe8572a,
+  frost: 0x7fd8ff,
+  bullet: 0xf2c14e,
+  wood: 0x8a5a2b,
+  stone: 0x9a9a92,
+  steel: 0x8fa3b8,
+  site: 0xc8d0da,
+};
+
+/** Color de cada objeto (cubitos en cintas, iconos). */
+export const ITEM_COLORS: Record<ItemId, number> = {
+  iron_ore: 0xb7bec9,
+  copper_ore: 0xe0915a,
+  coal: 0x2a2a2a,
+  stone: 0xa8a49a,
+  wood: 0x9a6a35,
+  iron_plate: 0xd9e0ea,
+  copper_plate: 0xf0a35a,
+  gear: 0x8d939e,
+  ammo: 0xf2c14e,
+  circuit: 0x4caf50,
+  brick: 0xb5523b,
+  battery: 0x66bb6a,
+  wall_plate: 0x8fa3b8,
+  science_1: 0xe53935,
+  science_2: 0x1e88e5,
+};
+
+/** Colores de disparo por torreta. */
+export const SHOT_COLORS: Record<TurretKind, number> = {
+  turret_bullet: 0xfff1a8,
+  turret_laser: 0xff66ff,
+  turret_fire: 0xff7b2e,
+  turret_frost: 0x9be7ff,
+};
+
+const ENEMY_COLORS: Record<EnemyKind, [number, number]> = {
+  grunt: [0xd64545, 0x7a1f1f],
+  runner: [0xf08a3c, 0x7a3f12],
+  armored: [0x6b6f7a, 0x2e3138],
+  flyer: [0xa05ad6, 0x4b2366],
+  tank: [0x8c2a2a, 0x3d1010],
+};
+
+const NPC_COLORS: Record<NpcRole, number> = {
+  constructor: 0xf2c14e,
+  transporter: 0x4fc3f7,
+  operator: 0x7dff8a,
 };
 
 /** Multiplicadores de luz por cara (luz desde arriba-izquierda). */
@@ -93,21 +141,22 @@ function arrowDecal(dir: Dir, z: number, color: number, size = 1) {
     const sx = -fy;
     const sy = fx;
     const c = 0.5;
-    const pts = [
-      P(c + fx * 0.3 * size, c + fy * 0.3 * size, z),
-      P(c - fx * 0.15 * size + sx * 0.2 * size, c - fy * 0.15 * size + sy * 0.2 * size, z),
-      P(c - fx * 0.15 * size - sx * 0.2 * size, c - fy * 0.15 * size - sy * 0.2 * size, z),
-    ];
     g.fillStyle(color, 1);
-    g.fillPoints(pts, true);
+    g.fillPoints(
+      [
+        P(c + fx * 0.3 * size, c + fy * 0.3 * size, z),
+        P(c - fx * 0.15 * size + sx * 0.2 * size, c - fy * 0.15 * size + sy * 0.2 * size, z),
+        P(c - fx * 0.15 * size - sx * 0.2 * size, c - fy * 0.15 * size - sy * 0.2 * size, z),
+      ],
+      true,
+    );
   };
 }
 
-function beltShape(dir: Dir): ShapeDef {
+function beltShape(dir: Dir, fast: boolean): ShapeDef {
   return {
-    parts: [{ x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 0, h: 4, color: COLORS.belt }],
+    parts: [{ x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 0, h: 4, color: fast ? COLORS.beltFast : COLORS.belt }],
     decal: (g, P) => {
-      // Raíles laterales en la dirección de avance.
       g.lineStyle(1, 0x15181d, 0.8);
       const along = DX[dir] !== 0;
       for (const o of [0.18, 0.82]) {
@@ -115,7 +164,7 @@ function beltShape(dir: Dir): ShapeDef {
         const b = along ? P(0.9, o, 4) : P(o, 0.9, 4);
         g.lineBetween(a.x, a.y, b.x, b.y);
       }
-      arrowDecal(dir, 4, COLORS.beltArrow, 0.9)(g, P);
+      arrowDecal(dir, 4, fast ? COLORS.beltArrowFast : COLORS.beltArrow, 0.9)(g, P);
     },
   };
 }
@@ -124,7 +173,7 @@ function drillShape(dir: Dir): ShapeDef {
   return {
     parts: [
       { x: 0.08, y: 0.08, w: 0.84, d: 0.84, z: 0, h: 14, color: COLORS.drill },
-      { x: 0.28, y: 0.28, w: 0.44, d: 0.44, z: 14, h: 16, color: COLORS.drillHead },
+      { x: 0.28, y: 0.28, w: 0.44, d: 0.44, z: 14, h: 16, color: COLORS.dark },
     ],
     decal: arrowDecal(dir, 30, COLORS.beltArrow, 0.7),
     tall: true,
@@ -132,16 +181,67 @@ function drillShape(dir: Dir): ShapeDef {
   };
 }
 
-const enemyShape: ShapeDef = {
-  parts: [
-    { x: -0.17, y: -0.17, w: 0.34, d: 0.34, z: 0, h: 14, color: COLORS.enemy },
-    { x: -0.1, y: -0.1, w: 0.2, d: 0.2, z: 14, h: 8, color: COLORS.enemyHead },
-  ],
-};
+function factoryShape(dir: Dir): ShapeDef {
+  return {
+    parts: [
+      { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 0, h: 22, color: COLORS.factory },
+      { x: 0.12, y: 0.62, w: 0.26, d: 0.26, z: 22, h: 22, color: COLORS.dark },
+    ],
+    decal: arrowDecal(dir, 22, COLORS.beltArrow, 0.6),
+    tall: true,
+    shadow: 'shadow_1',
+  };
+}
 
-function itemShape(ore: Ore): ShapeDef {
-  const color = ore === Ore.Copper ? COLORS.copperVein : COLORS.ironVein;
-  return { parts: [{ x: -0.1, y: -0.1, w: 0.2, d: 0.2, z: 4, h: 7, color }] };
+function turret(base: number, column: number, head: number, extra: Part[] = []): ShapeDef {
+  return {
+    parts: [
+      { x: 0.12, y: 0.12, w: 0.76, d: 0.76, z: 0, h: 10, color: base },
+      { x: 0.3, y: 0.3, w: 0.4, d: 0.4, z: 10, h: 36, color: column },
+      { x: 0.2, y: 0.2, w: 0.6, d: 0.6, z: 46, h: 8, color: head },
+      ...extra,
+    ],
+    tall: true,
+    shadow: 'shadow_1',
+  };
+}
+
+function wall(color: number, h: number): ShapeDef {
+  return {
+    parts: [
+      { x: 0.02, y: 0.02, w: 0.96, d: 0.96, z: 0, h, color },
+      { x: 0.1, y: 0.1, w: 0.8, d: 0.8, z: h, h: 4, color: shade(color, 1.1) },
+    ],
+    tall: true,
+    shadow: 'shadow_1',
+  };
+}
+
+function enemyShape(kind: EnemyKind): ShapeDef {
+  const [body, head] = ENEMY_COLORS[kind];
+  const s = kind === 'tank' ? 0.3 : kind === 'runner' ? 0.13 : 0.17;
+  const h = kind === 'tank' ? 18 : kind === 'runner' ? 10 : 14;
+  const parts: Part[] = [
+    { x: -s, y: -s, w: 2 * s, d: 2 * s, z: 0, h, color: body },
+    { x: -s * 0.6, y: -s * 0.6, w: s * 1.2, d: s * 1.2, z: h, h: 8, color: head },
+  ];
+  if (kind === 'armored') parts.push({ x: -s - 0.04, y: -s - 0.04, w: 2 * s + 0.08, d: 2 * s + 0.08, z: 4, h: 6, color: 0x9aa0aa });
+  if (kind === 'flyer') parts.push({ x: -0.32, y: -0.06, w: 0.64, d: 0.12, z: 8, h: 2, color: 0xd8b4ff });
+  return { parts };
+}
+
+function npcShape(role: NpcRole): ShapeDef {
+  return {
+    parts: [
+      { x: -0.12, y: -0.12, w: 0.24, d: 0.24, z: 0, h: 12, color: 0x3b4a5c },
+      { x: -0.13, y: -0.13, w: 0.26, d: 0.26, z: 12, h: 8, color: NPC_COLORS[role] },
+      { x: -0.08, y: -0.08, w: 0.16, d: 0.16, z: 20, h: 7, color: 0xf1c9a5 },
+    ],
+  };
+}
+
+function itemShape(item: ItemId): ShapeDef {
+  return { parts: [{ x: -0.1, y: -0.1, w: 0.2, d: 0.2, z: 4, h: 7, color: ITEM_COLORS[item] }] };
 }
 
 export const SHAPES: Record<string, ShapeDef> = {
@@ -154,55 +254,99 @@ export const SHAPES: Record<string, ShapeDef> = {
     tall: true,
     shadow: 'shadow_2',
   },
-  tower: {
+  storage: {
     parts: [
-      { x: 0.12, y: 0.12, w: 0.76, d: 0.76, z: 0, h: 10, color: COLORS.tower },
-      { x: 0.3, y: 0.3, w: 0.4, d: 0.4, z: 10, h: 40, color: COLORS.towerCol },
-      { x: 0.2, y: 0.2, w: 0.6, d: 0.6, z: 50, h: 8, color: COLORS.towerTop },
+      { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 0, h: 18, color: COLORS.storage },
+      { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 18, h: 4, color: shade(COLORS.storage, 0.8) },
+    ],
+    shadow: 'shadow_1',
+  },
+  generator: {
+    parts: [
+      { x: 0.08, y: 0.08, w: 0.84, d: 0.84, z: 0, h: 16, color: COLORS.generator },
+      { x: 0.55, y: 0.15, w: 0.25, d: 0.25, z: 16, h: 26, color: COLORS.dark },
+      { x: 0.15, y: 0.5, w: 0.3, d: 0.3, z: 16, h: 6, color: 0xff9f43 },
     ],
     tall: true,
     shadow: 'shadow_1',
   },
-  enemy: enemyShape,
-  item_1: itemShape(Ore.Iron),
-  item_2: itemShape(Ore.Copper),
+  accumulator: {
+    parts: [
+      { x: 0.12, y: 0.12, w: 0.76, d: 0.76, z: 0, h: 8, color: COLORS.dark },
+      { x: 0.2, y: 0.2, w: 0.6, d: 0.6, z: 8, h: 22, color: COLORS.accumulator },
+      { x: 0.4, y: 0.4, w: 0.2, d: 0.2, z: 30, h: 5, color: 0xc0ffc0 },
+    ],
+    tall: true,
+    shadow: 'shadow_1',
+  },
+  turret_bullet: turret(COLORS.metal, COLORS.metalLight, COLORS.bullet),
+  turret_laser: turret(COLORS.dark, 0x6a5a8a, COLORS.laser, [{ x: 0.42, y: 0.42, w: 0.16, d: 0.16, z: 54, h: 10, color: 0xffb3ff }]),
+  turret_fire: turret(0x5a4a3a, 0x8a5a3a, COLORS.fire),
+  turret_frost: turret(0x4a6a8a, 0x8ab8d8, COLORS.frost),
+  wall_wood: wall(COLORS.wood, 24),
+  wall_stone: wall(COLORS.stone, 30),
+  wall_metal: wall(COLORS.steel, 36),
 };
 for (let d = 0; d < 4; d++) {
-  SHAPES[`belt_${d}`] = beltShape(d as Dir);
-  SHAPES[`drill_${d}`] = drillShape(d as Dir);
+  const dir = d as Dir;
+  SHAPES[`belt_${d}`] = beltShape(dir, false);
+  SHAPES[`belt_fast_${d}`] = beltShape(dir, true);
+  SHAPES[`drill_${d}`] = drillShape(dir);
+  SHAPES[`factory_${d}`] = factoryShape(dir);
 }
+for (const k of ENEMY_KINDS) SHAPES[`enemy_${k}`] = enemyShape(k);
+for (const r of NPC_ROLES) SHAPES[`npc_${r}`] = npcShape(r);
+for (const i of ITEM_IDS) SHAPES[`item_${i}`] = itemShape(i);
 
-/** Altura de la "boca" de cada torre, para dibujar los disparos. */
-export const MUZZLE_Z = 54;
+/** Altura de la "boca" de las torretas, para dibujar los disparos. */
+export const MUZZLE_Z = 52;
+/** Altura de vuelo de los voladores (px). */
+export const FLY_Z = 28;
 
+const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'drill', 'factory']);
 export function shapeKey(kind: BuildingKind, dir: Dir): string {
-  return kind === 'belt' || kind === 'drill' ? `${kind}_${dir}` : kind;
+  return DIRECTIONAL.has(kind) ? `${kind}_${dir}` : kind;
 }
-export const itemKey = (ore: Ore) => `item_${ore}`;
-export const ENEMY_KEY = 'enemy';
+export const itemKey = (item: ItemId) => `item_${item}`;
+export const enemyKey = (k: EnemyKind) => `enemy_${k}`;
+export const npcKey = (r: NpcRole) => `npc_${r}`;
 
 // ------------------------------------------------------------------ terreno
+
+const ORE_COLORS: Record<number, [number, number]> = {
+  [Ore.Iron]: [0x7f8794, 0xc9d1dc],
+  [Ore.Copper]: [0x9a6a3e, 0xf0a35a],
+  [Ore.Coal]: [0x45474c, 0x1c1c1c],
+  [Ore.Stone]: [0x8f8b80, 0xc7c2b4],
+};
 
 export function terrainKey(ore: Ore, z: number, ao: number, alt: number): string {
   return `t_${ore}_${z}_${ao}_${alt}`;
 }
 
 function terrainShape(ore: Ore, z: number, ao: number, alt: number): ShapeDef {
-  const base = ore === Ore.Iron ? COLORS.iron : ore === Ore.Copper ? COLORS.copper : COLORS.grass[z];
+  const oc = ORE_COLORS[ore];
+  const base = oc ? oc[0] : ore === Ore.Wood ? shade(COLORS.grass[z], 0.85) : COLORS.grass[z];
   const top = shade(base, AO[ao] * (alt ? 0.96 : 1));
   const top0 = z * Z_STEP;
+  const parts: Part[] = [{ x: 0, y: 0, w: 1, d: 1, z: -8, h: top0 + 8, color: top, side: shade(COLORS.dirt, 1 - z * 0.04), edge: 0.12 }];
+  if (ore === Ore.Wood) {
+    // Bosque: dos arbolitos.
+    for (const [tx, ty, s] of [[0.22, 0.25, 0.22], [0.58, 0.55, 0.26]]) {
+      parts.push({ x: tx + s / 2 - 0.04, y: ty + s / 2 - 0.04, w: 0.08, d: 0.08, z: top0, h: 8, color: 0x6b4423, edge: 0 });
+      parts.push({ x: tx, y: ty, w: s, d: s, z: top0 + 8, h: 16, color: shade(0x2f6b2a, alt ? 0.95 : 1.05), edge: 0.2 });
+    }
+  }
   return {
-    parts: [{ x: 0, y: 0, w: 1, d: 1, z: -8, h: top0 + 8, color: top, side: shade(COLORS.dirt, 1 - z * 0.04), edge: 0.12 }],
-    decal:
-      ore === Ore.None
-        ? undefined
-        : (g, P) => {
-            const vein = ore === Ore.Iron ? COLORS.ironVein : COLORS.copperVein;
-            for (const [cx, cy, s] of [[0.3, 0.3, 0.12], [0.66, 0.4, 0.1], [0.45, 0.7, 0.13], [0.75, 0.75, 0.08]]) {
-              g.fillStyle(vein, 0.9);
-              g.fillPoints([P(cx, cy - s, top0), P(cx + s, cy, top0), P(cx, cy + s, top0), P(cx - s, cy, top0)], true);
-            }
-          },
+    parts,
+    decal: !oc
+      ? undefined
+      : (g, P) => {
+          for (const [cx, cy, s] of [[0.3, 0.3, 0.12], [0.66, 0.4, 0.1], [0.45, 0.7, 0.13], [0.75, 0.75, 0.08]]) {
+            g.fillStyle(oc[1], 0.9);
+            g.fillPoints([P(cx, cy - s, top0), P(cx + s, cy, top0), P(cx, cy + s, top0), P(cx - s, cy, top0)], true);
+          }
+        },
   };
 }
 
@@ -268,15 +412,16 @@ function bake(scene: Phaser.Scene, key: string, def: ShapeDef, extraDraw?: (g: P
 }
 
 /** Sombra suave: varias capas translúcidas desplazadas hacia abajo-derecha (luz desde arriba-izquierda). */
-function bakeShadow(scene: Phaser.Scene, key: string, size: number) {
-  bake(scene, key, { parts: [], bounds: [{ x: -0.2, y: -0.2, w: size + 0.8, d: size + 0.8, z: 0, h: 0, color: 0 }] }, (g, P) => {
+function bakeShadow(scene: Phaser.Scene, key: string, size: number, center = false) {
+  const o = center ? -size / 2 : 0;
+  bake(scene, key, { parts: [], bounds: [{ x: o - 0.2, y: o - 0.2, w: size + 0.8, d: size + 0.8, z: 0, h: 0, color: 0 }] }, (g, P) => {
     for (let k = 0; k < 6; k++) {
       const e = 0.03 * k;
-      const s = 0.06 * k;
-      const x0 = 0.05 - e + s;
-      const y0 = 0.05 - e + s;
-      const x1 = size - 0.05 + e + s;
-      const y1 = size - 0.05 + e + s;
+      const s = center ? 0 : 0.06 * k;
+      const x0 = o + 0.05 - e + s;
+      const y0 = o + 0.05 - e + s;
+      const x1 = o + size - 0.05 + e + s;
+      const y1 = o + size - 0.05 + e + s;
       g.fillStyle(0x000000, 0.07);
       g.fillPoints([P(x0, y0, 0), P(x1, y0, 0), P(x1, y1, 0), P(x0, y1, 0)], true);
     }
@@ -289,7 +434,8 @@ export function buildTextures(scene: Phaser.Scene): void {
   for (const [key, def] of Object.entries(SHAPES)) bake(scene, key, def);
   bakeShadow(scene, 'shadow_1', 1);
   bakeShadow(scene, 'shadow_2', 2);
-  for (const ore of [Ore.None, Ore.Iron, Ore.Copper])
+  bakeShadow(scene, 'shadow_small', 0.5, true);
+  for (const ore of [Ore.None, Ore.Iron, Ore.Copper, Ore.Coal, Ore.Stone, Ore.Wood])
     for (let z = 0; z <= 2; z++)
       for (let ao = 0; ao <= 2; ao++)
         for (let alt = 0; alt <= 1; alt++) bake(scene, terrainKey(ore, z, ao, alt), terrainShape(ore, z, ao, alt));

@@ -17,9 +17,59 @@ export function dirBetween(a: Tile, b: Tile): Dir | null {
   return null;
 }
 
-/** Tipos de mena. 0 = sin mena. */
-export const Ore = { None: 0, Iron: 1, Copper: 2 } as const;
+/** Tipos de mena del mapa. 0 = sin mena. */
+export const Ore = { None: 0, Iron: 1, Copper: 2, Coal: 3, Stone: 4, Wood: 5 } as const;
 export type Ore = (typeof Ore)[keyof typeof Ore];
 
-export type BuildingKind = 'core' | 'drill' | 'belt' | 'tower';
-export type BuildKind = Exclude<BuildingKind, 'core'>;
+/** Todas las piezas/objetos que existen. */
+export const ITEM_IDS = [
+  'iron_ore',
+  'copper_ore',
+  'coal',
+  'stone',
+  'wood',
+  'iron_plate',
+  'copper_plate',
+  'gear',
+  'ammo',
+  'circuit',
+  'brick',
+  'battery',
+  'wall_plate',
+  'science_1',
+  'science_2',
+] as const;
+export type ItemId = (typeof ITEM_IDS)[number];
+
+/** Bolsa de objetos: id → cantidad. */
+export type Bag = Partial<Record<ItemId, number>>;
+
+export const BUILD_KINDS = [
+  'drill',
+  'belt',
+  'belt_fast',
+  'storage',
+  'factory',
+  'generator',
+  'accumulator',
+  'turret_bullet',
+  'turret_laser',
+  'turret_fire',
+  'turret_frost',
+  'wall_wood',
+  'wall_stone',
+  'wall_metal',
+] as const;
+export type BuildKind = (typeof BUILD_KINDS)[number];
+export type BuildingKind = 'core' | BuildKind;
+
+export type TurretKind = 'turret_bullet' | 'turret_laser' | 'turret_fire' | 'turret_frost';
+export type WallKind = 'wall_wood' | 'wall_stone' | 'wall_metal';
+
+export const NPC_ROLES = ['constructor', 'transporter', 'operator'] as const;
+export type NpcRole = (typeof NPC_ROLES)[number];
+
+export const ENEMY_KINDS = ['grunt', 'runner', 'armored', 'flyer', 'tank'] as const;
+export type EnemyKind = (typeof ENEMY_KINDS)[number];
+
+export type JobType = 'build' | 'deconstruct' | 'repair' | 'supply' | 'collect' | 'maintain';
