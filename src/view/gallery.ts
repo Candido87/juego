@@ -25,7 +25,9 @@ function render() {
   document.getElementById('zv')!.textContent = `${z}×`;
   const step = HEAD_STEPS / Number(dirs.value);
   root.innerHTML = '';
+  const only = new URLSearchParams(location.search).get('tipo');
   for (const kind of MODELED) {
+    if (only && only !== kind) continue;
     for (const level of LOOK_LEVELS) {
       const h = document.createElement('h3');
       h.textContent = `${NAMES[kind]} · nivel ${level}`;

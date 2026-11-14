@@ -18,7 +18,7 @@ export const LOOK_LEVELS = [1, 2, 3] as const;
 export type LookLevel = (typeof LOOK_LEVELS)[number];
 
 /** Modelos ya hechos (el resto de tipos sigue con el prisma de respaldo). */
-export const MODELED: TurretLook[] = ['turret_bullet'];
+export const MODELED: TurretLook[] = ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost'];
 
 const STEEL = 0x7b8594;
 const STEEL_DARK = 0x4c5461;
@@ -97,14 +97,99 @@ function bulletHead(level: number): Solid[] {
   return s;
 }
 
+const COPPER = 0xc8793a;
+
+/** Cabeza láser: chasis esbelto, cristal de energía, bobinas de cobre en el cañón, aletas disipadoras y cables. */
+function laserHead(level: number): Solid[] {
+  const z0 = 20;
+  const body = 0x4a3f6b;
+  const s: Solid[] = [];
+  s.push({ foot: chamfer(0.42, 0.5, 0.5, 0.38, 0.1), z0, z1: z0 + 10, color: body, taper: 0.92 });
+  s.push({ foot: chamfer(0.4, 0.5, 0.34, 0.26, 0.07), z0: z0 + 10, z1: z0 + 14, color: 0x6a5a8a, taper: 0.8 });
+  // Aletas disipadoras traseras.
+  for (let i = 0; i < 4 + level; i++) s.push({ foot: rect(0.12 + i * 0.045, 0.5, 0.018, 0.32), z0: z0 + 3, z1: z0 + 15, color: STEEL, noEdge: i % 2 === 1 });
+  // Cristal de energía (más grande con el nivel).
+  s.push({ foot: cyl(0.4, 0.5, 0.05 + level * 0.012, 6), z0: z0 + 14, z1: z0 + 22 + level * 2, color: 0xd94fd9, taper: 0.5, glow: 0.45 });
+  const barrels = level >= 3 ? [0.4, 0.6] : [0.5];
+  for (const y of barrels) {
+    const zc = z0 + 7;
+    s.push(...barrel(0.6, 1.1, y, zc, 0.028, STEEL_LIGHT));
+    // Bobinas de cobre a lo largo del cañón.
+    for (let i = 0; i < 3 + level; i++) s.push({ foot: rect(0.66 + i * 0.1, y, 0.04, 0.12), z0: zc - 6, z1: zc + 6, color: COPPER, noEdge: true });
+    s.push({ foot: rect(1.12, y, 0.03, 0.08), z0: zc - 4, z1: zc + 4, color: 0xffb3ff, glow: 0.6, noEdge: true });
+  }
+  // Cables del cristal al cañón.
+  s.push({ foot: rect(0.52, 0.4, 0.22, 0.02), z0: z0 + 10, z1: z0 + 12, color: GUNMETAL, noEdge: true });
+  s.push({ foot: rect(0.52, 0.6, 0.22, 0.02), z0: z0 + 10, z1: z0 + 12, color: GUNMETAL, noEdge: true });
+  if (level >= 2) {
+    s.push({ foot: rect(0.4, 0.22, 0.3, 0.05), z0: z0 + 1, z1: z0 + 12, color: STEEL_DARK, taper: 0.9 });
+    s.push({ foot: rect(0.4, 0.78, 0.3, 0.05), z0: z0 + 1, z1: z0 + 12, color: STEEL_DARK, taper: 0.9 });
+  }
+  return s;
+}
+
+/** Cabeza de fuego: depósitos cilíndricos, tuberías, boquilla ancha y pilotos rojos. */
+function fireHead(level: number): Solid[] {
+  const z0 = 20;
+  const s: Solid[] = [];
+  s.push({ foot: chamfer(0.46, 0.5, 0.4, 0.36, 0.08), z0, z1: z0 + 9, color: 0x8a4a2a, taper: 0.94 });
+  const tanks = level >= 3 ? [0.22, 0.5, 0.78] : [0.3, 0.7];
+  for (const y of tanks) {
+    s.push({ foot: cyl(0.26, y, 0.1, 10), z0, z1: z0 + 21, color: 0xb5452f, taper: 0.96 });
+    s.push({ foot: cyl(0.26, y, 0.105, 10), z0: z0 + 7, z1: z0 + 9, color: STEEL_DARK, noEdge: true });
+    s.push({ foot: cyl(0.26, y, 0.05, 8), z0: z0 + 21, z1: z0 + 24, color: STEEL, taper: 0.8 });
+  }
+  // Tuberías hacia la boquilla.
+  s.push({ foot: rect(0.55, 0.38, 0.3, 0.03), z0: z0 + 8, z1: z0 + 11, color: STEEL_DARK, noEdge: true });
+  s.push({ foot: rect(0.55, 0.62, 0.3, 0.03), z0: z0 + 8, z1: z0 + 11, color: STEEL_DARK, noEdge: true });
+  // Boquilla: tubo, brida y abocinado con brasa.
+  s.push(...barrel(0.6, 0.95, 0.5, z0 + 6, 0.06, GUNMETAL));
+  s.push({ foot: chamfer(1.0, 0.5, 0.1, 0.24, 0.025), z0: z0 + 1, z1: z0 + 12, color: 0x3a2a22, taper: 0.95 });
+  s.push({ foot: rect(1.05, 0.5, 0.02, 0.18), z0: z0 + 3, z1: z0 + 10, color: 0xff7b2e, glow: 0.5, noEdge: true });
+  // Pilotos rojos.
+  for (const y of [0.4, 0.6]) s.push({ foot: rect(0.62, y, 0.03, 0.03), z0: z0 + 9, z1: z0 + 13, color: 0xff3030, glow: 0.5, noEdge: true });
+  s.push({ foot: rect(0.78, 0.5, 0.025, 0.025), z0: z0 + 12, z1: z0 + 16, color: 0xffd166, glow: 0.5, noEdge: true });
+  if (level >= 2) {
+    s.push({ foot: rect(0.5, 0.18, 0.34, 0.05), z0: z0 + 1, z1: z0 + 10, color: STEEL_DARK, taper: 0.9 });
+    s.push({ foot: rect(0.5, 0.82, 0.34, 0.05), z0: z0 + 1, z1: z0 + 10, color: STEEL_DARK, taper: 0.9 });
+  }
+  return s;
+}
+
+/** Cabeza de hielo: racimo de cristales azules, tubos de refrigerante y boca ancha escarchada. */
+function frostHead(level: number): Solid[] {
+  const z0 = 20;
+  const ICE = 0x9be7ff;
+  const s: Solid[] = [];
+  s.push({ foot: chamfer(0.44, 0.5, 0.46, 0.4, 0.1), z0, z1: z0 + 9, color: 0x6a8aa8, taper: 0.93 });
+  // Racimo de cristales (pirámides altas).
+  const crystals: [number, number, number][] = [[0.3, 0.5, 22], [0.22, 0.36, 15], [0.22, 0.64, 16], [0.36, 0.3, 11], [0.36, 0.7, 12]];
+  crystals.slice(0, 3 + level).forEach(([x, y, h], i) => s.push({ foot: chamfer(x, y, 0.13, 0.13, 0.03), z0: z0 + 8, z1: z0 + 8 + h, color: i % 2 ? 0x7fd8ff : ICE, taper: 0.25, glow: 0.25 }));
+  // Tubos de refrigerante.
+  s.push({ foot: rect(0.55, 0.36, 0.3, 0.035), z0: z0 + 8, z1: z0 + 12, color: 0xd8f4ff, noEdge: true });
+  s.push({ foot: rect(0.55, 0.64, 0.3, 0.035), z0: z0 + 8, z1: z0 + 12, color: 0xd8f4ff, noEdge: true });
+  // Boca ancha con escarcha.
+  s.push(...barrel(0.6, 0.92, 0.5, z0 + 6, 0.07, STEEL));
+  s.push({ foot: chamfer(0.98, 0.5, 0.12, 0.28, 0.03), z0: z0 + 1, z1: z0 + 12, color: 0x6a8aa8, taper: 0.92 });
+  s.push({ foot: rect(1.04, 0.5, 0.02, 0.2), z0: z0 + 3, z1: z0 + 10, color: 0xe6fbff, glow: 0.5, noEdge: true });
+  if (level >= 2) {
+    s.push({ foot: rect(0.46, 0.18, 0.32, 0.05), z0: z0 + 1, z1: z0 + 11, color: STEEL_DARK, taper: 0.9 });
+    s.push({ foot: rect(0.46, 0.82, 0.32, 0.05), z0: z0 + 1, z1: z0 + 11, color: STEEL_DARK, taper: 0.9 });
+  }
+  return s;
+}
+
 export function turretModel(kind: TurretLook, level: number): TurretModel {
   const lv = Math.max(1, Math.min(3, level));
   switch (kind) {
     case 'turret_bullet':
       return { base: platform(BRASS, lv), head: bulletHead(lv) };
-    default:
-      // Resto de tipos: se irán sustituyendo (hasta entonces se usa el prisma de respaldo).
-      return { base: platform(STEEL_LIGHT, lv), head: [] };
+    case 'turret_laser':
+      return { base: platform(0xd94fd9, lv), head: laserHead(lv) };
+    case 'turret_fire':
+      return { base: platform(0xe8572a, lv), head: fireHead(lv) };
+    case 'turret_frost':
+      return { base: platform(0x7fd8ff, lv), head: frostHead(lv) };
   }
 }
 
