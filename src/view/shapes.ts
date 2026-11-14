@@ -15,6 +15,9 @@ import Phaser from 'phaser';
 import { HALF_H, HALF_W, Z_STEP } from '../game/iso';
 import { BuildingKind, DX, DY, Dir, ENEMY_KINDS, EnemyKind, ITEM_IDS, ItemId, Ore, TurretKind } from '../game/types';
 import { HEAD_STEPS, MODELED, TURRET_CANVAS, TurretLook, drawTurretParts, headYaw, turretBaseKey, turretHeadKey, turretModel } from './turretModels';
+import { SKETCH_SCALE } from './sketch';
+import { WALL_FAMILY, WALL_TINT, WallDamage, wallAssetKey, wallAssetList, wallAssetUrl, wallKey, wallPiece } from './muros';
+import type { WallKind } from '../game/types';
 import { BILLBOARDS, DUNGEON_SHEET, ENEMY_SPRITES, Sheet, TILESHEET, TOP_TEXTURES, TopTexture, frameRect, rotationFor } from './sprites';
 
 /** Prisma: x,y,w,d en casillas (relativo a la esquina de la huella); z,h en píxeles. */
@@ -635,6 +638,88 @@ function bakeShadow(scene: Phaser.Scene, key: string, size: number, center = fal
 /** Carga la hoja del pack (llamar en preload). */
 export function preloadSprites(scene: Phaser.Scene): void {
   for (const s of [TILESHEET, DUNGEON_SHEET]) if (!scene.textures.exists(s.key)) scene.load.image(s.key, s.url);
+  for (const [pack, name, rot] of wallAssetList()) {
+    const k = wallAssetKey(name, rot);
+    if (!scene.textures.exists(k)) scene.load.image(k, wallAssetUrl(pack, name, rot));
+  }
+}
+
+/** Lienzo de las piezas de Sketch Town reescaladas: 256x352 a escala SKETCH_SCALE; el suelo de la casilla queda en (ox, oy+16). */
+const SK_W = Math.ceil(256 * SKETCH_SCALE) + 1;
+const SK_H = Math.ceil(352 * SKETCH_SCALE) + 1;
+const SK_OX = 128 * SKETCH_SCALE;
+const SK_OY = 289 * SKETCH_SCALE - HALF_H;
+
+/** Grietas y desgaste de un muro dañado (deterministas según el modelo, para que no parpadeen). */
+function drawWallDamage(ctx: CanvasRenderingContext2D, dmg: WallDamage, seed: number) {
+  if (dmg === 0) return;
+  let r = seed * 9301 + 49297;
+  const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  const cx = SK_OX;
+  const cy = SK_OY + HALF_H - 12;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = dmg === 1 ? 'rgba(40,30,20,0.18)' : 'rgba(30,20,12,0.38)';
+  ctx.fillRect(0, 0, SK_W, SK_H);
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(25,18,12,0.85)';
+  ctx.lineWidth = 1;
+  const n = dmg === 1 ? 2 : 5;
+  for (let i = 0; i < n; i++) {
+    let x = cx + (rnd() - 0.5) * 34;
+    let y = cy + (rnd() - 0.5) * 22;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let k = 0; k < 3; k++) {
+      x += (rnd() - 0.5) * 9;
+      y += 3 + rnd() * 5;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  if (dmg === 2) {
+    // Casi roto: se recorta un trozo de la parte alta.
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.moveTo(cx - 6, 0);
+    ctx.lineTo(cx + 14, 0);
+    ctx.lineTo(cx + 9, SK_OY - 8);
+    ctx.lineTo(cx + 2, SK_OY - 2);
+    ctx.lineTo(cx - 3, SK_OY - 10);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/**
+ * Textura de un muro con sprites de Sketch Town según vecinos (`mask`) y daño; se hornea la primera vez que se pide.
+ * Devuelve undefined si las imágenes no se cargaron (entonces se usa el prisma de respaldo).
+ */
+export function wallLook(scene: Phaser.Scene, kind: WallKind, mask: number, dmg: WallDamage): string | undefined {
+  const key = wallKey(kind, mask, dmg);
+  if (scene.textures.exists(key)) return key;
+  const { piece, rot } = wallPiece(mask);
+  const layers = WALL_FAMILY[kind][piece];
+  const imgs: HTMLImageElement[] = [];
+  for (const l of layers) {
+    const k = wallAssetKey(l.name, l.rots[rot]);
+    if (!scene.textures.exists(k)) return undefined;
+    imgs.push(scene.textures.get(k).getSourceImage() as HTMLImageElement);
+  }
+  const [tex, ctx] = canvasTexture(scene, key, SK_W, SK_H);
+  for (const img of imgs) ctx.drawImage(img, 0, 0, img.width * SKETCH_SCALE, img.height * SKETCH_SCALE);
+  const tint = WALL_TINT[kind];
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.globalAlpha = tint.alpha;
+  ctx.fillStyle = tint.color;
+  ctx.fillRect(0, 0, SK_W, SK_H);
+  ctx.restore();
+  drawWallDamage(ctx, dmg, mask * 7 + (kind === 'wall_wood' ? 1 : kind === 'wall_stone' ? 2 : 3));
+  tex.refresh();
+  SHAPE_INFO.set(key, { originX: SK_OX / SK_W, originY: SK_OY / SK_H, tall: true, shadow: 'shadow_1' });
+  return key;
 }
 
 /** Hornea base y 16 cabezas de cada torreta modelada (el resto sigue con el prisma de respaldo). */

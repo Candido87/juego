@@ -7,7 +7,7 @@ import { CONFIG } from '../game/config';
 import { Building, Enemy, Game } from '../game/game';
 import { HALF_H, HALF_W, Vec2, depthOf, gridToScreen, occludes, pickTile } from '../game/iso';
 import { ItemId } from '../game/types';
-import { BuildKind, DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
+import { BuildKind, Dir, DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { MAX_HEIGHT, heightAt, heightAtPoint, oreAt } from '../game/world';
 import {
   FLY_Z,
@@ -25,7 +25,9 @@ import {
   ensureTurretLevel,
   turretLook,
   terrainKey,
+  wallLook,
 } from './shapes';
+import { isWallKind, wallDamage, wallMask } from './muros';
 import { factoryStatusText } from '../game/recetas';
 import { headIndex, turretBaseKey, turretHeadKey } from './turretModels';
 import { getHud, itemName, ui } from './ui';
@@ -336,12 +338,38 @@ export class GameScene extends Phaser.Scene {
   private turretYaw = new Map<number, number>();
   private turretKick = new Map<number, number>();
 
+  /** Aspecto de un edificio: los muros usan sprites según vecinos y daño (si no cargaron, el prisma). */
+  private lookKey(b: Building): string {
+    if (isWallKind(b.kind)) {
+      const mask = wallMask((dx, dy) => {
+        const n = this.sim.buildingAt(b.x + dx, b.y + dy);
+        return !!n && isWallKind(n.kind);
+      });
+      const k = wallLook(this, b.kind, mask, wallDamage(b.hp, b.maxHp));
+      if (k) return k;
+    }
+    return shapeKey(b.kind, b.dir);
+  }
+
+  /** Aspecto del fantasma de construcción en (x,y). */
+  private ghostKey(kind: BuildKind, x: number, y: number, dir: Dir): string {
+    if (isWallKind(kind)) {
+      const mask = wallMask((dx, dy) => {
+        const n = this.sim.buildingAt(x + dx, y + dy);
+        return !!n && isWallKind(n.kind);
+      });
+      const k = wallLook(this, kind, mask, 0);
+      if (k) return k;
+    }
+    return shapeKey(kind, dir);
+  }
+
   private syncBuildings() {
     const world = this.sim.world;
     const seen = new Set<number>();
     for (const b of this.sim.buildings.values()) {
       seen.add(b.id);
-      const key = shapeKey(b.kind, b.dir);
+      const key = this.lookKey(b);
       let s = this.bSprites.get(b.id);
       if (!s) {
         const info = shapeInfo(key);
@@ -723,7 +751,7 @@ export class GameScene extends Phaser.Scene {
     if (ui.tool) {
       const ok = this.sim.canPlace(ui.tool, t.x, t.y).ok;
       color = ok ? 0x7dff8a : 0xff5555;
-      const key = shapeKey(ui.tool, ui.dir);
+      const key = this.ghostKey(ui.tool, t.x, t.y, ui.dir);
       const info = shapeInfo(key);
       const pos = gridToScreen(t.x, t.y, z);
       this.ghost
