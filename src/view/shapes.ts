@@ -154,6 +154,8 @@ export const ITEM_COLORS: Record<ItemId, number> = {
   pipe: 0x7f8c99,
   gun_part: 0x5c6b7a,
   tool_kit: 0xd84b3c,
+  oil: 0x1a1420,
+  gasoline: 0xf4d03f,
 };
 
 /** Colores de disparo por torreta. */
@@ -233,6 +235,36 @@ function factoryShape(dir: Dir): ShapeDef {
       { x: 0.12, y: 0.62, w: 0.26, d: 0.26, z: 22, h: 22, color: COLORS.dark },
     ],
     decal: arrowDecal(dir, 22, COLORS.beltArrow, 0.6),
+    tall: true,
+    shadow: 'shadow_1',
+  };
+}
+
+/** Bomba de petróleo: base con balancín (cabeza de caballo) y tubo. */
+function pumpShape(dir: Dir): ShapeDef {
+  return {
+    parts: [
+      { x: 0.1, y: 0.1, w: 0.8, d: 0.8, z: 0, h: 6, color: 0x3d3a40 },
+      { x: 0.44, y: 0.44, w: 0.12, d: 0.12, z: 6, h: 26, color: 0x55505a },
+      { x: 0.12, y: 0.42, w: 0.76, d: 0.16, z: 30, h: 6, color: 0xd9a42b },
+      { x: 0.12, y: 0.4, w: 0.14, d: 0.2, z: 22, h: 14, color: 0xd9a42b },
+    ],
+    decal: arrowDecal(dir, 6, COLORS.beltArrow, 0.5),
+    tall: true,
+    shadow: 'shadow_1',
+  };
+}
+
+/** Refinería: depósito cilíndrico (prisma) y torre de destilación. */
+function refineryShape(dir: Dir): ShapeDef {
+  return {
+    parts: [
+      { x: 0.05, y: 0.05, w: 0.9, d: 0.9, z: 0, h: 10, color: 0x6a6f78 },
+      { x: 0.12, y: 0.12, w: 0.42, d: 0.42, z: 10, h: 16, color: 0xc9ccd2 },
+      { x: 0.62, y: 0.2, w: 0.22, d: 0.22, z: 10, h: 40, color: 0x8a9099 },
+      { x: 0.6, y: 0.18, w: 0.26, d: 0.26, z: 50, h: 4, color: 0xf4d03f },
+    ],
+    decal: arrowDecal(dir, 10, COLORS.beltArrow, 0.5),
     tall: true,
     shadow: 'shadow_1',
   };
@@ -379,6 +411,8 @@ for (let d = 0; d < 4; d++) {
   SHAPES[`drill_${d}`] = drillShape(dir);
   SHAPES[`factory_${d}`] = factoryShape(dir);
   SHAPES[`farm_${d}`] = farmShape(dir);
+  SHAPES[`pump_${d}`] = pumpShape(dir);
+  SHAPES[`refinery_${d}`] = refineryShape(dir);
   SHAPES[`feeder_${d}`] = {
     parts: [
       { x: 0.15, y: 0.15, w: 0.7, d: 0.7, z: 0, h: 8, color: 0x4a6a5a },
@@ -398,7 +432,7 @@ export const MUZZLE_Z = 52;
 /** Altura de vuelo de los voladores (px). */
 export const FLY_Z = 28;
 
-const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'drill', 'factory', 'feeder', 'farm']);
+const DIRECTIONAL = new Set<BuildingKind>(['belt', 'belt_fast', 'drill', 'factory', 'feeder', 'farm', 'pump', 'refinery']);
 export function shapeKey(kind: BuildingKind, dir: Dir): string {
   return DIRECTIONAL.has(kind) ? `${kind}_${dir}` : kind;
 }
@@ -413,6 +447,7 @@ const ORE_COLORS: Record<number, [number, number]> = {
   [Ore.Copper]: [0x9a6a3e, 0xf0a35a],
   [Ore.Coal]: [0x45474c, 0x1c1c1c],
   [Ore.Stone]: [0x8f8b80, 0xc7c2b4],
+  [Ore.Oil]: [0x2b2633, 0x0d0b10],
 };
 
 export function terrainKey(ore: Ore, z: number, ao: number, alt: number): string {
@@ -582,7 +617,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   bakeShadow(scene, 'shadow_1', 1);
   bakeShadow(scene, 'shadow_2', 2);
   bakeShadow(scene, 'shadow_small', 0.5, true);
-  for (const ore of [Ore.None, Ore.Iron, Ore.Copper, Ore.Coal, Ore.Stone, Ore.Wood])
+  for (const ore of [Ore.None, Ore.Iron, Ore.Copper, Ore.Coal, Ore.Stone, Ore.Wood, Ore.Oil])
     for (let z = 0; z <= 2; z++)
       for (let ao = 0; ao <= 2; ao++)
         for (let alt = 0; alt <= 1; alt++) bake(scene, terrainKey(ore, z, ao, alt), terrainShape(ore, z, ao, alt));

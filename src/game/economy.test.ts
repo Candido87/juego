@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { count } from './bag';
 import { CONFIG } from './config';
 import { flatGame, instant, run } from './testutil';
+import { Ore } from './types';
+import { generateWorld } from './world';
 
 const F = CONFIG.food;
 
@@ -140,5 +142,73 @@ describe('componentes y fábricas de nivel 1', () => {
     g.npcs = [];
     run(g, (2 * CONFIG.recipes.gun_part.time) / g.factorySpeed(a) + 0.5);
     expect(count(a.out, 'gun_part')).toBe(2);
+  });
+});
+
+describe('petróleo → gasolina → electricidad', () => {
+  it('la bomba sólo va sobre petróleo y el taladro no', () => {
+    const g = flatGame([[3, 3, Ore.Oil], [5, 3, Ore.Iron]]);
+    expect(g.canPlace('pump', 3, 3).ok).toBe(true);
+    expect(g.canPlace('pump', 5, 3).ok).toBe(false);
+    expect(g.canPlace('drill', 3, 3).ok).toBe(false);
+  });
+
+  it('los generadores queman gasolina, no carbón', () => {
+    expect(CONFIG.power.generators.generator!.fuel).toBe('gasoline');
+    const g = flatGame();
+    const gen = instant(g, 'generator', 5, 4);
+    expect(g.capacityFor(gen, 'gasoline')).toBeGreaterThan(0);
+    expect(g.capacityFor(gen, 'coal')).toBe(0);
+  });
+
+  it('cadena completa a mano, sin red: bomba → refinería → generador encendido', () => {
+    // Bomba lejos del núcleo; refinería suelta; generador con poste. Nadie tiene electricidad al empezar.
+    const g = flatGame([[2, 2, Ore.Oil], [2, 3, Ore.Oil]]);
+    g.storage.gasoline = 0;
+    g.storage.food = 200;
+    instant(g, 'pump', 2, 2, 3);
+    instant(g, 'pump', 2, 3, 2);
+    const ref = instant(g, 'refinery', 5, 15, 1);
+    expect(ref.recipe).toBe('gasoline');
+    instant(g, 'pole', 14, 4);
+    const gen = instant(g, 'generator', 15, 4);
+    instant(g, 'factory', 14, 5);
+    run(g, 240);
+    expect(g.stats.delivered + count(g.storage, 'gasoline') + count(gen.inv, 'gasoline')).toBeGreaterThan(0);
+    expect(gen.running).toBe(true);
+    expect(g.grid.nets[0].production).toBe(CONFIG.power.generators.generator!.power);
+  });
+
+  it('la refinería convierte petróleo en gasolina con su ratio y tiempo', () => {
+    const g = flatGame();
+    g.npcs = [];
+    const r = CONFIG.recipes.gasoline;
+    const ref = instant(g, 'refinery', 5, 5, 3);
+    ref.inv = { oil: r.inputs.oil! * 2 };
+    run(g, (2 * r.time) / g.factorySpeed(ref) + 0.5);
+    expect(count(ref.out, 'gasoline')).toBe(2 * r.outputs.gasoline!);
+    expect(count(ref.inv, 'oil')).toBe(0);
+  });
+
+  it('apagón sin gasolina: el generador se para y las fábricas pierden la energía', () => {
+    const g = flatGame();
+    g.npcs = [];
+    g.storage.gasoline = 0;
+    instant(g, 'pole', 4, 4);
+    const gen = instant(g, 'generator', 5, 4);
+    const f = instant(g, 'factory', 4, 5);
+    gen.inv = { gasoline: 1 };
+    gen.running = true;
+    run(g, 1);
+    expect(f.power).toBe(1);
+    run(g, CONFIG.power.generators.generator!.burnTime!);
+    expect(gen.running).toBe(false);
+    expect(f.power).toBe(0);
+    expect(g.factorySpeed(f)).toBe(CONFIG.power.mult.factory![0]);
+  });
+
+  it('el mapa tiene yacimientos de petróleo', () => {
+    const w = generateWorld(7, 40, 40);
+    expect(Array.from(w.ore)).toContain(Ore.Oil);
   });
 });

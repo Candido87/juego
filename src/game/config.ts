@@ -100,11 +100,11 @@ export const CONFIG = {
 
   coreHp: 300,
   /** Almacén inicial: componentes para las primeras obras, algo de materia prima, munición y comida. */
-  startItems: { frame: 20, gear: 14, wire: 6, gun_part: 4, pipe: 4, iron_plate: 30, copper_plate: 10, wood: 16, ammo: 40, food: 30 } as Bag,
+  startItems: { frame: 20, gear: 14, wire: 6, gun_part: 4, pipe: 4, iron_plate: 30, copper_plate: 10, wood: 16, ammo: 40, food: 30, gasoline: 6 } as Bag,
   /** Población inicial: 3 personas. */
   startNpcs: { constructor: 1, transporter: 1, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
-    buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
+    buildings: ['drill', 'belt', 'storage', 'factory', 'farm', 'pump', 'refinery', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
     /** Recetas de nivel 1. Las de nivel 2 (circuito, batería, placa de muro, ciencia II) llegan con el árbol. */
     recipes: ['iron_plate', 'copper_plate', 'brick', 'gear', 'frame', 'wire', 'pipe', 'gun_part', 'ammo', 'tool_kit', 'science_1'],
   },
@@ -134,6 +134,8 @@ export const CONFIG = {
     pipe: 'Tubería',
     gun_part: 'Mecanismo de torreta',
     tool_kit: 'Kit de taller',
+    oil: 'Petróleo',
+    gasoline: 'Gasolina',
   } as Record<ItemId, string>,
 
   /** Coste = componentes (el primero es el que se gasta al reparar). */
@@ -144,6 +146,8 @@ export const CONFIG = {
     storage: { name: 'Almacén', cost: { frame: 3 }, buildTime: 4, hp: 120, solid: true, size: [1, 1], storage: true },
     factory: { name: 'Fábrica', cost: { frame: 3, gear: 2 }, buildTime: 5, hp: 100, solid: true, size: [1, 1] },
     farm: { name: 'Granja', cost: { frame: 2, gear: 1 }, buildTime: 4, hp: 60, solid: true, size: [1, 1] },
+    pump: { name: 'Bomba de petróleo', cost: { pipe: 2, frame: 2, gear: 1 }, buildTime: 4, hp: 70, solid: true, size: [1, 1] },
+    refinery: { name: 'Refinería', cost: { pipe: 3, frame: 3, gear: 2 }, buildTime: 6, hp: 110, solid: true, size: [1, 1] },
     pole: { name: 'Poste', cost: { wire: 2, frame: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
     generator: { name: 'Generador', cost: { frame: 3, gear: 2, wire: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
     solar: { name: 'Panel solar', cost: { circuit: 2, wire: 4, frame: 1 }, buildTime: 4, hp: 50, solid: true, size: [1, 1] },
@@ -164,6 +168,8 @@ export const CONFIG = {
   drill: { period: 2, outCap: 6 },
   /** Granja: 1 comida cada `period` s (sin red; con red, más rápido según power.mult.farm). */
   farm: { period: 5, outCap: 8 },
+  /** Bomba de petróleo: 1 petróleo cada `period` s sin red (con red, × power.mult.pump). */
+  pump: { period: 3, outCap: 8 },
   /** Comida y hambre de la población. */
   food: {
     /** Cada persona come `perPerson` comida cada `interval` s. */
@@ -186,12 +192,12 @@ export const CONFIG = {
     /** Distancia Chebyshev máxima entre un edificio y su poste. */
     supplyRadius: 2,
     /** Consumo de cada edificio conectado. */
-    demand: { belt: 0.5, belt_fast: 1, drill: 3, farm: 2, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6 } as Partial<Record<BuildKind, number>>,
+    demand: { belt: 0.5, belt_fast: 1, drill: 3, farm: 2, pump: 2, refinery: 4, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6 } as Partial<Record<BuildKind, number>>,
     /** Multiplicador de rendimiento [sin red, con red]; con apagón se interpola según la satisfacción. */
-    mult: { drill: [1, 2], farm: [1, 2], factory: [0.5, 1.5] } as Partial<Record<BuildKind, [number, number]>>,
+    mult: { drill: [1, 2], farm: [1, 2], pump: [1, 2], refinery: [0.5, 1.5], factory: [0.5, 1.5] } as Partial<Record<BuildKind, [number, number]>>,
     generators: {
-      generator: { power: 20, fuel: 'coal', burnTime: 8, fuelCap: 10 },
-      turbine: { power: 60, fuel: 'coal', burnTime: 6, fuelCap: 10 },
+      generator: { power: 20, fuel: 'gasoline', burnTime: 10, fuelCap: 10 },
+      turbine: { power: 60, fuel: 'gasoline', burnTime: 6, fuelCap: 10 },
       solar: { power: 5 },
     } as Partial<Record<BuildKind, { power: number; fuel?: ItemId; burnTime?: number; fuelCap?: number }>>,
     batteryCapacity: 400,
@@ -246,6 +252,7 @@ export const CONFIG = {
     circuit: { name: 'Circuito', inputs: { wire: 3, iron_plate: 1 }, outputs: { circuit: 1 }, time: 2.5, tier: 2 },
     battery: { name: 'Batería', inputs: { copper_plate: 1, coal: 1 }, outputs: { battery: 1 }, time: 2.5, tier: 2 },
     wall_plate: { name: 'Placa de muro', inputs: { iron_plate: 3 }, outputs: { wall_plate: 1 }, time: 2, tier: 2 },
+    gasoline: { name: 'Gasolina', inputs: { oil: 2 }, outputs: { gasoline: 1 }, time: 3, tier: 1, building: 'refinery' },
     science_2: { name: 'Ciencia II', inputs: { circuit: 1, brick: 1 }, outputs: { science_2: 1 }, time: 6, tier: 2 },
   } as Record<string, RecipeDef>,
 

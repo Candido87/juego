@@ -87,7 +87,7 @@ function baseJobs(game: Game, out: Desired[]): void {
     // Arrancar generadores parados que ya tienen combustible.
     if (game.needsStart(b)) job('start', null, 0, true);
     // Mantenimiento por desgaste.
-    if ((b.kind === 'factory' || game.turretDef(b)) && b.condition < J.maintainBelow) job('maintain', null, 0, b.condition <= 0);
+    if ((b.kind === 'factory' || b.kind === 'refinery' || game.turretDef(b)) && b.condition < J.maintainBelow) job('maintain', null, 0, b.condition <= 0);
   }
 }
 

@@ -32,7 +32,7 @@ describe('redes eléctricas', () => {
     instant(g, 'pole', 4, 4);
     const gen = instant(g, 'generator', 5, 4);
     const f = instant(g, 'factory', 4, 5);
-    gen.inv = { coal: 5 };
+    gen.inv = { gasoline: 5 };
     run(g, 0.1);
     expect(gen.running).toBe(false);
     expect(f.power).toBe(0);
@@ -44,9 +44,9 @@ describe('redes eléctricas', () => {
     expect(powerMult(f)).toBe(P.mult.factory![1]);
   });
 
-  it('arranque desde cero: Transportista lleva carbón y Operario arranca', () => {
+  it('arranque desde cero: Transportista lleva gasolina y Operario arranca', () => {
     const g = flatGame();
-    g.storage.coal = 10;
+    g.storage.gasoline = 10;
     instant(g, 'pole', 4, 4);
     const gen = instant(g, 'generator', 5, 4);
     run(g, 40);
@@ -58,7 +58,7 @@ describe('redes eléctricas', () => {
     const g = flatGame();
     instant(g, 'pole', 4, 4);
     const gen = instant(g, 'generator', 5, 4);
-    gen.inv = { coal: 1 };
+    gen.inv = { gasoline: 1 };
     gen.running = true;
     g.npcs = [];
     run(g, P.generators.generator!.burnTime! + 1);
@@ -70,7 +70,7 @@ describe('redes eléctricas', () => {
     g.npcs = [];
     instant(g, 'pole', 4, 4);
     const gen = instant(g, 'generator', 5, 4);
-    gen.inv = { coal: 10 };
+    gen.inv = { gasoline: 10 };
     gen.running = true;
     // Demanda = 2 × producción.
     const n = Math.round((2 * P.generators.generator!.power) / P.demand.factory!);
@@ -87,7 +87,7 @@ describe('redes eléctricas', () => {
     g.npcs = [];
     instant(g, 'pole', 4, 4);
     const gen = instant(g, 'generator', 5, 4);
-    gen.inv = { coal: 10 };
+    gen.inv = { gasoline: 10 };
     gen.running = true;
     const n = Math.round((2 * P.generators.generator!.power) / P.demand.factory!);
     const fs = [];

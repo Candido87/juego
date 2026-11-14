@@ -101,6 +101,7 @@ export function generateWorld(seed: number, w: number, h: number): World {
   const oreC = valueNoise(rng);
   const oreD = valueNoise(rng);
   const forest = valueNoise(rng);
+  const oil = valueNoise(rng);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       if (cheb(x, y) < 5) continue;
@@ -109,6 +110,7 @@ export function generateWorld(seed: number, w: number, h: number): World {
       else if (oreB(x / 4 + 5, y / 4 + 9) > 0.82) world.ore[i] = Ore.Copper;
       else if (oreC(x / 4 + 13, y / 4 + 2) > 0.83) world.ore[i] = Ore.Coal;
       else if (oreD(x / 4 + 21, y / 4 + 17) > 0.83) world.ore[i] = Ore.Stone;
+      else if (oil(x / 5 + 41, y / 5 + 7) > 0.86) world.ore[i] = Ore.Oil;
       else if (forest(x / 6 + 3, y / 6 + 29) > 0.74) world.ore[i] = Ore.Wood;
     }
   }
@@ -123,6 +125,7 @@ export function generateWorld(seed: number, w: number, h: number): World {
   patch(c.x + 2, c.y - 7, Ore.Coal);
   patch(c.x - 3, c.y + 7, Ore.Stone);
   patch(c.x - 7, c.y - 5, Ore.Wood);
+  patch(c.x + 6, c.y - 5, Ore.Oil);
   for (const s of spawnPoints(world)) world.ore[s.y * w + s.x] = Ore.None;
   return world;
 }

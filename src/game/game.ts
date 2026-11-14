@@ -290,8 +290,12 @@ export class Game {
         tiles.push(ty * this.world.w + tx);
       }
     }
-    if (kind === 'drill' && oreAt(this.world, x, y) === Ore.None) {
+    const ore = oreAt(this.world, x, y);
+    if (kind === 'drill' && (ore === Ore.None || ore === Ore.Oil)) {
       return { ok: false, reason: 'El taladro necesita mena' };
+    }
+    if (kind === 'pump' && ore !== Ore.Oil) {
+      return { ok: false, reason: 'La bomba va sobre petróleo' };
     }
     if (kind === 'farm' && oreAt(this.world, x, y) !== Ore.None) {
       return { ok: false, reason: 'La granja necesita tierra libre' };
@@ -369,7 +373,7 @@ export class Game {
   /** Cuántas unidades de `item` caben como entrada en el edificio (0 = no lo acepta). */
   capacityFor(b: Building, item: ItemId): number {
     if (!b.built) return 0;
-    if (b.kind === 'factory' && b.recipe) {
+    if (isCrafter(b.kind) && b.recipe) {
       const need = CONFIG.recipes[b.recipe].inputs[item] ?? 0;
       return need * CONFIG.factory.inputBatches;
     }
@@ -382,7 +386,7 @@ export class Game {
 
   /** Objetos que el edificio puede recibir como entrada (para generar abastecimientos). */
   inputsOf(b: Building): ItemId[] {
-    if (b.kind === 'factory' && b.recipe) return entries(CONFIG.recipes[b.recipe].inputs).map(([i]) => i);
+    if (isCrafter(b.kind) && b.recipe) return entries(CONFIG.recipes[b.recipe].inputs).map(([i]) => i);
     const t = this.turretDef(b);
     if (t?.ammo) return [t.ammo];
     const gen = CONFIG.power.generators[b.kind as BuildKind];
@@ -516,6 +520,7 @@ export class Game {
       charge: 0,
       markedForRemoval: false,
     };
+    if (kind === 'refinery') b.recipe = 'gasoline';
     this.buildings.set(b.id, b);
     for (let dy = 0; dy < d; dy++) for (let dx = 0; dx < w; dx++) this.owner[(y + dy) * this.world.w + x + dx] = b.id;
     return b;
@@ -766,7 +771,7 @@ export class Game {
 
   private stepFactories(dt: number): void {
     for (const b of this.buildings.values()) {
-      if (b.kind !== 'factory' || !b.built) continue;
+      if (!isCrafter(b.kind) || !b.built) continue;
       this.pushOutput(b);
       if (!b.recipe) continue;
       const r = CONFIG.recipes[b.recipe];
@@ -823,6 +828,7 @@ export class Game {
       return item ? { item, period: CONFIG.drill.period, cap: CONFIG.drill.outCap } : null;
     }
     if (b.kind === 'farm') return { item: 'food', period: CONFIG.farm.period, cap: CONFIG.farm.outCap };
+    if (b.kind === 'pump') return { item: 'oil', period: CONFIG.pump.period, cap: CONFIG.pump.outCap };
     return null;
   }
 
@@ -989,7 +995,10 @@ export class Game {
 }
 
 /** Edificios que se pueden girar (tienen salida o dirección). */
-export const ROTATABLE: BuildingKind[] = ['belt', 'belt_fast', 'drill', 'factory', 'feeder', 'farm'];
+export const ROTATABLE: BuildingKind[] = ['belt', 'belt_fast', 'drill', 'factory', 'feeder', 'farm', 'pump', 'refinery'];
+
+/** Edificios que transforman entradas en salidas con una receta. */
+export const isCrafter = (k: BuildingKind) => k === 'factory' || k === 'refinery';
 
 export const ORE_ITEM: Record<number, ItemId | undefined> = {
   [Ore.Iron]: 'iron_ore',
@@ -997,6 +1006,7 @@ export const ORE_ITEM: Record<number, ItemId | undefined> = {
   [Ore.Coal]: 'coal',
   [Ore.Stone]: 'stone',
   [Ore.Wood]: 'wood',
+  [Ore.Oil]: 'oil',
 };
 
 /** Lista determinista de tipos de enemigo para una oleada según la tabla de config. */
