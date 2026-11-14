@@ -8,15 +8,66 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "sim": "vite-node scripts/simulate.ts"
+    "sim": "vite-node scripts/simulate.ts",
+    "icon": "node scripts/make-icon.cjs",
+    "electron:dev": "concurrently -k -n vite,electron \"vite --port 5173 --strictPort\" \"wait-on tcp:5173 && cross-env ELECTRON_DEV=1 electron .\"",
+    "electron:start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
     "phaser": "^3.80.1"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3",
+    "rcedit": "^3.1.0",
     "typescript": "~5.3.3",
     "vite": "^4.5.3",
     "vite-node": "^0.34.6",
-    "vitest": "^0.34.6"
+    "vitest": "^0.34.6",
+    "wait-on": "^7.2.0"
+  },
+  "description": "Fábrica isométrica con defensa (factory + tower defense)",
+  "author": "Candido87",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.candido87.fabrica-isometrica",
+    "productName": "Fábrica Isométrica",
+    "copyright": "Fábrica Isométrica",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "Fabrica-Isometrica-Setup-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Fábrica Isométrica",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "afterPack": "electron/afterPack.cjs"
   }
 }
