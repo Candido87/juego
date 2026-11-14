@@ -16,10 +16,70 @@ Proyección isométrica 2:1 (64x32), orden por profundidad (x+y), semitransparen
 que tapan cursor/enemigos/NPCs, cámara con arrastre y zoom, selección con relieve (alturas 0–2),
 sombras suaves.
 
+## Economía base (rediseño — encargo "petróleo, población, componentes, taller")
+Este bloque manda sobre lo anterior cuando choque. **Qué cambia respecto al diseño previo:**
+- Generadores (combustión y turbina) queman **gasolina**, no carbón. El carbón sigue para ladrillos/baterías
+  y como munición del lanzallamas.
+- **No se contratan NPCs con piezas.** La población empieza en **3** (1 Constructor, 1 Transportista,
+  1 Operario) y sólo crece con comida de sobra y vivienda libre. El jugador puede **cambiar el rol** de cualquier NPC.
+- **Todos los edificios cuestan componentes** fabricados (bastidor, engranaje, cable, tubería, mecanismo de
+  torreta, kit de taller...), no placas ni materias primas sueltas.
+- Las **reparaciones** las hacen los Mecánicos del Taller; sin taller, los Constructores (más lento).
+- Los enemigos **dañan los edificios** que tienen al lado (antes sólo NPCs y núcleo), para que haya qué reparar.
+- Derrota también si la **población llega a 0**.
+
+### 1. Petróleo → gasolina → electricidad
+- Mena nueva **petróleo** (yacimientos en el mapa, uno garantizado cerca del núcleo). Se extrae con la **Bomba**
+  (sólo sobre petróleo; funciona sin red a ritmo bajo, el doble con red, como el taladro).
+- **Refinería**: edificio con receta fija `gasoline` (petróleo → gasolina, ratio y tiempo en config).
+  Funciona sin red (lenta) y mejor con ella. Entradas por cinta o Transportista; salida a cinta o recogida.
+- **Generadores con gasolina.** El primero se enciende con gasolina llevada a mano (hay gasolina inicial en el
+  almacén) y un Operario lo arranca. Toda la cadena es posible sin electricidad: bomba manual → Transportista
+  recoge el petróleo → lo lleva a la refinería → recoge la gasolina → la lleva al generador.
+
+### 2. Electricidad y cintas
+- Las cintas **sólo se mueven con energía** (multiplicador 0 sin red). Sin red, nada fluye por cinta y la
+  salida de taladros/fábricas que da a una cinta parada se considera "no sale sola" → trabajo de **Recoger**.
+- Se mantiene todo lo diseñado: redes, postes, apagón proporcional, baterías, críticos.
+
+### 3. Población y comida
+- Población = NPCs vivos. Roles: Constructor, Transportista, Operario y **Mecánico** (sólo vía Taller).
+- **Comida** (objeto `food`) en el almacén global. Cada persona come `food.perPerson` unidades cada
+  `food.interval` s (se descuenta del almacén).
+- **Granja**: produce comida (`farm.period`); sin red ×`mult.farm[0]`, con red ×`mult.farm[1]`. Salida como el taladro.
+- Si no hay comida: estado **hambre**; trabajo y velocidad × `food.hungryFactor`.
+  Tras `food.starveGrace` s de hambre seguida, cada `food.leaveInterval` s una persona **se marcha**.
+- **Crecimiento**: cada `growth.interval` s, si hay vivienda libre, no hay hambre y comida ≥ `growth.foodMin`,
+  se gastan `growth.foodCost` y llega una persona con el rol que el jugador elija (por defecto el rol con menos gente).
+- **Vivienda**: el núcleo aloja `housing.core`; cada **Casa** `housing.house`.
+- Población 0 → fin de partida.
+
+### 4. Componentes y fábricas de nivel 1
+- Cada edificio define su lista de componentes en `config.buildings[*].cost`. Lista de componentes en
+  `config.components`. Test: todo edificio exige al menos un componente y ninguna mena.
+- Recetas con `tier`. **Nivel 1** (fábrica normal): placas, ladrillo, engranaje, bastidor, cable, tubería,
+  mecanismo de torreta, munición, kit de taller. **Nivel 2+** (circuito, batería, placa de muro, ciencia II)
+  quedan bloqueadas hasta el árbol de tecnología (decisión: no hay edificio "fábrica II" aún; el nivel lo marca
+  la receta y se desbloqueará investigando).
+- La refinería tiene su propia receta (`building: 'refinery'`) que no aparece en la fábrica.
+
+### 5. Taller
+- Se construye con kits de taller. Al terminarse toma **2 personas** de la población (las de rol con más gente,
+  dejando siempre al menos 1 fuera) y las convierte en **Mecánicos**. Si un mecánico muere, el taller repone
+  de la población si puede. Desmontarlo devuelve a los mecánicos como Constructores.
+- Los Mecánicos **sólo reparan** (más rápido: `repair.mechanicFactor`). Con taller activo los Constructores no reparan.
+- Sin taller, reparan los Constructores a `repair.constructorFactor` (más lento) y compiten con las obras.
+- Reparar gasta el primer componente del coste del edificio según el daño (`repair.fractionPerUnit`).
+- Prioridad: generadores, torretas, postes y baterías llevan `jobs.criticalRepairBonus`.
+
+### 6. Interfaz
+Panel de población (total, libres, trabajando, en el taller, vivienda), comida (almacenada, consumo/min,
+estado de hambre), gasolina almacenada, rol de cada NPC cambiable, taller (mecánicos, reparaciones en cola).
+
 ## Recursos y piezas
-- Menas del mapa (taladro encima): hierro, cobre, carbón, piedra, bosque (madera).
-- Piezas: placa de hierro, placa de cobre, engranaje, munición (balas), componente (circuito),
-  ladrillo, batería, placa de muro (metal), paquete de ciencia I y II.
+- Menas del mapa (taladro encima): hierro, cobre, carbón, piedra, bosque (madera); **petróleo** (bomba).
+- Piezas: placas, ladrillo, componentes (ver arriba), munición, comida, petróleo, gasolina,
+  circuito, batería, placa de muro, paquetes de ciencia I y II.
 - **No hay créditos.** Todo se paga con piezas del almacén.
 - **Almacén global**: el núcleo y los edificios Almacén comparten un único inventario (decisión simple).
   Las cintas que entran en un almacén suman al inventario. Los NPCs recogen/dejan en el almacén más cercano.
@@ -135,7 +195,8 @@ Cada torreta se distingue por **silueta, color y animación** (reconocible con e
 ## NPCs y cola de trabajos
 - Roles: **Constructor** (obras, reparar, desmontar), **Transportista** (abastecer y recoger),
   **Operario** (mantener fábricas y torretas).
-- Se contratan en el núcleo pagando piezas. Tienen vida, velocidad y capacidad de carga (mejorables en el árbol).
+- ~~Se contratan pagando piezas~~: son la población (ver "Economía base"). Tienen vida, velocidad y capacidad
+  de carga (mejorables en el árbol). **Mecánico**: rol del Taller, sólo repara.
 - La cola se recalcula cada `jobs.scanInterval` s a partir del estado: obras, desmontajes, reparaciones,
   abastecimientos (entradas de fábrica, munición, combustible), recogidas y mantenimientos.
 - Un NPC libre elige el trabajo de su rol con **mayor prioridad** y, a igualdad, el **más cercano**.
@@ -169,7 +230,12 @@ Aparecen en los bordes; más puntos de aparición con el tiempo.
 5. Desmontaje devuelve el 50 % directamente al almacén cuando acaba.
 6. Se permite bloquear el camino; los enemigos rompen lo que les estorba.
 7. Investigación paga al empezar; no hay edificio laboratorio.
-8. Contratar NPC es instantáneo en el núcleo.
+8. ~~Contratar NPC es instantáneo en el núcleo~~ → no se contrata: la población crece con comida y vivienda.
+15. Los NPCs comen del almacén global (no hace falta llevarles comida).
+16. Quien se marcha por hambre es el último en llegar; el taller elige mecánicos del rol con más gente.
+17. Fábrica de nivel 2 = recetas con `tier: 2`, bloqueadas hasta el árbol (sin edificio aparte por ahora).
+18. Daño a edificios: cada enemigo terrestre daña al edificio construido más cercano a ≤ `enemyHitRadius`+0.5
+    con `dps × buildingDamageFactor`; a 0 de vida se destruye.
 9. Las obras no son sólidas hasta terminarse.
 10. Una sola fábrica genérica con receta elegible (incluye fundición).
 11. Mantenimiento por desgaste de uso (no por tiempo).

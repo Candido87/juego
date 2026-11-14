@@ -11,7 +11,18 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [x] 2. (A2) Piezas y recetas nuevas; las construcciones consumen piezas concretas.
 - [x] 3. (A3) Transportistas: reparto de munición y piezas por NPC (modo manual).
 - [x] 4. (E1) Redes eléctricas: generador de combustión, postes y cables, consumo/producción, apagón parcial.
-- [ ] 5. (E2) Cintas motorizadas y diferencia entre modo manual (NPC) y automático.
+
+### Rediseño de la economía base (prioritario, va antes del resto)
+- [ ] P1. Población de 3 NPCs, comida y granjas (consumo y escasez; derrota con población 0).
+- [ ] P2. Componentes obligatorios para construir cualquier edificio y fábricas de nivel 1.
+- [ ] P3. Petróleo, bombas y refinería; generadores con gasolina.
+- [ ] P4. Cintas que consumen electricidad y modo manual completo por NPCs (absorbe el antiguo 5/E2).
+- [ ] P5. Taller con 2 trabajadores dedicados y cola de reparaciones (+ enemigos dañan edificios).
+- [ ] P6. Vivienda y crecimiento de población.
+- [ ] P7. Interfaz (población, comida, gasolina, taller) y equilibrado con simulaciones.
+
+### Resto de la hoja de ruta (después del rediseño)
+- [ ] 5. (E2) ~~Cintas motorizadas~~ (hecho en P4); queda sólo la regla "automatizado no pide abastecimiento".
 - [ ] 6. (E3) Alimentadores automáticos y torretas con abastecimiento automático.
 - [ ] 7. (E4) Baterías, solar y prioridades de consumo.
 - [ ] 8. (A4 + E5) Torretas láser (energía) y de fuego (combustible); enemigos que atacan la infraestructura.
