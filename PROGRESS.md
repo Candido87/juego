@@ -90,4 +90,4 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] GI2. Motor de la guía (guia-inicio.ts, textos en guia-inicio-textos.ts, bot guia-bot.ts) con tests y guardado.
 - [x] GI3. Pop-ups (panel fijo bajo el HUD, translúcido), resalte de botón/categoría y flecha sobre la casilla recomendada.
 - [x] GI4. Secuencia de 11 pasos en la UI: cerrar aviso, saltar guía y reiniciarla desde la ayuda (H).
-- [ ] GI5. Ajuste con `npm run sim`.
+- [x] GI5. Comprobado con `npm run sim` (semilla 7): a los 300 s llega la oleada 1 con 2 torretas y 80 de munición, núcleo intacto; sin cambios de números.
