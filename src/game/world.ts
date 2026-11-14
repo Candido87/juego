@@ -103,7 +103,7 @@ export function generateWorld(seed: number, w: number, h: number): World {
       if (cheb(x, y) < 5) continue;
       const a = oreA(x / 4, y / 4);
       const b = oreB(x / 4 + 5, y / 4 + 9);
-      world.ore[y * w + x] = a > 0.72 ? Ore.Iron : b > 0.74 ? Ore.Copper : Ore.None;
+      world.ore[y * w + x] = a > 0.8 ? Ore.Iron : b > 0.82 ? Ore.Copper : Ore.None;
     }
   }
   // Parcelas garantizadas cerca del núcleo para que el arranque sea siempre jugable.
