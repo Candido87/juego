@@ -191,21 +191,24 @@ export class GameScene extends Phaser.Scene {
   /** Mayús + arrastrar: traza cintas casilla a casilla orientándolas según el movimiento. */
   private paintBelts() {
     if (!this.painting || !this.hover) return;
+    const target = this.hover;
+    let cur: Tile = this.painting;
     let guard = 0;
-    while ((this.painting.x !== this.hover.x || this.painting.y !== this.hover.y) && guard++ < 64) {
-      const dx = this.hover.x - this.painting.x;
-      const dy = this.hover.y - this.painting.y;
-      const next = Math.abs(dx) >= Math.abs(dy)
-        ? { x: this.painting.x + Math.sign(dx), y: this.painting.y }
-        : { x: this.painting.x, y: this.painting.y + Math.sign(dy) };
-      const dir = dirBetween(this.painting, next)!;
+    while ((cur.x !== target.x || cur.y !== target.y) && guard++ < 64) {
+      const dx: number = target.x - cur.x;
+      const dy: number = target.y - cur.y;
+      const next: Tile = Math.abs(dx) >= Math.abs(dy)
+        ? { x: cur.x + Math.sign(dx), y: cur.y }
+        : { x: cur.x, y: cur.y + Math.sign(dy) };
+      const dir = dirBetween(cur, next)!;
       ui.dir = dir;
-      this.sim.rotate(this.painting.x, this.painting.y, dir);
+      this.sim.rotate(cur.x, cur.y, dir);
       const existing = this.sim.buildingAt(next.x, next.y);
       if (existing?.kind === 'belt') this.sim.rotate(next.x, next.y, dir);
       else if (!existing) this.placeAt(next);
-      this.painting = next;
+      cur = next;
     }
+    this.painting = cur;
   }
 
   private updateHover() {
