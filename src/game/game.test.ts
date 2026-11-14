@@ -23,6 +23,8 @@ export function instant(g: Game, kind: BuildKind, x: number, y: number, dir: 0 |
   const b = g.place(kind, x, y, dir)!;
   expect(b).not.toBeNull();
   g.completeBuilding(b);
+  const t = g.turretDef(b);
+  if (t?.ammo) b.inv[t.ammo] = t.ammoCap;
   return b;
 }
 
@@ -213,6 +215,65 @@ describe('piezas y recetas', () => {
     expect(g.setRecipe(t.id, 'gear')).toBe(false);
     expect(g.setRecipe(f.id, 'science_2')).toBe(false);
     expect(g.setRecipe(f.id, 'nope')).toBe(false);
+  });
+});
+
+describe('transportistas y operarios (modo manual)', () => {
+  it('un Transportista lleva munición del almacén a una torreta vacía', () => {
+    const g = flatGame();
+    const t = instant(g, 'turret_bullet', 4, 4);
+    t.inv = {};
+    const ammo = count(g.storage, 'ammo');
+    run(g, 20);
+    expect(count(t.inv, 'ammo')).toBeGreaterThan(0);
+    expect(count(g.storage, 'ammo')).toBe(ammo - count(t.inv, 'ammo'));
+  });
+
+  it('torreta sin munición pide abastecimiento urgente y no dispara', () => {
+    const g = flatGame([], { waves: true });
+    g.npcs = g.npcs.filter((n) => n.role !== 'transporter');
+    for (const [x, y] of [[8, 7], [12, 7], [7, 12], [12, 12]]) instant(g, 'turret_bullet', x, y).inv = {};
+    g.jobs.refresh(g);
+    const supply = g.jobs.list().find((j) => j.type === 'supply')!;
+    expect(supply.priority).toBe(CONFIG.jobs.priority.supply + CONFIG.jobs.urgentBonus);
+    g.callWaveNow();
+    run(g, 30);
+    expect(g.stats.kills).toBe(0);
+  });
+
+  it('la salida de una fábrica sin cinta la recoge un Transportista', () => {
+    const g = flatGame();
+    const f = instant(g, 'factory', 4, 4, 3); // apunta a una casilla vacía
+    f.out = { gear: 6 };
+    const gears = count(g.storage, 'gear');
+    run(g, 20);
+    expect(count(g.storage, 'gear')).toBe(gears + 6);
+    expect(f.out).toEqual({});
+  });
+
+  it('fábrica abastecida a mano: placas del almacén → engranajes al almacén', () => {
+    const g = flatGame();
+    const f = instant(g, 'factory', 6, 6, 3);
+    g.setRecipe(f.id, 'gear');
+    const gears = count(g.storage, 'gear');
+    run(g, 60);
+    expect(count(g.storage, 'gear')).toBeGreaterThan(gears + 4);
+  });
+
+  it('el desgaste baja el rendimiento y un Operario lo repone', () => {
+    const g = flatGame();
+    const f = instant(g, 'factory', 5, 5);
+    f.condition = 0.2;
+    expect(g.factorySpeed(f)).toBe(CONFIG.factory.speed * CONFIG.wear.lowEfficiency);
+    run(g, 20);
+    expect(f.condition).toBe(1);
+  });
+
+  it('un taladro sin cinta acumula y un Transportista lo recoge', () => {
+    const g = flatGame([[3, 3, Ore.Coal]]);
+    instant(g, 'drill', 3, 3, 3);
+    run(g, 40);
+    expect(count(g.storage, 'coal')).toBeGreaterThanOrEqual(CONFIG.jobs.collectMin);
   });
 });
 

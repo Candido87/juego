@@ -217,6 +217,12 @@ export class Hud {
     } else {
       lines.push(`Vida: <b>${Math.ceil(b.hp)}</b> / ${b.maxHp}`);
       if (b.markedForRemoval) lines.push('<span class="bad">Marcado para desmontar</span>');
+      if (b.kind === 'factory' || sim.turretDef(b)) {
+        const c = Math.round(b.condition * 100);
+        lines.push(`Estado: <b class="${b.condition < CONFIG.wear.lowThreshold ? 'bad' : ''}">${c}%</b>`);
+      }
+      const t = sim.turretDef(b);
+      if (t?.ammo && !sim.turretReady(b)) lines.push('<span class="bad">Sin munición: esperando Transportista</span>');
       if (b.kind === 'factory') {
         const opts = ['<option value="">— sin receta —</option>']
           .concat(

@@ -2,7 +2,7 @@
  * Cola de trabajos. Se recalcula a partir del estado del juego cada `scanInterval` s:
  * cada trabajo deseado tiene una clave estable, así que conserva su prioridad y su NPC asignado.
  */
-import { count, missing, total } from './bag';
+import { count, entries, missing, total } from './bag';
 import { CONFIG } from './config';
 import type { Building, Game } from './game';
 import type { Npc } from './npc';
@@ -55,10 +55,35 @@ export function registerJobSource(s: JobSource): void {
 export type { Desired };
 
 function baseJobs(game: Game, out: Desired[]): void {
+  const J = CONFIG.jobs;
   for (const b of game.buildings.values()) {
-    if (!b.built) out.push({ key: `build:${b.id}`, type: 'build', buildingId: b.id, item: null, qty: 0, urgent: false });
-    else if (b.markedForRemoval)
-      out.push({ key: `deconstruct:${b.id}`, type: 'deconstruct', buildingId: b.id, item: null, qty: 0, urgent: false });
+    const job = (type: JobType, item: ItemId | null = null, qty = 0, urgent = false) =>
+      out.push({ key: `${type}:${b.id}${item ? `:${item}` : ''}`, type, buildingId: b.id, item, qty, urgent });
+    if (!b.built) {
+      job('build');
+      continue;
+    }
+    if (b.markedForRemoval) {
+      job('deconstruct');
+      continue;
+    }
+    // Reparar: con el primer material de su coste.
+    const repairItem = entries(game.def(b.kind).cost)[0]?.[0];
+    if (repairItem && b.hp < b.maxHp * J.repairBelow) job('repair', repairItem, 0, b.hp < b.maxHp * 0.35);
+    // Abastecer entradas, munición y combustible.
+    for (const item of game.inputsOf(b)) {
+      if (!game.needsManualSupply(b, item)) continue;
+      const cap = game.capacityFor(b, item);
+      const have = count(b.inv, item);
+      if (have < cap * J.supplyBelow) {
+        const empty = have === 0 && !game.turretReady(b) && !!game.turretDef(b);
+        job('supply', item, cap - have, empty);
+      }
+    }
+    // Recoger salidas que no salen solas.
+    if (total(b.out) >= J.collectMin && !game.outputFlows(b)) job('collect', null, total(b.out));
+    // Mantenimiento por desgaste.
+    if ((b.kind === 'factory' || game.turretDef(b)) && b.condition < J.maintainBelow) job('maintain', null, 0, b.condition <= 0);
   }
 }
 

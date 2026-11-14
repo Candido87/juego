@@ -116,21 +116,81 @@ function countKind(game: Game, kind: BuildKind): number {
   return n;
 }
 
+/** Fábricas que el bot quiere, en orden. Van pegadas al núcleo y le escupen la salida. */
+/** Menas que el bot explota, en orden. */
+const BOT_ORES: Ore[] = [Ore.Iron, Ore.Iron, Ore.Iron, Ore.Copper, Ore.Iron, Ore.Coal, Ore.Stone, Ore.Copper];
+
+const BOT_FACTORIES =['iron_plate', 'gear', 'ammo', 'iron_plate', 'copper_plate', 'gear', 'ammo'];
+
+function placeFactory(game: Game, recipe: string): boolean {
+  if (!affordable(game, CONFIG.buildings.factory.cost)) return false;
+  const c = game.core;
+  for (let y = c.y - 1; y <= c.y + c.d; y++) {
+    for (let x = c.x - 1; x <= c.x + c.w; x++) {
+      const t = { x, y };
+      // Casilla vecina (no diagonal) al núcleo; dirección hacia él.
+      for (let k = 0; k < 4; k++) {
+        if (!game.isCoreTile(x + DX[k], y + DY[k]) || !game.canPlace('factory', x, y).ok) continue;
+        const f = game.place('factory', t.x, t.y, k as Dir);
+        if (f) game.setRecipe(f.id, recipe);
+        return !!f;
+      }
+    }
+  }
+  return false;
+}
+
+function npcCount(game: Game, role: string): number {
+  return game.npcs.filter((n) => n.role === role).length;
+}
+
+/** Topes de existencias: por encima, el bot quita la receta para no gastar placas de más. */
+const BOT_STOCK: Record<string, [number, number]> = { gear: [10, 25], ammo: [30, 80] };
+
+/** Activa/desactiva fábricas según existencias (como haría un jugador). */
+function regulate(game: Game): void {
+  for (const b of game.buildings.values()) {
+    if (b.kind !== 'factory' || !b.built) continue;
+    const want = (b as { botRecipe?: string }).botRecipe ?? b.recipe;
+    if (!want) continue;
+    (b as { botRecipe?: string }).botRecipe = want;
+    const lim = BOT_STOCK[want];
+    if (!lim) continue;
+    const have = game.storage[want as keyof typeof game.storage] ?? 0;
+    if (have >= lim[1] && b.recipe) game.setRecipe(b.id, null);
+    else if (have <= lim[0] && !b.recipe) game.setRecipe(b.id, want);
+  }
+}
+
 /** Realiza como mucho una acción. Devuelve una descripción o null si no hizo nada. */
 export function botTick(game: Game): string | null {
+  regulate(game);
   const turrets = countKind(game, 'turret_bullet');
   if (turrets < 1 + Math.ceil(game.wave * 0.6)) {
     if (placeBestTurret(game, 'turret_bullet')) return 'torreta';
   }
-  if (game.npcs.filter((n) => n.role === 'constructor').length < 3 && game.canHire('constructor')) {
-    game.hire('constructor');
-    return 'contratar constructor';
+  const factories = countKind(game, 'factory');
+  if (factories < BOT_FACTORIES.length && countKind(game, 'drill') >= 2 && placeFactory(game, BOT_FACTORIES[factories])) {
+    return 'fábrica';
   }
-  if (countKind(game, 'drill') < 4) {
+  const want: [string, number][] = [
+    ['transporter', 2 + Math.floor(factories / 3)],
+    ['constructor', 2 + Math.floor(game.wave / 4)],
+    ['operator', 1 + Math.floor(factories / 4)],
+  ];
+  for (const [role, n] of want) {
+    if (npcCount(game, role) < n && affordable(game, CONFIG.npc.roles[role as 'operator'].cost)) {
+      game.hire(role as 'operator');
+      return `contratar ${role}`;
+    }
+  }
+  const drills = countKind(game, 'drill');
+  if (drills < BOT_ORES.length) {
     const { w, h } = game.world;
     const ores: Tile[] = [];
+    const wanted = BOT_ORES[drills];
     for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++) if (oreAt(game.world, x, y) !== Ore.None && !game.buildingAt(x, y)) ores.push({ x, y });
+      for (let x = 0; x < w; x++) if (oreAt(game.world, x, y) === wanted && !game.buildingAt(x, y)) ores.push({ x, y });
     const cx = game.core.x + 1;
     const cy = game.core.y + 1;
     ores.sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy));

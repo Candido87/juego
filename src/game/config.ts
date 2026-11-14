@@ -96,7 +96,7 @@ export const CONFIG = {
 
   coreHp: 300,
   startItems: { iron_plate: 60, gear: 24, copper_plate: 10, wood: 12, ammo: 40 } as Bag,
-  startNpcs: { constructor: 2, transporter: 0, operator: 0 } as Record<NpcRole, number>,
+  startNpcs: { constructor: 2, transporter: 2, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
     buildings: ['drill', 'belt', 'storage', 'factory', 'turret_bullet'] as BuildKind[],
     recipes: ['iron_plate', 'copper_plate', 'gear', 'ammo', 'brick', 'circuit', 'battery', 'wall_plate', 'science_1', 'science_2'],

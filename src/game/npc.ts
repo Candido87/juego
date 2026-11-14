@@ -131,11 +131,93 @@ function doDeconstruct(game: Game, n: Npc, b: Building, dt: number): Outcome {
   return 'continue';
 }
 
+/** Transportista: lleva `job.item` del almacén al edificio. */
+function doSupply(game: Game, n: Npc, job: Job, b: Building, dt: number): Outcome {
+  const item = job.item!;
+  const room = game.room(b, item);
+  if (count(n.carry, item) > 0) {
+    const r = moveTo(game, n, { kind: 'building', b }, dt);
+    if (r === null) return 'abort';
+    if (!r) return 'continue';
+    add(b.inv, item, take(n.carry, item, room));
+    return 'done';
+  }
+  if (room <= 0) return 'done';
+  const r = moveTo(game, n, { kind: 'storage' }, dt);
+  if (r === null) return 'abort';
+  if (!r) return 'continue';
+  depositAll(game, n);
+  add(n.carry, item, take(game.storage, item, Math.min(room, free(game, n))));
+  return total(n.carry) > 0 ? 'continue' : 'abort';
+}
+
+/** Transportista: saca la salida del edificio y la lleva al almacén. */
+function doCollect(game: Game, n: Npc, _job: Job, b: Building, dt: number): Outcome {
+  if (total(n.carry) > 0) {
+    const r = moveTo(game, n, { kind: 'storage' }, dt);
+    if (r === null) return 'abort';
+    if (r) {
+      depositAll(game, n);
+      return 'done';
+    }
+    return 'continue';
+  }
+  if (total(b.out) === 0) return 'done';
+  const r = moveTo(game, n, { kind: 'building', b }, dt);
+  if (r === null) return 'abort';
+  if (!r) return 'continue';
+  for (const [i, m] of entries(b.out)) add(n.carry, i, take(b.out, i, Math.min(m, free(game, n))));
+  return total(n.carry) > 0 ? 'continue' : 'done';
+}
+
+/** Operario: repone el estado de una fábrica o torreta. */
+function doMaintain(game: Game, n: Npc, _job: Job, b: Building, dt: number): Outcome {
+  if (b.condition >= 1) return 'done';
+  const r = moveTo(game, n, { kind: 'building', b }, dt);
+  if (r === null) return 'abort';
+  if (!r) return 'continue';
+  n.work += dt * game.npcWork(n);
+  if (n.work >= CONFIG.npc.maintainTime) {
+    b.condition = 1;
+    return 'done';
+  }
+  return 'continue';
+}
+
+/** Constructor: repara con el primer material del coste del edificio. */
+function doRepair(game: Game, n: Npc, job: Job, b: Building, dt: number): Outcome {
+  const item = job.item!;
+  if (b.hp >= b.maxHp) return 'done';
+  if (count(n.carry, item) === 0) {
+    const r = moveTo(game, n, { kind: 'storage' }, dt);
+    if (r === null) return 'abort';
+    if (!r) return 'continue';
+    depositAll(game, n);
+    const units = Math.ceil((b.maxHp - b.hp) / (b.maxHp * CONFIG.repair.fractionPerUnit));
+    add(n.carry, item, take(game.storage, item, Math.min(units, free(game, n))));
+    return total(n.carry) > 0 ? 'continue' : 'abort';
+  }
+  const r = moveTo(game, n, { kind: 'building', b }, dt);
+  if (r === null) return 'abort';
+  if (!r) return 'continue';
+  n.work += dt * game.npcWork(n);
+  if (n.work >= CONFIG.repair.secondsPerUnit) {
+    n.work = 0;
+    take(n.carry, item, 1);
+    b.hp = Math.min(b.maxHp, b.hp + b.maxHp * CONFIG.repair.fractionPerUnit);
+  }
+  return 'continue';
+}
+
 /** Ejecutores por tipo de trabajo (otros módulos registran los suyos). */
 export type JobRunner = (game: Game, n: Npc, job: Job, b: Building, dt: number) => Outcome;
 const runners: Partial<Record<Job['type'], JobRunner>> = {
   build: (g, n, _j, b, dt) => doBuild(g, n, b, dt),
   deconstruct: (g, n, _j, b, dt) => doDeconstruct(g, n, b, dt),
+  supply: doSupply,
+  collect: doCollect,
+  maintain: doMaintain,
+  repair: doRepair,
 };
 export function registerJobRunner(type: Job['type'], r: JobRunner): void {
   runners[type] = r;

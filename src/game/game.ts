@@ -2,7 +2,7 @@
  * Estado y sistemas del juego. Sin Phaser ni DOM: se puede simular sin gráficos.
  */
 import { add, addAll, count, entries, take } from './bag';
-import { BuildingDef, CONFIG } from './config';
+import { BuildingDef, CONFIG, TurretDef } from './config';
 import { JobBoard } from './jobs';
 import { Npc, stepNpc } from './npc';
 import { dijkstra } from './path';
@@ -129,6 +129,8 @@ export class Game {
   readonly unlockedRecipes = new Set<string>(CONFIG.startUnlocks.recipes);
   /** Bonificaciones de investigación. */
   readonly bonus = { npcSpeed: 0, npcCapacity: 0, npcWork: 0 };
+  /** Nivel global de cada tipo de torreta (sube con el árbol). */
+  readonly turretLevel: Record<TurretKind, number> = { turret_bullet: 1, turret_laser: 1, turret_fire: 1, turret_frost: 1 };
 
   private owner: Int32Array;
   private dist: Float64Array;
@@ -329,7 +331,46 @@ export class Game {
       const need = CONFIG.recipes[b.recipe].inputs[item] ?? 0;
       return need * CONFIG.factory.inputBatches;
     }
+    const t = this.turretDef(b);
+    if (t?.ammo === item) return t.ammoCap;
     return 0;
+  }
+
+  /** Objetos que el edificio puede recibir como entrada (para generar abastecimientos). */
+  inputsOf(b: Building): ItemId[] {
+    if (b.kind === 'factory' && b.recipe) return entries(CONFIG.recipes[b.recipe].inputs).map(([i]) => i);
+    const t = this.turretDef(b);
+    return t?.ammo ? [t.ammo] : [];
+  }
+
+  /** ¿Necesita que un NPC le traiga `item`? (Con automatización, sólo si está vacío.) */
+  needsManualSupply(_b: Building, _item: ItemId): boolean {
+    return true;
+  }
+
+  /** ¿La salida del edificio sale sola (hay algo delante que la acepta)? */
+  outputFlows(b: Building): boolean {
+    const front = this.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
+    if (!front || !front.built) return false;
+    return !!this.def(front.kind).storage || front.kind === 'belt' || front.kind === 'belt_fast';
+  }
+
+  turretDef(b: Building): TurretDef | undefined {
+    return (CONFIG.turrets as Partial<Record<BuildingKind, TurretDef>>)[b.kind];
+  }
+
+  /** Rendimiento por desgaste: 1, `lowEfficiency` bajo el umbral, 0 si está roto. */
+  wearFactor(b: Building): number {
+    if (b.condition <= 0) return 0;
+    return b.condition < CONFIG.wear.lowThreshold ? CONFIG.wear.lowEfficiency : 1;
+  }
+
+  /** ¿Tiene la torreta con qué disparar ya mismo? */
+  turretReady(b: Building): boolean {
+    const t = this.turretDef(b);
+    if (!t) return false;
+    if (t.ammo) return b.shots > 0 || count(b.inv, t.ammo) > 0;
+    return true;
   }
 
   /** Lo que todavía cabe de `item`. */
@@ -591,8 +632,8 @@ export class Game {
   }
 
   /** Velocidad de fabricación (se amplía con energía y desgaste). */
-  factorySpeed(_b: Building): number {
-    return CONFIG.factory.speed;
+  factorySpeed(b: Building): number {
+    return CONFIG.factory.speed * this.wearFactor(b);
   }
 
   private stepFactories(dt: number): void {
@@ -621,7 +662,9 @@ export class Game {
   }
 
   /** Gancho tras fabricar (desgaste, estadísticas). */
-  protected onCrafted(_b: Building): void {}
+  protected onCrafted(b: Building): void {
+    b.condition = Math.max(0, b.condition - CONFIG.wear.factoryPerCraft);
+  }
 
   private stepBelts(dt: number): void {
     for (const b of this.buildings.values()) {
@@ -660,18 +703,40 @@ export class Game {
     }
   }
 
+  /** Factor de energía de una torreta (1 = plena). Las que no usan energía siempre 1. */
+  turretPower(b: Building): number {
+    const t = this.turretDef(b);
+    return !t || t.energyPerShot === 0 ? 1 : 0;
+  }
+
+  turretRange(kind: TurretKind): number {
+    return CONFIG.turrets[kind].range + (this.turretLevel[kind] - 1) * CONFIG.turretLevels.rangePerLevel;
+  }
+
+  turretDamage(kind: TurretKind): number {
+    return CONFIG.turrets[kind].damage * (1 + (this.turretLevel[kind] - 1) * CONFIG.turretLevels.damagePerLevel);
+  }
+
+  /** Aplica daño teniendo en cuenta la armadura. */
+  damageEnemy(e: Enemy, dmg: number, ignoresArmor: boolean): void {
+    e.hp -= ignoresArmor ? dmg : Math.max(dmg * CONFIG.armorMinFraction, dmg - e.armor);
+  }
+
   private stepTurrets(dt: number): void {
     for (const b of this.buildings.values()) {
-      if (b.kind !== 'turret_bullet' || !b.built) continue;
-      const T = CONFIG.turrets[b.kind];
-      b.timer -= dt;
+      const t = this.turretDef(b);
+      if (!t || !b.built) continue;
+      const kind = b.kind as TurretKind;
+      const eff = this.wearFactor(b) * this.turretPower(b);
+      if (eff <= 0) continue;
+      b.timer -= dt * eff;
       if (b.timer > 0) continue;
       const cx = b.x + 0.5;
       const cy = b.y + 0.5;
       let target: Enemy | null = null;
-      let best = T.range;
+      let best = this.turretRange(kind);
       for (const e of this.enemies) {
-        if (e.hp <= 0) continue;
+        if (e.hp <= 0 || (e.flying && !t.hitsAir)) continue;
         const d = Math.hypot(e.x - cx, e.y - cy);
         if (d <= best) {
           best = d;
@@ -682,9 +747,36 @@ export class Game {
         b.timer = 0;
         continue;
       }
-      target.hp -= T.damage;
-      b.timer = T.cooldown;
-      this.emit({ type: 'shot', towerId: b.id, kind: b.kind, fromX: cx, fromY: cy, toX: target.x, toY: target.y });
+      // Munición: cada unidad da `shotsPerAmmo` disparos.
+      if (t.ammo) {
+        if (b.shots <= 0) {
+          if (take(b.inv, t.ammo, 1) === 0) {
+            b.timer = 0;
+            continue;
+          }
+          b.shots += t.shotsPerAmmo;
+        }
+        b.shots--;
+      }
+      const dmg = this.turretDamage(kind);
+      const hits =
+        t.area > 0
+          ? this.enemies.filter((e) => e.hp > 0 && (t.hitsAir || !e.flying) && Math.hypot(e.x - target!.x, e.y - target!.y) <= t.area)
+          : [target];
+      for (const e of hits) {
+        this.damageEnemy(e, dmg, t.ignoresArmor);
+        if (t.burnDps > 0) {
+          e.burnTimer = t.burnTime;
+          e.burnDps = Math.max(e.burnDps, t.burnDps);
+        }
+        if (t.slow < 1) {
+          e.slowTimer = t.slowTime;
+          e.slowFactor = Math.min(e.slowFactor, t.slow);
+        }
+      }
+      b.timer = t.cooldown;
+      b.condition = Math.max(0, b.condition - CONFIG.wear.turretPerShot);
+      this.emit({ type: 'shot', towerId: b.id, kind, fromX: cx, fromY: cy, toX: target.x, toY: target.y });
     }
     this.removeDeadEnemies();
   }
@@ -705,7 +797,19 @@ export class Game {
     const survivors: Enemy[] = [];
     for (const e of this.enemies) {
       const def = CONFIG.enemies[e.kind];
-      let budget = e.speed * dt;
+      // Quemadura y ralentización.
+      if (e.burnTimer > 0) {
+        e.burnTimer -= dt;
+        e.hp -= e.burnDps * dt;
+        if (e.burnTimer <= 0) e.burnDps = 0;
+      }
+      let speed = e.speed;
+      if (e.slowTimer > 0) {
+        e.slowTimer -= dt;
+        speed *= e.slowFactor;
+        if (e.slowTimer <= 0) e.slowFactor = 1;
+      }
+      let budget = speed * dt;
       let hit = false;
       for (let guard = 0; guard < 4 && budget > 0; guard++) {
         const cx = e.tx + 0.5;
