@@ -34,7 +34,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [x] G0. Inventario de assets → ASSETS.md (problemas y propuesta).
 - [x] G1. Enemigos con sprites (balanceo y volteo por dirección; prisma de respaldo).
 - [x] G2. Murallas con sprites conectados (piedra/metal = castillo teñido, madera = valla) y 3 estados de daño (muros.ts, wallLook en shapes.ts; prisma de respaldo).
-- [ ] G3. Interfaz con el UI Pack (paneles, botones, barras, cursor, iconos).
+- [x] G3. Interfaz con el UI Pack: marcos de panel, botones (gris/amarillo al pasar/azul activo/rojo), barras, cursor y fuente de títulos vía `public/assets/ui-pack/ui-pack.css` (sin tocar la lógica; iconos faltantes siguen generados por código en sprites.ts).
 - [ ] G4. Terreno con variantes, árboles y decoración procedural.
 
 ### Segunda tanda de gráficos (tanques, naves, humo) — esperando visto bueno del reparto (ver ASSETS.md)

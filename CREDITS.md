@@ -22,3 +22,4 @@ Licencia: https://creativecommons.org/publicdomain/zero/1.0/ · Apoyar a Kenney:
 Cuando uno de estos packs se cargue de verdad en el juego, pasa a la tabla de arriba.
 
 - **Sketch Town 1.0 y Sketch Town Expansion 1.1** — Kenney (https://kenney.nl/assets/sketch-town), CC0. Copiados a `public/assets/sketch-town/` y `public/assets/sketch-town-expansion/` para terreno, murallas y decoración (en integración).
+- **UI Pack** — Kenney (https://kenney.nl/assets/ui-pack), CC0. Paneles, botones, barras, cursor y fuente Kenney Future Narrow, copiados a `public/assets/ui-pack/` (sólo lo usado) y aplicados por `ui-pack.css`.

@@ -1,0 +1,26 @@
+/* Estilo del UI Pack de Kenney (CC0) sobre la interfaz HTML: marcos de panel, botones, barras y cursor. Rutas relativas a este archivo. */
+@font-face { font-family: 'KenneyNarrow'; src: url('KenneyFutureNarrow.ttf'); }
+html, body { cursor: url('cursor_a.png') 0 0, auto; }
+.panel h3, h3.collapsible { font-family: 'KenneyNarrow', system-ui, sans-serif; letter-spacing: 0.08em; }
+.panel {
+  border: 6px solid transparent;
+  border-image: url('panel_rectangle.png') 22 / 6px stretch;
+  border-radius: 0;
+  padding: 3px 5px;
+}
+button {
+  background: transparent;
+  border: 9px solid transparent;
+  border-image: url('button_grey.png') 18 fill / 9px stretch;
+  border-radius: 0;
+  color: #232a36;
+  padding: 0 4px;
+  line-height: 1.25;
+  cursor: url('cursor_b.png') 0 0, pointer;
+}
+button:hover:not(:disabled) { border-image-source: url('button_yellow.png'); }
+button.active { border-image-source: url('button_blue.png'); }
+button:disabled { opacity: 0.45; cursor: url('cursor_a.png') 0 0, default; }
+#callWave, button.danger, #restart { border-image-source: url('button_red.png'); }
+.bar { height: 12px; background: url('bar_grey_m.png') center / 100% 100%; border-radius: 6px; }
+.bar > i { background: url('bar_blue_m.png') center / 100% 100%; border-radius: 6px; }
