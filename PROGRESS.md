@@ -104,3 +104,11 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [ ] ST1. Terreno con rampas y zonas (hierba, tierra, roca, arena, agua), yacimientos marcados.
 - [ ] ST2. Murallas con conexiones y daño, decoración con regla de bloqueo, casas.
 - [ ] ST3. Coherencia de estilo (sólo lista de propuestas).
+
+## Transporte, tuberías y guía (encargo "tutorial incompleto")
+- [ ] H1. Reglas de transporte (cintas obligatorias, líquidos fuera de cintas, entradas/salidas `puertos.ts`) con tests.
+- [ ] H2. Tuberías y petróleo → gasolina → generador funcionando (sim y tests).
+- [ ] H3. Guía de cintas y de energía con detección real y diagnóstico.
+- [ ] H4. Guía de petróleo y tuberías.
+- [ ] H5. Cadena completa a defensa, orden/tiempos con `npm run sim` (el bot usa cintas, energía y tuberías).
+- Gráficos (murallas/interfaz/terreno) van en su propia sesión.

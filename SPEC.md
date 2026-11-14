@@ -408,3 +408,16 @@ Decisiones (R):
 - **Ubicación:** los archivos están dentro del proyecto (`assets-juego/` y la raíz) pero no en `public/`, así que Vite no los servía. Se **copian** (no se mueven) a `public/assets/sketch-town/` (pack 1.0, 348 PNG, 3,4 MB) y `public/assets/sketch-town-expansion/` (236 PNG, 2,1 MB), cada uno con su licencia. Se copian sólo `*_{N,E,S,W}.png`.
 - **Terreno de prueba:** `/terreno-prueba.html` (parámetros `ox`, `oy`, `w`, `h`) dibuja piezas reescaladas para valorar el encaje; sólo desarrollo.
 - Fases siguientes (terreno con rampas y zonas, murallas con conexiones y daño, decoración y casas, coherencia de estilo) a la espera de visto bueno.
+
+## Transporte, tuberías y guía de cintas/energía/petróleo (encargo "tutorial incompleto")
+
+Reglas (T = transporte):
+- **T1. Cintas obligatorias para sólidos.** Taladro → fábrica → almacén, etc. Un edificio de producción (taladro, granja, bomba, fábrica, refinería) **no** pasa material a otro edificio de producción aunque estén juntos: su salida sólo la acepta una **cinta** o un **almacén/núcleo** (el almacén no es producción). Las cintas sí entregan en cualquier edificio que acepte el objeto.
+- **T2. Cintas con energía.** Sin energía no se mueven; entonces los Transportistas llevan el material a mano (emergencia). Los NPCs siguen construyendo, reparando, operando, investigando y entregando a mano.
+- **T3. Líquidos sólo por tuberías.** `oil` y `gasoline` (`CONFIG.liquids`) no entran en cintas. Edificio nuevo **Tubería** (`pipeline`, coste de la pieza `pipe`): se coloca y gira como una cinta (dirección = sentido del flujo), con capacidad (`CONFIG.pipe.cap`) y caudal (`CONFIG.pipe.rate`, unidades/s). Acepta líquido por detrás y los lados, nunca de frente; un solo líquido a la vez. Los líquidos se sacan de bomba/refinería/tubería sólo hacia una tubería (o, desde una tubería, hacia refinería, generador, almacén). **Las tuberías no consumen energía**; bomba y refinería sí.
+- **T4. Arranque sin bloqueo.** El jugador empieza con gasolina (`startItems.gasoline`); un Operario la lleva al generador y lo arranca, así hay energía para bomba y refinería antes de tener gasolina propia.
+- **T5. Entradas y salidas visibles.** `puertos(kind,x,y,dir)` (lógica pura, `puertos.ts`) lista cada punto de conexión: casilla, sentido, entrada/salida y medio (sólido, líquido). La vista los dibuja con flecha al colocar, al pasar el ratón y en los pasos de la guía.
+
+Guía (G): pasos reordenados — cintas (tecla 2, arrastrar, R, flechas, completar cuando llega material al destino), energía (generador, gasolina inicial, postes con alcance, HUD 0/0 → produciendo/consumiendo), petróleo (bomba → tubería → refinería → tubería → generador; completar con gasolina recibida), cadena completa (taladro → cinta → fábrica → almacén; munición → cinta → torreta), y los pasos previos. Detección real (cinta con flujo, red con producción > 0, tubería con líquido, refinería produciendo) y **diagnósticos** concretos si se atasca (cinta sin energía, sentido contrario, sin conexión, fábrica sin poste). Todo en lógica separada de Phaser, con tests; números en `config.ts`.
+
+Decisiones simples: la tubería reutiliza `b.inv` para su contenido y `b.craft` no se usa; un solo tipo de tubería (sin válvulas ni bombeo); sin depósito propio (el almacén/núcleo hace de depósito).
