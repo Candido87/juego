@@ -92,6 +92,25 @@ panel de redes (producción, consumo, batería), y marcar críticos.
 - Armadura: daño recibido = max(20 % del daño, daño − armadura), salvo láser y quemadura.
 - Desgaste: disparar desgasta la torreta; con estado < 50 % rinde a la mitad, a 0 se para. Un Operario la mantiene.
 
+## Aspecto de las torretas
+Generado por código (prismas de 3 caras) y registrado en **un único sitio**: `TURRET_LOOKS` en `src/view/shapes.ts`.
+Cada torreta se distingue por **silueta, color y animación** (reconocible con el zoom alejado).
+- **Balas**: base cuadrada baja y robusta; cabeza con cañón corto (doble desde nivel 2). Gris metálico con amarillo.
+  Disparo: retroceso del cañón, fogonazo y bala trazadora.
+- **Láser**: torre estrecha y alta, anillos de cobre y cristal brillante en la punta. Azul/cian.
+  Disparo: haz continuo; el brillo del cristal sube con la energía de la red.
+- **Fuego**: base ancha con depósito visible (marca el nivel de combustible) y boquilla corta. Naranja/rojo ennegrecido.
+  Disparo: llamarada en cono con chispas.
+- **Hielo**: base hexagonal-ish con cristales azul claro en punta. Disparo: esquirlas y nube helada.
+  (No se añade misil: "otros tipos extra que existan" → sólo existe hielo. Decisión simple.)
+- **Cabeza que gira**: la base es una imagen fija; la cabeza es otra imagen con **8 orientaciones horneadas**
+  (en isométrico no vale rotar el sprite). Se elige la orientación más cercana al objetivo.
+- **Niveles 1–3**: cada nivel tiene su variante (más grande, más cañones/anillos, tono nuevo).
+- **Estados**: en obra → andamio + translúcida; sin munición/energía → oscurecida + icono de aviso;
+  dañada (< 50 % vida) → grietas y humo.
+- Interfaz: icono por torreta en el menú (misma silueta) y ficha al pasar el ratón (tipo, nivel, daño, alcance,
+  munición/energía).
+
 ## Murallas y enemigos
 - Muros de madera / piedra / metal con vida y coste distintos. Se reparan con su material (Constructor).
 - **Regla elegida**: se permite cortar el camino. Los enemigos calculan su ruta con costes:
