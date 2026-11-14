@@ -21,6 +21,7 @@ import {
   npcKey,
   shapeInfo,
   shapeKey,
+  ensureTurretLevel,
   turretLook,
   terrainKey,
 } from './shapes';
@@ -38,6 +39,8 @@ interface BSprite {
   /** Cabeza giratoria de las torretas modeladas. */
   head?: Phaser.GameObjects.Image;
   headKey?: string;
+  /** Nivel del modelo de torreta mostrado. */
+  level?: number;
 }
 
 interface Mover {
@@ -344,10 +347,13 @@ export class GameScene extends Phaser.Scene {
         s = { img, shadow, key, tall: info.tall, alpha: 1 };
         const look = turretLook(this, b.kind);
         if (look) {
-          const bk = turretBaseKey(look, 1);
+          const lv = this.sim.turretLevel[b.kind as TurretKind] ?? 1;
+          ensureTurretLevel(this, lv);
+          const bk = turretBaseKey(look, lv);
           const bi = shapeInfo(bk);
           img.setTexture(bk).setOrigin(bi.originX, bi.originY);
-          s.head = this.add.image(pos.x, pos.y, turretHeadKey(look, 1, 0)).setOrigin(bi.originX, bi.originY).setDepth(img.depth + 0.1);
+          s.level = lv;
+          s.head = this.add.image(pos.x, pos.y, turretHeadKey(look, lv, 0)).setOrigin(bi.originX, bi.originY).setDepth(img.depth + 0.1);
         }
         this.bSprites.set(b.id, s);
       } else if (s.key !== key) {
@@ -357,7 +363,15 @@ export class GameScene extends Phaser.Scene {
       }
       if (s.head) {
         const look = turretLook(this, b.kind)!;
-        const hk = turretHeadKey(look, 1, headIndex(this.turretYaw.get(b.id) ?? Math.PI / 4));
+        const lv = this.sim.turretLevel[b.kind as TurretKind] ?? 1;
+        if (lv !== s.level) {
+          // Mejora de nivel: nuevo modelo (más cañones, blindaje y color).
+          ensureTurretLevel(this, lv);
+          s.img.setTexture(turretBaseKey(look, lv));
+          s.level = lv;
+          s.headKey = undefined;
+        }
+        const hk = turretHeadKey(look, lv, headIndex(this.turretYaw.get(b.id) ?? Math.PI / 4));
         if (hk !== s.headKey) {
           s.head.setTexture(hk);
           s.headKey = hk;
@@ -369,11 +383,15 @@ export class GameScene extends Phaser.Scene {
         s.head.setPosition(pos.x - (Math.cos(yaw) - Math.sin(yaw)) * recoil * 0.5, pos.y - (Math.cos(yaw) + Math.sin(yaw)) * recoil * 0.25);
         if (!b.built) s.head.setTint(0xbfd4ff);
         else if (b.markedForRemoval) s.head.setTint(0xff8080);
-        else s.head.clearTint();
+        else if (!this.sim.turretReady(b)) {
+          // Sin munición ni energía: apagada.
+          s.head.setTint(0x8f94a6);
+        } else s.head.clearTint();
       }
       s.shadow?.setVisible(b.built);
       if (!b.built) s.img.setTint(0xbfd4ff);
       else if (b.markedForRemoval) s.img.setTint(0xff8080);
+      else if (s.head && !this.sim.turretReady(b)) s.img.setTint(0x9a9fb0);
       else s.img.clearTint();
       // Luz de alarma: torreta sin munición o generador parado.
       const gen = CONFIG.power.generators[b.kind as BuildKind];
@@ -506,7 +524,12 @@ export class GameScene extends Phaser.Scene {
         const to = this.groundScreen(ev.toX, ev.toY);
         to.y -= 10;
         this.flashes.push({ kind: 'shot', color: SHOT_COLORS[ev.kind as TurretKind], a: from, b: to, ttl: 0.12, max: 0.12 });
-        this.turretYaw.set(ev.towerId, Math.atan2(ev.toY - ev.fromY, ev.toX - ev.fromX));
+        const yaw = Math.atan2(ev.toY - ev.fromY, ev.toX - ev.fromX);
+        this.turretYaw.set(ev.towerId, yaw);
+        // Fogonazo en la boca del arma (0,55 casillas por delante del centro).
+        const mx = from.x + (Math.cos(yaw) - Math.sin(yaw)) * 0.55 * HALF_W;
+        const my = from.y + (Math.cos(yaw) + Math.sin(yaw)) * 0.55 * HALF_H;
+        this.flashes.push({ kind: 'pop', color: SHOT_COLORS[ev.kind as TurretKind], a: { x: mx, y: my + 8 }, b: { x: mx, y: my + 8 }, ttl: 0.1, max: 0.1 });
         this.turretKick.set(ev.towerId, this.sim.time + 0.12);
       } else if (ev.type === 'kill') {
         const p = this.groundScreen(ev.x, ev.y);
@@ -577,6 +600,30 @@ export class GameScene extends Phaser.Scene {
     return [gridToScreen(x, y, z), gridToScreen(x + w, y, z), gridToScreen(x + w, y + d, z), gridToScreen(x, y + d, z)];
   }
 
+  /** Efectos baratos de las torretas visibles: humo si están dañadas y brillo propio de cada tipo cuando están listas. */
+  private drawTurretFx(g: Phaser.GameObjects.Graphics, world: typeof this.sim.world) {
+    const view = this.cameras.main.worldView;
+    const t = this.sim.time;
+    for (const [id, s] of this.bSprites) {
+      if (!s.head) continue;
+      const b = this.sim.buildings.get(id);
+      if (!b || !b.built) continue;
+      const c = gridToScreen(b.x + 0.5, b.y + 0.5, heightAt(world, b.x, b.y));
+      if (!view.contains(c.x, c.y - 30)) continue;
+      const top = c.y - 48;
+      if (b.hp < b.maxHp * 0.5) {
+        for (let k = 0; k < 3; k++) {
+          const ph = (t * 0.55 + k / 3) % 1;
+          g.fillStyle(k === 1 ? 0x555555 : 0x2e2e2e, (1 - ph) * 0.55).fillCircle(c.x + Math.sin((ph + k) * 6) * 5, top + 6 - ph * 28, 2.5 + ph * 6);
+        }
+      }
+      if (!this.sim.turretReady(b)) continue;
+      if (b.kind === 'turret_laser') g.fillStyle(0xff66ff, 0.22 + 0.18 * Math.sin(t * 5 + id)).fillCircle(c.x - 1, top - 3, 6 + Math.sin(t * 5 + id));
+      else if (b.kind === 'turret_frost') g.fillStyle(0xcff6ff, 0.18 + 0.15 * Math.sin(t * 3 + id)).fillCircle(c.x - 5, top - 2, 7);
+      else if (b.kind === 'turret_fire') g.fillStyle(0xff9a3a, 0.5 + 0.4 * Math.sin(t * 17 + id * 3)).fillCircle(c.x + 2, top + 14, 2.2);
+    }
+  }
+
   /** Flecha que rebota y rombo sobre la casilla que recomienda la guía de inicio. */
   private drawGuideMark(g: Phaser.GameObjects.Graphics, world: typeof this.sim.world) {
     const t = getHud().guia.targetTile();
@@ -598,6 +645,7 @@ export class GameScene extends Phaser.Scene {
     const world = this.sim.world;
 
     this.drawGuideMark(g, world);
+    this.drawTurretFx(g, world);
 
     const sel = ui.selected !== null ? this.sim.buildings.get(ui.selected) : undefined;
     if (ui.selected !== null && !sel) ui.selected = null;

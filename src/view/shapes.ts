@@ -653,8 +653,13 @@ function bakeTurrets(scene: Phaser.Scene, level = 1) {
 }
 
 /** Claves de la torreta modelada (base y cabezas) si existen sus texturas; si no, undefined (se usa el prisma). */
-export function turretLook(scene: Phaser.Scene, kind: string, level = 1): TurretLook | undefined {
-  return (MODELED as string[]).includes(kind) && scene.textures.exists(turretBaseKey(kind as TurretLook, level)) ? (kind as TurretLook) : undefined;
+export function turretLook(scene: Phaser.Scene, kind: string): TurretLook | undefined {
+  return (MODELED as string[]).includes(kind) && scene.textures.exists(turretBaseKey(kind as TurretLook, 1)) ? (kind as TurretLook) : undefined;
+}
+
+/** Hornea (una sola vez, al hacer falta) las texturas de un nivel de torreta. */
+export function ensureTurretLevel(scene: Phaser.Scene, level: number): void {
+  if (!scene.textures.exists(turretBaseKey(MODELED[0], level))) bakeTurrets(scene, level);
 }
 
 /** Genera todas las texturas (una vez por partida de Phaser). */
