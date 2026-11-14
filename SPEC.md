@@ -326,3 +326,13 @@ Sólo capa de interfaz: sin cambiar la lógica ni los números.
 - **Fase 2 – tooltips**: ~300 ms de espera, dentro de la pantalla y colocados **encima del menú** sin tapar el botón señalado; coste en verde (tienes) / rojo (falta).
 - **Fase 3 – menú por categorías**: Extracción, Transporte, Industria, Energía, Defensa, Población, Servicios; una fila por categoría activa; Q/E o rueda para cambiar; el indicador de casilla va a un sitio fijo y pequeño.
 - **Fase 4 – paneles**: ayuda plegable (H o ?), Almacén y NPCs plegables con resumen, materiales agrupados por tipo, sin solapes a distintos tamaños.
+
+### Fase 2 de interfaz — tooltips (hecha)
+- Gestor `src/view/tooltip.ts` (cualquier elemento con `data-tip="tipo:id"`), contenido en `src/game/tooltips.ts` y colocación en `src/view/tipPlacement.ts` (las tres, con tests).
+- Retardo `CONFIG.ui.tipDelay` = 300 ms; se refresca cada 250 ms mientras se muestra (coste verde/rojo y cantidades al día) y se oculta al hacer clic, usar la rueda, pulsar tecla o salir de la ventana.
+- Colocación: menú de construcción → **encima del menú**; Almacén → **a un lado** del panel; HUD → **debajo**. Siempre dentro de la pantalla y sin tapar el elemento señalado (test con muchas combinaciones).
+- **Falta / sobra** de un material (decisión simple, números en `CONFIG.ui`):
+  - *Falta*: las obras pendientes piden más de lo que hay; o hay 0 y se usa en algo desbloqueado; la comida: hambre o menos de 1,5 min de consumo.
+  - *Sobra*: sin obras pendientes que lo pidan y ≥ 8× el mayor coste que lo usa (o ≥ 60 si no se gasta construyendo: mena, munición, gasolina); la comida: ≥ 5 min de consumo.
+- Los edificios bloqueados muestran el motivo (`Requiere investigar: <tecnología>` cuando exista en el árbol).
+- Pendiente (Fase 3): el indicador "Casilla x,y" (`#info`) aún tapa el menú; pasa a un sitio fijo y pequeño.

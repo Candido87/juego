@@ -6,6 +6,7 @@ import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
 import { BUILD_KINDS, Bag, BuildKind, Dir, FREE_ROLES, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
 import { demandOf, isElectric } from '../game/power';
 import { ITEM_COLORS } from './shapes';
+import { TooltipManager } from './tooltip';
 import { JOB_ICONS, ROLE_ICONS, TILESHEET, TOOL_ICONS, frameRect } from './sprites';
 
 // ------------------------------------------------------------------ iconos del pack
@@ -67,6 +68,7 @@ export class Hud {
   private toolsKey = '';
 
   constructor() {
+    new TooltipManager(() => this.sim);
     $('toolbar').addEventListener('click', (ev) => {
       const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-tool]');
       if (!btn) return;
@@ -197,7 +199,7 @@ export class Hud {
     $('tools').innerHTML = tools
       .map((k, i) => {
         const def = sim.def(k);
-        return `<button data-tool="${k}" title="${def.name}: ${entries(def.cost).map(([it, n]) => `${n} ${itemName(it)}`).join(', ')}">${iconHtml(TOOL_ICONS[k])}${i < 9 ? `${i + 1} · ` : ''}${def.name}</button>`;
+        return `<button data-tool="${k}" data-tip="build:${k}" data-key="${i < 9 ? i + 1 : ''}">${iconHtml(TOOL_ICONS[k])}${i < 9 ? `${i + 1} · ` : ''}${def.name}</button>`;
       })
       .join('');
     this.setTool(ui.tool && ui.tool !== 'remove' && !tools.includes(ui.tool) ? null : ui.tool);
@@ -211,8 +213,8 @@ export class Hud {
     const food = count(sim.storage, 'food');
     const perMin = sim.foodPerMinute();
     const mins = perMin > 0 ? food / perMin : Infinity;
-    const foodCls = sim.hungry ? 'bad' : mins < 1.5 ? 'warn' : '';
-    const foodState = sim.hungry ? ' ¡HAMBRE!' : mins < 1.5 ? ' (queda poca)' : '';
+    const foodCls = sim.hungry ? 'bad' : mins < CONFIG.ui.foodLowMinutes ? 'warn' : '';
+    const foodState = sim.hungry ? ' ¡HAMBRE!' : mins < CONFIG.ui.foodLowMinutes ? ' (queda poca)' : '';
     let prod = 0;
     let dem = 0;
     for (const n of sim.grid.nets) {
@@ -225,10 +227,10 @@ export class Hud {
       : `<span class="muted" title="Sin taller reparan los Constructores, más despacio">Sin taller (${repairs} reparaciones)</span>`;
     this.set(
       'colony',
-      `<span title="Libres / trabajando / en el taller · plazas de vivienda">Población <b>${sim.population}</b>/${sim.housingCapacity()} <span class="muted">(${free} libres, ${busy} trabajando, ${mech} taller)</span></span>
-      <span class="${foodCls}" title="Comida almacenada · consumo por minuto">Comida <b>${food}</b> <span class="muted">−${perMin.toFixed(0)}/min</span>${foodState}</span>
-      <span title="Gasolina en el almacén">Gasolina <b>${count(sim.storage, 'gasoline')}</b></span>
-      <span title="Producción / consumo eléctrico">Energía <b class="${dem > prod ? 'bad' : ''}">${prod.toFixed(0)}/${dem.toFixed(0)}</b></span>
+      `<span data-tip="hud:population">Población <b>${sim.population}</b>/${sim.housingCapacity()} <span class="muted">(${free} libres, ${busy} trabajando, ${mech} taller)</span></span>
+      <span class="${foodCls}" data-tip="hud:food">Comida <b>${food}</b> <span class="muted">−${perMin.toFixed(0)}/min</span>${foodState}</span>
+      <span data-tip="hud:gasoline">Gasolina <b>${count(sim.storage, 'gasoline')}</b></span>
+      <span data-tip="hud:energy">Energía <b class="${dem > prod ? 'bad' : ''}">${prod.toFixed(0)}/${dem.toFixed(0)}</b></span>
       <span>${shop}</span>`,
       true,
     );
@@ -236,7 +238,7 @@ export class Hud {
 
   private renderInventory(sim: Game) {
     const rows = entries(sim.storage)
-      .map(([i, n]) => `<div class="it"><span>${dot(i)}${itemName(i)}</span><b>${n}</b></div>`)
+      .map(([i, n]) => `<div class="it" data-tip="item:${i}"><span>${dot(i)}${itemName(i)}</span><b>${n}</b></div>`)
       .join('');
     this.set('invList', rows || '<span class="muted">vacío</span>', true);
   }

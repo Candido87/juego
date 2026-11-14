@@ -329,6 +329,22 @@ export const CONFIG = {
 
   tech: [] as TechNode[],
 
+  /** Interfaz: tooltips y avisos. */
+  ui: {
+    /** Retraso (ms) antes de enseñar un tooltip. */
+    tipDelay: 300,
+    /** Margen (px) con el borde de la pantalla y separación con el panel. */
+    tipMargin: 8,
+    tipGap: 8,
+    /** Un material "sobra" cuando hay ≥ este múltiplo del mayor coste que lo usa. */
+    surplusFactor: 8,
+    /** Umbral de "sobra" para materiales que no se gastan en construir (mena, munición, gasolina). */
+    surplusFallback: 60,
+    /** La comida "sobra" con tantos minutos de consumo guardados, y "queda poca" por debajo de foodLowMinutes. */
+    foodSurplusMinutes: 5,
+    foodLowMinutes: 1.5,
+  },
+
   /** Tutorial: mapa pequeño y fijo con configuración propia (el juego normal no cambia). */
   tutorial: {
     seed: 7,

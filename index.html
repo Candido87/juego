@@ -48,16 +48,19 @@
       #tech .node.locked { opacity: 0.45; }
       #tech .node.current { border-color: #6fd3ff; }
       #tech .arrow { color: #46505f; }
-      #tip { position: fixed; display: none; pointer-events: none; z-index: 10; max-width: 260px; }
+      #tip { position: fixed; display: none; pointer-events: none; z-index: 10; width: max-content; max-width: 320px; font-size: 12px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
+      #tip .tt-title { font-size: 13px; font-weight: 600; color: #98c1d9; margin-bottom: 3px; }
+      #tip .tt-sec { margin-top: 5px; }
+      #tip .tt-stats { margin-top: 5px; color: #b9c2cf; }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="hud" class="panel">
       <div class="row">
-        <span>Núcleo <b id="core">0</b></span>
-        <span>Oleada <b id="wave">0</b></span>
-        <span>Siguiente en <b id="next">0</b>s</span>
+        <span data-tip="hud:core">Núcleo <b id="core">0</b></span>
+        <span data-tip="hud:wave">Oleada <b id="wave">0</b></span>
+        <span data-tip="hud:wave">Siguiente en <b id="next">0</b>s</span>
         <span id="researchWrap">Investigando <b id="research">—</b></span>
       </div>
       <div class="row" id="colony"></div>

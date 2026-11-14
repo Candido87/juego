@@ -57,7 +57,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 
 ### Interfaz clara (descripciones, tooltips, menú por categorías)
 - [x] UI1. descripciones.ts con datos leídos de config y tests.
-- [ ] UI2. Tooltips (menú, almacén, HUD) que no tapan el botón señalado.
+- [x] UI2. Tooltips (menú, almacén, HUD) que no tapan el botón señalado.
 - [ ] UI3. Menú de construcción por categorías, atajos y casilla en sitio fijo.
 - [ ] UI4. Paneles plegables, ayuda con H, almacén agrupado, sin solapes.
 
