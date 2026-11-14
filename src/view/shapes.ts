@@ -5,13 +5,16 @@
  * prisma se pinta con 3 caras de distinto tono (arriba, izquierda, derecha) para dar volumen.
  * En `buildTextures` se "hornean" a texturas de Phaser con una clave (p. ej. 'turret_laser', 'belt_2').
  *
- * PARA PASAR A SPRITES REALES: carga imágenes con las mismas claves (this.load.image('turret_laser', ...))
- * y registra su punto de anclaje en SHAPE_INFO (originX/originY = dónde cae la esquina superior
- * de la casilla a altura 0). El resto del código sólo usa shapeKey()/shapeInfo().
+ * SPRITES: el pack "Tiny Factory" de Kenney (CC0) se usa así (mapa de casillas en `sprites.ts`):
+ * - una casilla cenital puede proyectarse sobre la cara superior de un prisma (`Part.tex`),
+ * - los NPCs y marcadores son sprites de pie (BILLBOARDS), escalados x2.
+ * Para cambiar un modelo por un sprite propio: carga la imagen con la misma clave y registra su
+ * anclaje en SHAPE_INFO. El resto del código sólo usa shapeKey()/shapeInfo().
  */
 import Phaser from 'phaser';
 import { HALF_H, HALF_W, Z_STEP } from '../game/iso';
-import { BuildingKind, DX, DY, Dir, ENEMY_KINDS, EnemyKind, ITEM_IDS, ItemId, NPC_ROLES, NpcRole, Ore, TurretKind } from '../game/types';
+import { BuildingKind, DX, DY, Dir, ENEMY_KINDS, EnemyKind, ITEM_IDS, ItemId, Ore, TurretKind } from '../game/types';
+import { BILLBOARDS, TILESHEET, TOP_TEXTURES, TopTexture, frameRect, rotationFor } from './sprites';
 
 /** Prisma: x,y,w,d en casillas (relativo a la esquina de la huella); z,h en píxeles. */
 export interface Part {
@@ -26,14 +29,61 @@ export interface Part {
   side?: number;
   /** Opacidad del contorno (0 = sin contorno). */
   edge?: number;
+  /** Casilla del pack proyectada sobre la cara superior (rot = giros horarios de 90°). */
+  tex?: { frame: number; rot: number };
 }
 
 type P3 = (gx: number, gy: number, gz: number) => { x: number; y: number };
+type Pt = { x: number; y: number };
+
+/** Lápiz sobre canvas 2D con la misma API que usaban los detalles (fillStyle, fillPoints...). */
+export class Pen {
+  constructor(readonly ctx: CanvasRenderingContext2D) {}
+  private rgba(c: number, a: number) {
+    return `rgba(${(c >> 16) & 255},${(c >> 8) & 255},${c & 255},${a})`;
+  }
+  fillStyle(color: number, alpha = 1): this {
+    this.ctx.fillStyle = this.rgba(color, alpha);
+    return this;
+  }
+  lineStyle(width: number, color: number, alpha = 1): this {
+    this.ctx.lineWidth = width;
+    this.ctx.strokeStyle = this.rgba(color, alpha);
+    return this;
+  }
+  private path(pts: Pt[], close: boolean) {
+    const c = this.ctx;
+    c.beginPath();
+    pts.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)));
+    if (close) c.closePath();
+  }
+  fillPoints(pts: Pt[], _close = true): this {
+    this.path(pts, true);
+    this.ctx.fill();
+    return this;
+  }
+  strokePoints(pts: Pt[], close = false): this {
+    this.path(pts, close);
+    this.ctx.stroke();
+    return this;
+  }
+  lineBetween(x1: number, y1: number, x2: number, y2: number): this {
+    this.path([{ x: x1, y: y1 }, { x: x2, y: y2 }], false);
+    this.ctx.stroke();
+    return this;
+  }
+}
+
+/** Casilla con textura del pack para la cara superior de un prisma de `kind`. */
+function topTex(kind: BuildingKind, dir: Dir = 0): Part['tex'] {
+  const t: TopTexture | undefined = TOP_TEXTURES[kind];
+  return t ? { frame: t.frame, rot: t.directional ? rotationFor(dir) : 0 } : undefined;
+}
 
 export interface ShapeDef {
   parts: Part[];
   /** Detalles extra pintados encima (flechas, vetas de mena...). */
-  decal?: (g: Phaser.GameObjects.Graphics, P: P3) => void;
+  decal?: (g: Pen, P: P3) => void;
   /** Prismas invisibles que sólo amplían el tamaño de la textura. */
   bounds?: Part[];
   /** Objetos altos: se vuelven semitransparentes si tapan al cursor, enemigos o NPCs. */
@@ -114,11 +164,6 @@ const ENEMY_COLORS: Record<EnemyKind, [number, number]> = {
   tank: [0x8c2a2a, 0x3d1010],
 };
 
-const NPC_COLORS: Record<NpcRole, number> = {
-  constructor: 0xf2c14e,
-  transporter: 0x4fc3f7,
-  operator: 0x7dff8a,
-};
 
 /** Multiplicadores de luz por cara (luz desde arriba-izquierda). */
 const LIGHT = { top: 1.1, left: 0.82, right: 0.62 };
@@ -135,7 +180,7 @@ export function shade(c: number, f: number): number {
 // ------------------------------------------------------------------ modelos
 
 function arrowDecal(dir: Dir, z: number, color: number, size = 1) {
-  return (g: Phaser.GameObjects.Graphics, P: P3) => {
+  return (g: Pen, P: P3) => {
     const fx = DX[dir];
     const fy = DY[dir];
     const sx = -fy;
@@ -153,19 +198,11 @@ function arrowDecal(dir: Dir, z: number, color: number, size = 1) {
   };
 }
 
+/** Cinta: la superficie es la casilla de cinta del pack (con sus chevrones), girada según la dirección. */
 function beltShape(dir: Dir, fast: boolean): ShapeDef {
+  const kind = fast ? 'belt_fast' : 'belt';
   return {
-    parts: [{ x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 0, h: 4, color: fast ? COLORS.beltFast : COLORS.belt }],
-    decal: (g, P) => {
-      g.lineStyle(1, 0x15181d, 0.8);
-      const along = DX[dir] !== 0;
-      for (const o of [0.18, 0.82]) {
-        const a = along ? P(0.1, o, 4) : P(o, 0.1, 4);
-        const b = along ? P(0.9, o, 4) : P(o, 0.9, 4);
-        g.lineBetween(a.x, a.y, b.x, b.y);
-      }
-      arrowDecal(dir, 4, fast ? COLORS.beltArrowFast : COLORS.beltArrow, 0.9)(g, P);
-    },
+    parts: [{ x: 0, y: 0, w: 1, d: 1, z: 0, h: 4, color: fast ? COLORS.beltFast : COLORS.belt, tex: topTex(kind, dir), edge: 0 }],
   };
 }
 
@@ -184,7 +221,7 @@ function drillShape(dir: Dir): ShapeDef {
 function factoryShape(dir: Dir): ShapeDef {
   return {
     parts: [
-      { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 0, h: 22, color: COLORS.factory },
+      { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 0, h: 22, color: COLORS.factory, tex: topTex('factory') },
       { x: 0.12, y: 0.62, w: 0.26, d: 0.26, z: 22, h: 22, color: COLORS.dark },
     ],
     decal: arrowDecal(dir, 22, COLORS.beltArrow, 0.6),
@@ -206,11 +243,11 @@ function turret(base: number, column: number, head: number, extra: Part[] = []):
   };
 }
 
-function wall(color: number, h: number): ShapeDef {
+function wall(color: number, h: number, tex?: Part['tex']): ShapeDef {
   return {
     parts: [
       { x: 0.02, y: 0.02, w: 0.96, d: 0.96, z: 0, h, color },
-      { x: 0.1, y: 0.1, w: 0.8, d: 0.8, z: h, h: 4, color: shade(color, 1.1) },
+      { x: 0.1, y: 0.1, w: 0.8, d: 0.8, z: h, h: 4, color: shade(color, 1.1), tex },
     ],
     tall: true,
     shadow: 'shadow_1',
@@ -230,15 +267,6 @@ function enemyShape(kind: EnemyKind): ShapeDef {
   return { parts };
 }
 
-function npcShape(role: NpcRole): ShapeDef {
-  return {
-    parts: [
-      { x: -0.12, y: -0.12, w: 0.24, d: 0.24, z: 0, h: 12, color: 0x3b4a5c },
-      { x: -0.13, y: -0.13, w: 0.26, d: 0.26, z: 12, h: 8, color: NPC_COLORS[role] },
-      { x: -0.08, y: -0.08, w: 0.16, d: 0.16, z: 20, h: 7, color: 0xf1c9a5 },
-    ],
-  };
-}
 
 function itemShape(item: ItemId): ShapeDef {
   return { parts: [{ x: -0.1, y: -0.1, w: 0.2, d: 0.2, z: 4, h: 7, color: ITEM_COLORS[item] }] };
@@ -248,7 +276,7 @@ export const SHAPES: Record<string, ShapeDef> = {
   core: {
     parts: [
       { x: 0.1, y: 0.1, w: 1.8, d: 1.8, z: 0, h: 26, color: COLORS.core },
-      { x: 0.45, y: 0.45, w: 1.1, d: 1.1, z: 26, h: 30, color: COLORS.coreTop },
+      { x: 0.45, y: 0.45, w: 1.1, d: 1.1, z: 26, h: 30, color: COLORS.coreTop, tex: topTex('core') },
       { x: 0.8, y: 0.8, w: 0.4, d: 0.4, z: 56, h: 16, color: COLORS.coreGem },
     ],
     tall: true,
@@ -257,7 +285,7 @@ export const SHAPES: Record<string, ShapeDef> = {
   storage: {
     parts: [
       { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 0, h: 18, color: COLORS.storage },
-      { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 18, h: 4, color: shade(COLORS.storage, 0.8) },
+      { x: 0.06, y: 0.06, w: 0.88, d: 0.88, z: 18, h: 4, color: shade(COLORS.storage, 0.8), tex: topTex('storage') },
     ],
     shadow: 'shadow_1',
   },
@@ -309,8 +337,7 @@ export const SHAPES: Record<string, ShapeDef> = {
   accumulator: {
     parts: [
       { x: 0.12, y: 0.12, w: 0.76, d: 0.76, z: 0, h: 8, color: COLORS.dark },
-      { x: 0.2, y: 0.2, w: 0.6, d: 0.6, z: 8, h: 22, color: COLORS.accumulator },
-      { x: 0.4, y: 0.4, w: 0.2, d: 0.2, z: 30, h: 5, color: 0xc0ffc0 },
+      { x: 0.2, y: 0.2, w: 0.6, d: 0.6, z: 8, h: 22, color: COLORS.accumulator, tex: topTex('accumulator') },
     ],
     tall: true,
     shadow: 'shadow_1',
@@ -321,7 +348,7 @@ export const SHAPES: Record<string, ShapeDef> = {
   turret_frost: turret(0x4a6a8a, 0x8ab8d8, COLORS.frost),
   wall_wood: wall(COLORS.wood, 24),
   wall_stone: wall(COLORS.stone, 30),
-  wall_metal: wall(COLORS.steel, 36),
+  wall_metal: wall(COLORS.steel, 36, topTex('wall_metal')),
 };
 for (let d = 0; d < 4; d++) {
   const dir = d as Dir;
@@ -341,7 +368,6 @@ for (let d = 0; d < 4; d++) {
 /** Altura (px) a la que cuelgan los cables de los postes. */
 export const WIRE_Z = 46;
 for (const k of ENEMY_KINDS) SHAPES[`enemy_${k}`] = enemyShape(k);
-for (const r of NPC_ROLES) SHAPES[`npc_${r}`] = npcShape(r);
 for (const i of ITEM_IDS) SHAPES[`item_${i}`] = itemShape(i);
 
 /** Altura de la "boca" de las torretas, para dibujar los disparos. */
@@ -355,7 +381,7 @@ export function shapeKey(kind: BuildingKind, dir: Dir): string {
 }
 export const itemKey = (item: ItemId) => `item_${item}`;
 export const enemyKey = (k: EnemyKind) => `enemy_${k}`;
-export const npcKey = (r: NpcRole) => `npc_${r}`;
+export const npcKey = (r: string) => `npc_${r}`;
 
 // ------------------------------------------------------------------ terreno
 
@@ -406,7 +432,39 @@ export function shapeInfo(key: string): ShapeInfo {
   return info;
 }
 
-function drawPart(g: Phaser.GameObjects.Graphics, p: Part, P: P3) {
+/** Casilla del pack (ya cargado en Phaser) girada `rot` veces 90° en sentido horario. */
+function tileCanvas(scene: Phaser.Scene, frame: number, rot: number): HTMLCanvasElement {
+  const t = TILESHEET.tile;
+  const src = scene.textures.get(TILESHEET.key).getSourceImage() as HTMLImageElement;
+  const c = document.createElement('canvas');
+  c.width = t;
+  c.height = t;
+  const ctx = c.getContext('2d')!;
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(t / 2, t / 2);
+  ctx.rotate((rot * Math.PI) / 2);
+  const r = frameRect(frame);
+  ctx.drawImage(src, r.x, r.y, r.w, r.h, -t / 2, -t / 2, t, t);
+  return c;
+}
+
+/** Proyecta una casilla cenital sobre la cara superior (rombo) de un prisma. */
+function drawTop(scene: Phaser.Scene, ctx: CanvasRenderingContext2D, p: Part, P: P3) {
+  if (!p.tex || !scene.textures.exists(TILESHEET.key)) return;
+  const t = TILESHEET.tile;
+  const z = p.z + p.h;
+  const o = P(p.x, p.y, z);
+  const ux = P(p.x + p.w, p.y, z);
+  const vy = P(p.x, p.y + p.d, z);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  // Transformación afín: (u,v) de la casilla → cara superior isométrica.
+  ctx.setTransform((ux.x - o.x) / t, (ux.y - o.y) / t, (vy.x - o.x) / t, (vy.y - o.y) / t, o.x, o.y);
+  ctx.drawImage(tileCanvas(scene, p.tex.frame, p.tex.rot), 0, 0);
+  ctx.restore();
+}
+
+function drawPart(scene: Phaser.Scene, pen: Pen, p: Part, P: P3) {
   const x0 = p.x;
   const y0 = p.y;
   const x1 = p.x + p.w;
@@ -415,23 +473,27 @@ function drawPart(g: Phaser.GameObjects.Graphics, p: Part, P: P3) {
   const z1 = p.z + p.h;
   const side = p.side ?? p.color;
   const edge = p.edge ?? 0.35;
-  const faces: [number, { x: number; y: number }[]][] = [];
+  const faces: [number, Pt[]][] = [];
   if (p.h > 0) {
     faces.push([shade(side, LIGHT.left), [P(x0, y1, z1), P(x1, y1, z1), P(x1, y1, z0), P(x0, y1, z0)]]);
     faces.push([shade(side, LIGHT.right), [P(x1, y0, z1), P(x1, y1, z1), P(x1, y1, z0), P(x1, y0, z0)]]);
   }
   faces.push([p.side ? p.color : shade(p.color, LIGHT.top), [P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)]]);
-  for (const [color, pts] of faces) {
-    g.fillStyle(color, 1);
-    g.fillPoints(pts, true);
-    if (edge > 0) {
-      g.lineStyle(1, shade(color, 0.5), edge);
-      g.strokePoints(pts, true);
-    }
-  }
+  faces.forEach(([color, pts], i) => {
+    pen.fillStyle(color, 1).fillPoints(pts);
+    if (i === faces.length - 1) drawTop(scene, pen.ctx, p, P);
+    if (edge > 0) pen.lineStyle(1, shade(color, 0.5), edge).strokePoints(pts, true);
+  });
 }
 
-function bake(scene: Phaser.Scene, key: string, def: ShapeDef, extraDraw?: (g: Phaser.GameObjects.Graphics, P: P3) => void) {
+/** Crea una textura de canvas con la clave dada (sustituye si existía). */
+function canvasTexture(scene: Phaser.Scene, key: string, W: number, H: number): [Phaser.Textures.CanvasTexture, CanvasRenderingContext2D] {
+  if (scene.textures.exists(key)) scene.textures.remove(key);
+  const tex = scene.textures.createCanvas(key, W, H)!;
+  return [tex, tex.getContext()];
+}
+
+function bake(scene: Phaser.Scene, key: string, def: ShapeDef, extraDraw?: (g: Pen, P: P3) => void) {
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -448,13 +510,23 @@ function bake(scene: Phaser.Scene, key: string, def: ShapeDef, extraDraw?: (g: P
   const W = Math.ceil(maxX - minX + pad * 2) + 1;
   const H = Math.ceil(maxY - minY + pad * 2) + 1;
   const P: P3 = (gx, gy, gz) => ({ x: ox + (gx - gy) * HALF_W, y: oy + (gx + gy) * HALF_H - gz });
-  const g = scene.add.graphics();
-  for (const p of def.parts) drawPart(g, p, P);
-  def.decal?.(g, P);
-  extraDraw?.(g, P);
-  g.generateTexture(key, W, H);
-  g.destroy();
+  const [tex, ctx] = canvasTexture(scene, key, W, H);
+  const pen = new Pen(ctx);
+  for (const p of def.parts) drawPart(scene, pen, p, P);
+  def.decal?.(pen, P);
+  extraDraw?.(pen, P);
+  tex.refresh();
   SHAPE_INFO.set(key, { originX: ox / W, originY: oy / H, tall: !!def.tall, shadow: def.shadow });
+}
+
+/** Sprite de pie del pack, escalado `scale` veces y anclado por los pies (abajo-centro). */
+function bakeBillboard(scene: Phaser.Scene, key: string, frame: number, scale = 2) {
+  const t = TILESHEET.tile * scale;
+  const [tex, ctx] = canvasTexture(scene, key, t, t);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(tileCanvas(scene, frame, 0), 0, 0, t, t);
+  tex.refresh();
+  SHAPE_INFO.set(key, { originX: 0.5, originY: 0.94, tall: false });
 }
 
 /** Sombra suave: varias capas translúcidas desplazadas hacia abajo-derecha (luz desde arriba-izquierda). */
@@ -474,10 +546,16 @@ function bakeShadow(scene: Phaser.Scene, key: string, size: number, center = fal
   });
 }
 
+/** Carga la hoja del pack (llamar en preload). */
+export function preloadSprites(scene: Phaser.Scene): void {
+  if (!scene.textures.exists(TILESHEET.key)) scene.load.image(TILESHEET.key, TILESHEET.url);
+}
+
 /** Genera todas las texturas (una vez por partida de Phaser). */
 export function buildTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists('core')) return;
   for (const [key, def] of Object.entries(SHAPES)) bake(scene, key, def);
+  for (const [key, frame] of Object.entries(BILLBOARDS)) bakeBillboard(scene, key, frame);
   bakeShadow(scene, 'shadow_1', 1);
   bakeShadow(scene, 'shadow_2', 2);
   bakeShadow(scene, 'shadow_small', 0.5, true);

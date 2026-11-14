@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 import { CONFIG } from '../game/config';
 import { Game } from '../game/game';
 import { HALF_H, HALF_W, Vec2, depthOf, gridToScreen, occludes, pickTile } from '../game/iso';
-import { DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
+import { BuildKind, DX, DY, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { MAX_HEIGHT, heightAt, heightAtPoint, oreAt } from '../game/world';
 import {
   FLY_Z,
@@ -14,6 +14,7 @@ import {
   SHOT_COLORS,
   WIRE_Z,
   buildTextures,
+  preloadSprites,
   enemyKey,
   itemKey,
   npcKey,
@@ -26,6 +27,8 @@ import { getHud, itemName, ui } from './ui';
 interface BSprite {
   img: Phaser.GameObjects.Image;
   shadow?: Phaser.GameObjects.Image;
+  /** Aviso (sin munición / generador parado). */
+  alarm?: Phaser.GameObjects.Image;
   key: string;
   tall: boolean;
   alpha: number;
@@ -80,6 +83,10 @@ export class GameScene extends Phaser.Scene {
     super('game');
   }
 
+  preload() {
+    preloadSprites(this);
+  }
+
   create(data: { seed?: number }) {
     // La escena se reutiliza al reiniciar: limpiar estado.
     this.bSprites = new Map();
@@ -93,6 +100,12 @@ export class GameScene extends Phaser.Scene {
     this.sim = new Game({ seed: data?.seed ?? 7 });
     buildTextures(this);
     this.buildTerrain();
+    // Banderas en los puntos de aparición enemiga.
+    const flag = shapeInfo('marker_spawn');
+    for (const s of this.sim.spawns) {
+      const p = gridToScreen(s.x + 0.5, s.y + 0.5, heightAt(this.sim.world, s.x, s.y));
+      this.add.image(p.x, p.y, 'marker_spawn').setOrigin(flag.originX, flag.originY).setDepth(depthOf(s.x, s.y, L.building));
+    }
 
     this.paths = this.add.graphics().setDepth(OVERLAY_DEPTH - 3);
     this.wires = this.add.graphics().setDepth(OVERLAY_DEPTH - 4);
@@ -320,11 +333,26 @@ export class GameScene extends Phaser.Scene {
       if (!b.built) s.img.setTint(0xbfd4ff);
       else if (b.markedForRemoval) s.img.setTint(0xff8080);
       else s.img.clearTint();
+      // Luz de alarma: torreta sin munición o generador parado.
+      const gen = CONFIG.power.generators[b.kind as BuildKind];
+      const warn = b.built && ((!!this.sim.turretDef(b) && !this.sim.turretReady(b)) || (!!gen?.fuel && !b.running));
+      if (warn && !s.alarm) {
+        const ai = shapeInfo('icon_alarm');
+        s.alarm = this.add.image(0, 0, 'icon_alarm').setOrigin(ai.originX, ai.originY).setDepth(OVERLAY_DEPTH - 2).setScale(0.8);
+      }
+      if (s.alarm) {
+        s.alarm.setVisible(warn);
+        if (warn) {
+          const top = gridToScreen(b.x + b.w / 2, b.y + b.d / 2, heightAt(world, b.x, b.y));
+          s.alarm.setPosition(top.x, top.y - 58 - Math.abs(Math.sin(this.sim.time * 4)) * 4);
+        }
+      }
     }
     for (const [id, s] of this.bSprites) {
       if (seen.has(id)) continue;
       s.img.destroy();
       s.shadow?.destroy();
+      s.alarm?.destroy();
       this.bSprites.delete(id);
     }
   }

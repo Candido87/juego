@@ -92,6 +92,19 @@ panel de redes (producción, consumo, batería), y marcar críticos.
 - Armadura: daño recibido = max(20 % del daño, daño − armadura), salvo láser y quemadura.
 - Desgaste: disparar desgasta la torreta; con estado < 50 % rinde a la mitad, a 0 se para. Un Operario la mantiene.
 
+## Gráficos: pack "Tiny Factory" de Kenney (CC0)
+- Origen: `assets-juego/` (pack original). Se usa `public/assets/kenney/tiny-factory.png` (hoja 12×11 de 16 px).
+- El pack es **cenital**, el juego es **isométrico**. Decisión: no se sustituyen los prismas, se combinan:
+  - **Caras superiores**: una casilla cenital se proyecta (transformación afín) sobre el rombo superior de un
+    prisma: cintas y cintas rápidas (giran con su dirección), almacén, fábrica, batería, núcleo, muro de metal.
+  - **Sprites de pie** (x2, anclados por los pies): NPCs (obrero = Constructor, carretilla = Transportista,
+    robot = Operario), bandera en los puntos de aparición, luz de alarma sobre torretas sin munición y
+    generadores parados.
+  - **Iconos** en la barra de construcción, el panel de NPCs y la cola de trabajos.
+- El pack no trae hierba, torretas ni enemigos: siguen generados por código.
+- Mapa de casillas en `src/view/sprites.ts` (sin Phaser, con test). Visor de índices: `tools/atlas.html`.
+- Crédito: Kenney (www.kenney.nl), licencia CC0 (no obligatorio, pero se agradece).
+
 ## Aspecto de las torretas
 Generado por código (prismas de 3 caras) y registrado en **un único sitio**: `TURRET_LOOKS` en `src/view/shapes.ts`.
 Cada torreta se distingue por **silueta, color y animación** (reconocible con el zoom alejado).

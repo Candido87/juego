@@ -6,6 +6,36 @@ import { JOB_NAMES, JOB_ROLE } from '../game/jobs';
 import { BUILD_KINDS, Bag, BuildKind, Dir, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
 import { demandOf, isElectric } from '../game/power';
 import { ITEM_COLORS } from './shapes';
+import { JOB_ICONS, ROLE_ICONS, TILESHEET, TOOL_ICONS, frameRect } from './sprites';
+
+// ------------------------------------------------------------------ iconos del pack
+
+const sheet = new Image();
+let sheetReady = false;
+const iconCache = new Map<number, string>();
+const onSheetReady: (() => void)[] = [];
+sheet.onload = () => {
+  sheetReady = true;
+  onSheetReady.forEach((f) => f());
+};
+sheet.src = TILESHEET.url;
+
+/** <img> con la casilla `frame` del pack, en píxel nítido. Vacío si aún no ha cargado. */
+export function iconHtml(frame: number | undefined, size = 20): string {
+  if (frame === undefined || !sheetReady) return '';
+  let url = iconCache.get(frame);
+  if (!url) {
+    const c = document.createElement('canvas');
+    const t = TILESHEET.tile;
+    c.width = t;
+    c.height = t;
+    const r = frameRect(frame);
+    c.getContext('2d')!.drawImage(sheet, r.x, r.y, r.w, r.h, 0, 0, t, t);
+    url = c.toDataURL();
+    iconCache.set(frame, url);
+  }
+  return `<img src="${url}" width="${size}" height="${size}" style="image-rendering:pixelated;vertical-align:middle;margin-right:4px">`;
+}
 
 export type Tool = BuildKind | 'remove' | null;
 
@@ -75,6 +105,11 @@ export class Hud {
       if (sel.dataset.act === 'recipe' && b && this.sim) this.sim.setRecipe(b.id, sel.value || null);
       if (sel.dataset.act === 'critical' && b && this.sim) this.sim.setCritical(b.id, (sel as unknown as HTMLInputElement).checked);
       this.panelTimer = 0;
+    });
+    onSheetReady.push(() => {
+      this.toolsKey = '';
+      this.panelTimer = 0;
+      this.last.clear();
     });
     $('techBtn').style.display = CONFIG.tech.length ? '' : 'none';
     this.setTool(ui.tool);
@@ -157,7 +192,7 @@ export class Hud {
     $('tools').innerHTML = tools
       .map((k, i) => {
         const def = sim.def(k);
-        return `<button data-tool="${k}" title="${def.name}: ${entries(def.cost).map(([it, n]) => `${n} ${itemName(it)}`).join(', ')}">${i < 9 ? `${i + 1} · ` : ''}${def.name}</button>`;
+        return `<button data-tool="${k}" title="${def.name}: ${entries(def.cost).map(([it, n]) => `${n} ${itemName(it)}`).join(', ')}">${iconHtml(TOOL_ICONS[k])}${i < 9 ? `${i + 1} · ` : ''}${def.name}</button>`;
       })
       .join('');
     this.setTool(ui.tool && ui.tool !== 'remove' && !tools.includes(ui.tool) ? null : ui.tool);
@@ -176,7 +211,7 @@ export class Hud {
       const busy = all.filter((n) => n.jobId !== null || total(n.carry) > 0).length;
       const def = CONFIG.npc.roles[role];
       const cost = entries(def.cost).map(([i, n]) => `${n} ${itemName(i)}`).join(', ');
-      return `<div class="npcrow"><span>${def.name}: <b>${all.length}</b> <span class="muted">(${all.length - busy} libres)</span></span>
+      return `<div class="npcrow"><span>${iconHtml(ROLE_ICONS[role], 22)}${def.name}: <b>${all.length}</b> <span class="muted">(${all.length - busy} libres)</span></span>
         <button data-hire="${role}" ${sim.canHire(role) ? '' : 'disabled'} title="Contratar: ${cost}">+ Contratar</button></div>`;
     }).join('');
     this.set('npcs', rows, true);
@@ -193,7 +228,7 @@ export class Hud {
         const item = j.item ? ` ${dot(j.item)}${j.qty}` : '';
         const who = j.npcId !== null ? '<span class="good" title="Asignado">●</span>' : '<span class="muted" title="Esperando NPC">○</span>';
         const role = CONFIG.npc.roles[JOB_ROLE[j.type]].name;
-        return `<div class="job" title="Lo hace: ${role}"><span>${JOB_NAMES[j.type]} ${what}${item}</span>${who}
+        return `<div class="job" title="Lo hace: ${role}"><span>${iconHtml(JOB_ICONS[j.type], 16)}${JOB_NAMES[j.type]} ${what}${item}</span>${who}
           <button data-prio="${j.id}:-1">−</button><b>${j.priority}</b><button data-prio="${j.id}:1">+</button></div>`;
       })
       .join('');
