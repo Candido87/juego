@@ -117,6 +117,6 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 
 ## Vista 3D (rama `vista-3d`, prototipo, no se mezcla con `main`)
 - [x] 3D-0. Inventario de packs 3D, copia a `public/assets/3d/`, `ASSETS.md`/`CREDITS.md` y propuesta de mapa de uso. **Parado a la espera del visto bueno.**
-- [ ] 3D-1. Three.js: cámara isométrica, terreno, edificios, cintas/tuberías, NPC, enemigo, torreta con cañón.
+- [x] 3D-1. Three.js (`vista3d.html`, `src/view3d/`): cámara isométrica con giro de 90°, zoom y arrastre; terreno con bloques/rampas/rocas/árboles (Nature Kit); edificios, cintas y tuberías con conexión por vecinos; NPC y enemigos animados; torretas con cañón que apunta. Lee el mismo `Game`.
 - [ ] 3D-2. Rendimiento: instanciado, mallas unidas, medición de FPS.
 - [ ] 3D-3. Comparación honesta con la vista 2D en `SPEC.md`.

@@ -425,3 +425,19 @@ Decisiones simples: la tubería reutiliza `b.inv` para su contenido y `b.craft` 
 ## Decoración y zonas de terreno (G4, sólo vista)
 - Árboles, rocas, arbustos y flores salen de `generateDecor` (semilla del mapa); **no bloquean la construcción ni se talan** (lo más simple; el bosque que da madera sigue siendo la mena `Wood`). Se excluyen menas, un radio de 5 casillas alrededor del núcleo, 3 en torno a cada aparición y 2 a cada lado de la línea aparición→núcleo; se ocultan bajo cualquier edificio.
 - Zonas de terreno: ruido de valor → teñido continuo (tierra seca, hierba, roca grisácea); las menas no se tiñen. Árboles altos pasan a opacidad 0,35 si tapan cursor, fantasma, enemigos o NPCs (misma función `occludes` que los edificios).
+
+
+---
+
+# Vista 3D (rama `vista-3d`, prototipo)
+
+Decisiones de la Fase 1 (para anotar lo que se eligió ante dudas):
+- **No se toca `src/game/`.** `vista3d.html` + `src/view3d/main3d.ts` crean el mismo `Game`, llaman a `game.update(dt)` y leen `buildings`, `npcs`, `enemies`, `world` y `drainEvents()`. Construir desde la paleta HTML usa `game.canPlace` y `game.place`.
+- **Proyección:** cámara ortográfica a 30° de elevación (losa 2:1 igual que la 2D), giro en pasos de 90° con animación, zoom con rueda y arrastre para mover (`camera.ts`, con tests). Mundo: x→x, z→y del juego, y→altura; un nivel = 0,5 unidades.
+- **Selección con relieve:** rayo avanzado contra las columnas de cada casilla (`pick.ts`, con tests).
+- **Terreno:** `ground_grass` a nivel 0, `cliff_block_rock` escalado en altura para niveles 1-2 y `cliff_blockSlope_rock` como rampa cuando una casilla de nivel 1 sólo tiene una vecina más baja. Todo instanciado (un `InstancedMesh` por malla).
+- **Agua:** el mundo del juego no tiene casillas de agua, así que no se dibuja. El Nature Kit trae ríos (`ground_river*`, `cliff_waterfall`) listos para cuando la lógica los tenga.
+- **Modelos:** un catálogo de datos (`catalog.ts`) con test que comprueba que cada modelo existe. Edificios compuestos por 1-3 piezas; torretas = base `hopper-round` + pivote con `blaster-*` que apunta al enemigo más cercano en su alcance y retrocede al disparar.
+- **Colores:** el Nature Kit usa colores de vértice (sin textura) y la hierba sale turquesa; se mantiene tal cual.
+- **Pendiente / simplificado:** puertos de entrada/salida (flechas), esquinas de muro, daño visible, partículas, interfaz HTML completa (sólo HUD, paleta y ficha de casilla). La orientación de curvas y cruces de tubería se comprobó a ojo.
+- **Demo:** `/vista3d.html?demo=wave` coloca cintas, tuberías, torretas y muros y lanza una oleada; `?auto=0` desactiva el bot; `?speed=4` acelera.

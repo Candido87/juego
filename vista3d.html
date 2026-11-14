@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vista 3D (prototipo)</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#9fd0e8;font:13px/1.35 "Segoe UI",Arial,sans-serif;color:#fff}
+#v{position:fixed;inset:0}
+.panel{position:fixed;background:#1d2330e6;border:1px solid #fff3;border-radius:8px;padding:8px 10px}
+#top{top:8px;left:8px;right:8px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+#top b{color:#ffd23c}
+#res{display:flex;gap:10px;flex-wrap:wrap}
+#res span{background:#fff1;border-radius:4px;padding:1px 6px}
+button{font:inherit;color:#fff;background:#3a4a6a;border:1px solid #fff4;border-radius:5px;padding:3px 9px;cursor:pointer}
+button:hover{background:#4f6590}button.on{background:#c88a20}
+#build{left:8px;bottom:8px;max-width:calc(50vw - 110px);display:flex;gap:5px;flex-wrap:wrap}
+#info{right:8px;bottom:8px;width:260px;min-height:60px}
+#perf{left:50%;bottom:8px;transform:translateX(-50%);font:12px monospace;white-space:pre;text-align:center}
+#help{display:none}
+#load{position:fixed;inset:0;display:grid;place-items:center;background:#1d2330;font-size:18px}
+</style></head><body>
+<div id="v"></div>
+<div id="top" class="panel">
+  <span><b>Vista 3D</b> · prototipo</span>
+  <span id="wave"></span><span id="core"></span><span id="res"></span>
+  <span style="margin-left:auto;display:flex;gap:6px">
+    <button id="rl" title="Q">⟲ Girar</button><button id="rr" title="E">Girar ⟳</button>
+    <button id="sp">x1</button><button id="bot" class="on">Auto: sí</button>
+  </span>
+</div>
+<div id="help" class="panel">Arrastrar: mover · Rueda: zoom · Q/E: girar 90° · WASD: mover · Clic: seleccionar · R: girar pieza · Clic der./Esc: cancelar</div>
+<div id="perf" class="panel"></div>
+<div id="build" class="panel"></div>
+<div id="info" class="panel">Selecciona una casilla</div>
+<div id="load">Cargando modelos…</div>
+<script type="module" src="/src/view3d/main3d.ts"></script>
+</body></html>
