@@ -231,3 +231,31 @@ Origen: ZIPs originales de Kenney (CC0) de la carpeta Descargas del usuario. **N
 **Torretas:** base = `factory/hopper-round` (cuerpo fijo) + `factory/cog-b` (anillo). El cañón es un `Object3D` pivote (`yaw`) hijo de la base, con el arma `weapons/blaster-*` como hijo del pivote orientado a +Z local. Reparto: ametralladora = `blaster-a`, escopeta = `blaster-h`, francotirador = `blaster-m` + `scope-large-a`, mortero = `detail-tank` + `blaster-e`; mejoras visibles con `scope-*`/`silencer-*`. Balas = `bullet-foam` escaladas. Cada torreta calcula `atan2(dx,dz)` hacia el objetivo y rota el pivote con suavizado; el retroceso es un desplazamiento corto del arma en su eje local.
 
 **Riesgos de arte:** estilo "juguete" plano; las armas miden ~0,6 frente a una casilla de 1: se escalan ×0,6 sobre la base.
+
+## Fase 0 de cintas y aéreos: texturas de dirección y naves (15-11-2026)
+
+**Dónde están de verdad.** La carpeta `assets-juego/` mezcla varios packs de Kenney que se han ido pisando (Sketch Town, Space Shooter Redux, Tanks, Nature Kit, Pattern Pack Lines...; `License.txt` y `Preview.png` son los del último). Los dos que hacen falta están completos y sin mezcla en los ZIP originales de Descargas, de donde se copia (no se mueve nada ni se toca `assets-juego/`):
+
+| Pack | ZIP | Qué se usa | Copiado a |
+|---|---|---|---|
+| Pattern Pack Lines 1.0 | `kenney_pattern-pack-lines.zip` | `PNG/Thick/Default (256px)/pattern_0029.png`, `0012`, `0028` (3 de 30) | `public/assets/belts/` + `License.txt` |
+| Space Kit | `kenney_space-kit.zip` | `Models/GLTF format/craft_*.glb` (8 de 153 modelos) | `public/assets/3d/space/` + `License.txt` |
+
+Las **naves 2D de Space Shooter Redux** (`assets-juego/PNG/Enemies`, `playerShip*`) no se usan: el juego es 3D y los modelos del Space Kit encajan con el resto.
+
+### Texturas de las cintas (Pattern Pack Lines)
+- **Formato:** PNG RGBA, 256×256 (las `Double` son 512×512), **línea blanca sobre fondo transparente**, grosor `Thick` (hay también `Thin`). Treinta patrones numerados 0000-0029; ver `docs/patrones-lineas.png`.
+- **Son tileables** (se repiten sin costura en horizontal y vertical): sirven para `RepeatWrapping` y desplazamiento de UV.
+- **Qué indican:** casi todos son enlosados (rombos, hexágonos, círculos...) y **no** indican sentido. Los que sí tienen dirección son los chevrones: **`0029`** (tres columnas de chevrones `<`, el mejor indicador de sentido), `0012` (chevrones apilados que apuntan hacia arriba) y `0028` (zigzag). Se elige **`0029`** para las cintas y `0012` para la cinta rápida.
+- **Cómo se usan** (hito CIN1): como mapa de transparencia sobre la cara superior del modelo de cinta; se tiñe con el color de la cinta (blanco = línea) y se desplaza su `offset` a lo largo del sentido de la marcha, a la velocidad real de la cinta; sin energía no se desplaza y se oscurece. Un solo uniforme de tiempo compartido por todas las cintas.
+- **Pesa:** 0,8-0,9 KB cada una.
+
+### Naves (Space Kit)
+- **Formato:** glTF binario (`.glb`) autocontenido, **19-27 KB** cada uno, sin animaciones, con la paleta plana de Kenney (gris y naranja) y sin texturas externas. Orientación hacia +z como los demás modelos.
+- **Variantes:** `craft_speederA/B/C/D` (cuatro cazas con alas y toberas), `craft_racer` (compacta), `craft_cargoA/B` (cargueros anchos), `craft_miner` (con dos brazos largos). Se ven en `docs/naves.png` (`tools/galeria3d.html?set=naves`).
+- **Propuesta de reparto para los enemigos aéreos** (se decide al hacer el hito AIR5):
+  - **Ligero y rápido:** `craft_speederC` (el más pequeño y afilado); variantes `speederA` y `speederD`.
+  - **Bombardeo (daño en área):** `craft_cargoA` (panza ancha, parece cargada) con tinte rojizo.
+  - **Pesado y blindado:** `craft_cargoB` (ancho y plano, mucho casco) con más escala y tinte oscuro.
+  - Sobran `speederB`, `racer` y `miner` para tipos nuevos o jefes.
+- **Escala:** a ajustar a la huella de cada tipo (ligero ≈ 0,8 casillas, bombardero ≈ 1,3, pesado ≈ 1,8) y elevarlas sobre el suelo.

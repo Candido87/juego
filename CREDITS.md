@@ -34,3 +34,7 @@ Copiados a `public/assets/3d/<pack>/` (cada carpeta con su `License.txt`):
 - **Mini Characters 2.0** — https://kenney.nl/assets/mini-characters — `public/assets/3d/characters/`
 - **Blaster Kit 2.1** — https://kenney.nl/assets/blaster-kit — `public/assets/3d/weapons/`
 - **Mini Forest 1.0** — https://kenney.nl/assets/mini-forest — `public/assets/3d/forest/`
+
+## Cintas y naves (CC0, Kenney)
+- **Pattern Pack Lines 1.0** — https://kenney.nl/assets/pattern-pack-lines — `public/assets/belts/` (texturas de dirección de las cintas).
+- **Space Kit** — https://kenney.nl/assets/space-kit — `public/assets/3d/space/` (naves de los enemigos aéreos).
