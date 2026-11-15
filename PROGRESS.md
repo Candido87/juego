@@ -138,3 +138,8 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] TR3. Hielo y misil (el misil sólo en galería: la lógica no lo tiene). Ya no queda ningún tipo con el aspecto anterior.
 - [x] TR4. Niveles, estados (apagada con luz roja, en obra con andamio, dañada con grietas y humo) y animaciones (cristales que laten, brillos, pilotos).
 - [x] TR5. Efectos de disparo por tipo (casquillo, haz con onda, bola de fuego, niebla helada, estela de misil) y pulido a zoom alejado. **Rediseño de torretas terminado.**
+
+## Pendiente, en este orden (diseño en SPEC.md)
+- [ ] INV1-INV5. Investigación con puntos y árbol (rama `investigacion`, creada, aún sin código): laboratorio, investigadores, puntos, árbol, pantalla, bloqueos reales, guardado, guía y sim.
+- [ ] CIN0-CIN4. Cintas: Fase 0 de assets, textura animada, curvas, rampas, ascensor.
+- [ ] AIR5-AIR9. Enemigos aéreos y lanzamisiles.
