@@ -370,7 +370,11 @@ export class Game {
   /** Pasa a una persona al rol `role`, sacándola del rol libre con más gente (prefiere a quien no trabaja). */
   reassignTo(role: NpcRole): boolean {
     if (role === 'mechanic') return false;
-    if (role === 'researcher' && this.researcherBlock()) return false;
+    if (role === 'researcher') {
+      if (this.researcherBlock()) return false;
+      this.changeRole(this.researcherDonor()!, 'researcher');
+      return true;
+    }
     const donors = this.npcs.filter((n) => n.role !== role && n.role !== 'mechanic' && n.role !== 'researcher');
     if (!donors.length) return false;
     const size = (r: NpcRole) => this.npcs.filter((n) => n.role === r).length;
@@ -469,7 +473,8 @@ export class Game {
   setRole(npcId: number, role: NpcRole): boolean {
     const n = this.npcs.find((o) => o.id === npcId);
     if (!n || n.role === role || role === 'mechanic' || n.role === 'mechanic') return false;
-    if (role === 'researcher' && this.researcherBlock()) return false;
+    // Un investigador sale de un rol con al menos dos personas: la colonia nunca se queda sin Constructor, Transportista u Operario.
+    if (role === 'researcher' && (this.researcherBlock() || this.npcs.filter((o) => o.role === n.role).length < 2)) return false;
     this.changeRole(n, role);
     return true;
   }
@@ -520,13 +525,28 @@ export class Game {
   }
 
   /**
-   * Motivo por el que no se puede pasar a nadie más a Investigador (null = se puede): sin laboratorio, sin puestos libres
-   * o porque tiene que quedar gente fuera de la investigación.
+   * Quién pasaría a Investigador: alguien del rol con más gente, **sólo de roles con al menos dos personas** (así la colonia
+   * nunca se queda sin Constructor, Transportista u Operario), prefiriendo a quien no esté trabajando.
+   */
+  researcherDonor(): Npc | null {
+    const pool = this.generalWorkers();
+    const size = new Map<NpcRole, number>();
+    for (const n of pool) size.set(n.role, (size.get(n.role) ?? 0) + 1);
+    const candidates = pool.filter((n) => (size.get(n.role) ?? 0) >= 2);
+    candidates.sort((a, b) => size.get(b.role)! - size.get(a.role)! || Number(a.jobId !== null) - Number(b.jobId !== null) || a.id - b.id);
+    return candidates[0] ?? null;
+  }
+
+  /**
+   * Motivo por el que no se puede pasar a nadie más a Investigador (null = se puede): sin laboratorio, sin puestos libres,
+   * porque tiene que quedar gente fuera de la investigación o porque cada rol necesita al menos una persona (hace falta
+   * más población: casas y comida).
    */
   researcherBlock(): string | null {
     if (!this.labs().length) return 'Hace falta un laboratorio terminado';
     if (this.researchers().length >= this.researchSlots()) return 'No hay puestos libres: construye otro laboratorio';
     if (this.generalWorkers().length <= CONFIG.research.minOutside) return 'Tiene que quedar gente fuera de la investigación';
+    if (!this.researcherDonor()) return 'Necesitas más población: cada rol (Constructor, Transportista, Operario) necesita al menos una persona. Construye casas y ten comida de sobra';
     return null;
   }
 

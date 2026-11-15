@@ -34,6 +34,7 @@ for (let t = 0; t < minutes * 60 && !game.gameOver; t += 0.5) {
     );
     const net = game.grid.nets[0];
     console.log(`   energía ${net ? `${net.production}/${net.demand}` : '0/0'} | cinta→${JSON.stringify(game.stats.beltTo)} | tubería→${JSON.stringify(game.stats.pipeTo)} | gasolina refinada ${game.stats.refined} | guía ${guia.completed.length} pasos (${currentStep(game, guia)?.id ?? 'completa'})`);
+    console.log(`   investigación: ${game.researchPoints.toFixed(1)} puntos (+${game.pointsPerMinute().toFixed(1)}/min) | laboratorios ${game.labs().length} | investigadores ${game.researchers().length} | tecnologías [${[...game.researched].join(', ')}]`);
     console.log(`   almacén: ${entries(game.storage).map(([i, n]) => `${i}=${n}`).join(' ')}`);
   }
 }

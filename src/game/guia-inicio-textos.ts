@@ -64,6 +64,18 @@ export const GUIA_TEXT: Record<string, (g: Game) => GuiaText> = {
     title: 'Tu primera torreta',
     text: `Construye una torreta de balas (${costOf('turret_bullet')}) en el camino de los enemigos y comprueba que tiene munición: sin ella no dispara. Un Transportista se la lleva; más adelante la automatizaremos con cintas.`,
   }),
+  lab_build: () => ({
+    title: 'Un laboratorio para investigar',
+    text: `Construye un laboratorio (${costOf('laboratory')}) en Servicios y conéctalo a la red con un poste: sin energía no produce. Las tecnologías (más torretas, muros, recetas y mejoras) se compran con los puntos que genera.`,
+  }),
+  lab_staff: (g) => ({
+    title: 'Asigna un Investigador',
+    text: `El laboratorio sólo produce con Investigadores: personas de tu población que dejan de hacer otras tareas (y comen igual). Pulsa +1 en la fila "Investigador" del panel de personas: cada uno da ${CONFIG.research.pointsPerResearcher} puntos por minuto. Con pocos habitantes es una decisión seria; más casas y comida permiten investigar más rápido.${g.researcherBlock() ? ` Ahora no se puede: ${g.researcherBlock()}.` : ''}`,
+  }),
+  tech_first: (g) => ({
+    title: 'Tu primera tecnología',
+    text: `Abre Investigación (T) y compra la más barata que tengas disponible (${Math.floor(g.researchPoints)} puntos ahora, ${g.pointsPerMinute().toFixed(1)} por minuto). La marcada con ★ es la recomendada. Se desbloquea al instante.`,
+  }),
   oil_pump: () => ({
     title: 'Petróleo: la bomba',
     text: `La gasolina viene del petróleo. Construye una bomba (${costOf('pump')}) sobre el yacimiento oscuro marcado. Necesita electricidad (sin ella va a la mitad de ritmo).`,
@@ -133,6 +145,9 @@ export const GUIA_DONE: Record<string, string> = {
   belt_flow: 'El hierro llega por la cinta',
   farm: 'Granja construida',
   turret: 'Torreta lista para disparar',
+  lab_build: 'Laboratorio construido',
+  lab_staff: 'Ya hay un Investigador trabajando',
+  tech_first: 'Primera tecnología investigada',
   oil_pump: 'Bomba sobre el petróleo',
   oil_refine: 'El petróleo llega a la refinería',
   oil_fuel: 'Gasolina propia para el generador',

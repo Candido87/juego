@@ -176,7 +176,7 @@ export const CONFIG = {
     pump: { name: 'Bomba de petróleo', cost: { pipe: 2, frame: 2, gear: 1 }, buildTime: 4, hp: 70, solid: true, size: [1, 1] },
     refinery: { name: 'Refinería', cost: { pipe: 3, frame: 3, gear: 2 }, buildTime: 6, hp: 110, solid: true, size: [1, 1] },
     workshop: { name: 'Taller', cost: { tool_kit: 4, frame: 3 }, buildTime: 6, hp: 120, solid: true, size: [1, 1] },
-    laboratory: { name: 'Laboratorio', cost: { tool_kit: 3, frame: 3, wire: 4 }, buildTime: 7, hp: 100, solid: true, size: [1, 1] },
+    laboratory: { name: 'Laboratorio', cost: { frame: 3, gear: 3, wire: 4 }, buildTime: 7, hp: 100, solid: true, size: [1, 1] },
     house: { name: 'Casa', cost: { frame: 2, wood: 4 }, buildTime: 4, hp: 80, solid: true, size: [1, 1] },
     pole: { name: 'Poste', cost: { wire: 2, frame: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
     generator: { name: 'Generador', cost: { frame: 3, gear: 2, wire: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },

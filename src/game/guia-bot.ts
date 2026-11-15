@@ -181,6 +181,18 @@ export function guiaBotTick(g: Game, s: GuiaState): void {
     case 'turret':
       if (count(g, 'turret_bullet') === 0) placeBestTurret(g, 'turret_bullet');
       break;
+    case 'lab_build':
+      if (count(g, 'laboratory') === 0) placeNear(g, 'laboratory');
+      break;
+    case 'lab_staff':
+      // Con la población justa no se puede: hacen falta casas para que llegue más gente.
+      if (!g.reassignTo('researcher') && g.population >= g.housingCapacity() && ![...g.buildings.values()].some((b) => b.kind === 'house' && !b.built)) placeNear(g, 'house');
+      break;
+    case 'tech_first': {
+      const id = g.recommendedTech();
+      if (id && g.techState(id) === 'available') g.research(id);
+      break;
+    }
     case 'oil_pump': {
       if (count(g, 'pump') > 0) break;
       const t = oreTiles(g, [Ore.Oil]).find((o) => g.canPlace('pump', o.x, o.y).ok);

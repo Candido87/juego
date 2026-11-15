@@ -175,9 +175,29 @@ export function placeNear(game: Game, kind: BuildKind): boolean {
   return false;
 }
 
+/** Tecnologías que el bot compra, por orden de preferencia (después, la recomendada). Defensa y economía primero. */
+export const BOT_TECH_ORDER = ['def_wood', 'arm_bullet_2', 'ing_research_1', 'ind_tier2', 'pop_houses_1', 'log_speed_1', 'ing_work_1', 'def_stone', 'arm_fire', 'ind_circuits', 'ing_research_2', 'arm_bullet_3', 'pop_houses_2', 'log_capacity', 'ing_work_2', 'arm_fire_2'];
+
+/** Compra la primera tecnología de su lista que esté disponible (o, si no, la recomendada). Devuelve el id comprado. */
+export function buyTech(game: Game): string | null {
+  for (const id of BOT_TECH_ORDER) {
+    if (game.techState(id) === 'available') return game.research(id) ? id : null;
+  }
+  const rec = game.recommendedTech();
+  if (rec && game.techState(rec) === 'available' && game.researchPoints > 60) return game.research(rec) ? rec : null;
+  return null;
+}
+
 /** Realiza como mucho una acción. Devuelve una descripción o null si no hizo nada. */
 export function botTick(game: Game): string | null {
   regulate(game);
+  // Investigación: con laboratorio, un investigador por cada tres personas (hasta los puestos) y compra de tecnologías.
+  const wantResearchers = Math.min(game.researchSlots(), Math.max(1, Math.floor(game.population / 3)));
+  if (game.labs().length && game.researchers().length < wantResearchers && !game.researcherBlock()) game.reassignTo('researcher');
+  if (buyTech(game)) return 'tecnología';
+  // Laboratorio: uno cuando ya hay generador y gente de sobra (los postes los pone la guía); un segundo con más población.
+  const labs = countKind(game, 'laboratory');
+  if (countKind(game, 'generator') > 0 && game.population >= 5 + labs * 4 && labs < 2 && placeNear(game, 'laboratory')) return 'laboratorio';
   // Quien llegue: Transportista si hay mucho que acarrear, si no Constructor.
   const haul = game.jobs.list().filter((j) => (j.type === 'supply' || j.type === 'collect') && j.npcId === null).length;
   const role = (r: string) => game.npcs.filter((n) => n.role === r).length;

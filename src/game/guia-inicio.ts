@@ -175,6 +175,10 @@ export const GUIA_STEPS: GuiaStep[] = [
     done: (g) => (g.stats.beltTo.turret_bullet ?? 0) > 0,
     diagnose: (g) => diagnoseLink(g, L_AMMO_TURRET, true),
   },
+  // Investigación (cuando la defensa y la producción básicas ya funcionan): laboratorio con energía, un Investigador (persona de la población) y la primera tecnología.
+  { id: 'lab_build', highlight: { tool: 'laboratory', poleRange: true }, build: 'laboratory', when: (g) => g.unlockedBuildings.has('laboratory'), done: (g) => hasBuilt(g, 'laboratory') },
+  { id: 'lab_staff', highlight: { ui: 'npcs' }, when: (g) => hasBuilt(g, 'laboratory'), done: (g) => g.researchers().length >= 1 },
+  { id: 'tech_first', highlight: { ui: 'techBtn' }, when: (g) => g.researchers().length >= 1, done: (g) => g.researched.size >= 1 },
   // Los muros se investigan en el árbol: el paso sólo aparece cuando ya se pueden construir.
   { id: 'walls', highlight: { tool: 'wall_wood', target: 'enemy_path' }, build: 'wall_wood', when: (g) => WALLS.some((k) => g.unlockedBuildings.has(k)), done: (g) => anyBuilt(g, WALLS) },
   {
