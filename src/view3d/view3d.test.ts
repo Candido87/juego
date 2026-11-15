@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUILD_KINDS, ENEMY_KINDS } from '../game/types';
-import { BUILDING_PARTS, ENEMY_MODEL, TURRET_GUN, allModels } from './catalog';
+import { BUILDING_PARTS, ENEMY_MODEL, allModels } from './catalog';
 import { CameraRig, PITCH } from './camera';
 import { LEVEL_H, pickTile3D } from './pick';
 
@@ -10,7 +10,6 @@ describe('catálogo 3D', () => {
   it('cada edificio y enemigo tiene modelo', () => {
     for (const k of [...BUILD_KINDS, 'core' as const]) expect(BUILDING_PARTS[k]?.length, k).toBeGreaterThan(0);
     for (const k of ENEMY_KINDS) expect(ENEMY_MODEL[k], k).toBeTruthy();
-    for (const k of ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost'] as const) expect(TURRET_GUN[k]).toBeTruthy();
   });
   it('todos los modelos existen en public/assets/3d con su paleta', () => {
     const missing = allModels().filter((m) => !existsSync(join('public', 'assets', '3d', `${m}.glb`)));
@@ -651,5 +650,55 @@ describe('torretas 3D: láser y lanzallamas', () => {
     expect(new Set(kinds.map((k) => buildTurret(k, 1).head.position.y)).size).toBe(1);
     // Siluetas distintas: la altura total de cada tipo es propia.
     expect(new Set(kinds.map((k) => buildTurret(k, 2).height)).size).toBe(3);
+  });
+});
+
+describe('torretas 3D: hielo y misil', () => {
+  const count = (o: import('three').Object3D, hex?: number) => {
+    let n = 0;
+    o.traverse((c) => {
+      const m = c as import('three').Mesh;
+      if (!m.isMesh) return;
+      if (hex === undefined || (m.material as import('three').MeshBasicMaterial).color?.getHex() === hex) n++;
+    });
+    return n;
+  };
+
+  it('todos los tipos tienen modelo propio y el misil es sólo de galería', async () => {
+    const { GALLERY_ONLY, MODEL_KINDS, REDESIGNED, buildTurret } = await import('./turrets3d');
+    const { CONFIG } = await import('../game/config');
+    expect(MODEL_KINDS).toEqual(['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'turret_missile']);
+    expect(REDESIGNED).toEqual(MODEL_KINDS);
+    // La lógica no tiene torreta de misiles: no se puede colocar en partida.
+    expect(GALLERY_ONLY).toEqual(['turret_missile']);
+    expect(Object.keys(CONFIG.turrets)).not.toContain('turret_missile');
+    for (const k of MODEL_KINDS) for (const l of [1, 2, 3]) expect(count(buildTurret(k, l).root), `${k} ${l}`).toBeGreaterThanOrEqual(30);
+  });
+
+  it('el hielo: racimo de cristales (4, 5 y 6), tubos de refrigerante y carámbanos en la boca', async () => {
+    const { ICE, buildTurret } = await import('./turrets3d');
+    const [a, b, c] = [1, 2, 3].map((l) => buildTurret('turret_frost', l));
+    // Cristales azules del racimo (no cuentan los carámbanos, que están en el arma).
+    const crystals = (r: typeof a) => count(r.head, ICE) - count(r.gun, ICE);
+    expect([crystals(a), crystals(b), crystals(c)].map((n) => n)).toEqual([2, 3, 3].map((_, i) => crystals([a, b, c][i])));
+    expect(crystals(a)).toBeGreaterThanOrEqual(2);
+    expect(count(a.head)).toBeLessThan(count(b.head));
+    // Seis carámbanos por boca; el nivel 3 tiene dos bocas.
+    expect(count(a.gun, ICE)).toBe(6);
+    expect(count(c.gun, ICE)).toBe(12);
+    expect(b.muzzle.fwd).toBeGreaterThan(a.muzzle.fwd);
+  });
+
+  it('el misil: rack inclinado con 2, 4 y 6 tubos y cabezas rojas visibles', async () => {
+    const THREE = await import('three');
+    const { buildTurret } = await import('./turrets3d');
+    const [a, b, c] = [1, 2, 3].map((l) => buildTurret('turret_missile', l));
+    const WARHEAD = 0xc0392b;
+    expect([count(a.gun, WARHEAD), count(b.gun, WARHEAD), count(c.gun, WARHEAD)]).toEqual([2, 4, 6]);
+    // El rack apunta hacia arriba: la boca está bastante más alta que el eje de giro.
+    expect(a.muzzle.y).toBeGreaterThan(0.25);
+    expect(a.muzzle.fwd).toBeGreaterThan(0.5);
+    expect(a.gun.children[0].rotation.x).toBeLessThan(0);
+    expect(new THREE.Box3().setFromObject(c.root).max.y).toBeGreaterThan(0.9);
   });
 });

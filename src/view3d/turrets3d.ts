@@ -8,14 +8,11 @@
  *
  * Adelante es +z local. El juego hace girar `head` hacia el objetivo y desliza `gun` para el retroceso.
  * Las piezas están hechas con primitivas achaflanadas y, donde el pack de Kenney da algo mejor, con sus modelos.
- * Los tipos aún no rediseñados (`legacyRig`) conservan el aspecto anterior hasta su hito.
+ * El misil no existe en la lógica del juego: su modelo sólo se ve en la galería (`GALLERY_ONLY`).
  */
 import * as THREE from 'three';
 import type { TurretKind } from '../game/types';
-import { TURRET_COLOR } from './actors';
-import { BUILDING_PARTS, TURRET_GUN } from './catalog';
 import { patchMaterial } from './fx';
-import { instance, tint } from './loader';
 
 export interface TurretRig {
   root: THREE.Group;
@@ -314,56 +311,143 @@ function fireRig(level: number): TurretRig {
   return { root, base, head, gun, gunRest: 0, muzzle: { fwd: 0.8 + ext, y: 0.1 }, height: neck + 0.52 };
 }
 
-// ---------- tipos aún sin rediseñar (aspecto anterior) ----------
-const RING_GEO = new THREE.CylinderGeometry(0.34, 0.34, 0.07, 14);
-const RING_STEP = 0.09;
-const CYL_GEO = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
-const GEM_GEO = new THREE.OctahedronGeometry(0.5, 0);
-const HUB_GEO = new THREE.SphereGeometry(0.5, 8, 6);
-const BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
+// ---------- torreta de hielo ----------
+export const ICE = 0x9be7ff;
+const ICE_MID = 0x6fc9ff;
+const FROST_WHITE = 0xe9fbff;
+const FROST_BODY = 0x5d7a99;
 
-function legacyRig(kind: TurretKind, level: number): TurretRig {
-  const base = new THREE.Group();
-  let top = 0;
-  for (const p of BUILDING_PARTS[kind]) {
-    if (!p.model) continue;
-    const o = instance(p.model, p.fit);
-    if (p.tint) tint(o, p.tint);
-    base.add(o);
-    top = Math.max(top, new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).y);
-  }
-  const col = TURRET_COLOR[kind];
-  const rings = level - 1;
-  const neck = top * 0.85;
-  for (let i = 0; i < rings; i++) put(base, RING_GEO, solid(col), 0, neck + 0.035 + i * RING_STEP, 0);
+/**
+ * Torreta de hielo. Cuerpo azul acero con franja blanco hielo; **racimo de cristales azules** (4, 5 y 6) detrás, de distinta
+ * altura e inclinación; **tubos de refrigerante** blancos con abrazaderas del racimo a la boca; boca ancha de acero con
+ * escarcha (carámbanos alrededor) y un resplandor blanco dentro. Nivel 2: blindaje y boca más larga. Nivel 3: boca doble.
+ */
+function frostRig(level: number): TurretRig {
+  const acc = solid(FROST_WHITE);
+  const { base, neck } = makeBase(FROST_WHITE, level);
   const head = new THREE.Group();
   head.rotation.order = 'YXZ';
-  head.position.y = neck + rings * RING_STEP;
-  const g = TURRET_GUN[kind];
-  const gun = instance(g.model, g.fit * (1 + 0.14 * (level - 1)));
-  gun.position.set(0, 0.05, 0.15);
+  head.position.y = neck;
+  put(head, octo(0.3, 0.28, 0.15), solid(FROST_BODY), 0, 0, 0);
+  put(head, octo(0.305, 0.305, 0.02), acc, 0, 0.085, 0);
+  put(head, octo(0.22, 0.17, 0.08), solid(0x8fb0cc), 0, 0.15, 0);
+  // Racimo de cristales: pirámides facetadas de distinta altura e inclinación, alternando dos azules.
+  const crystals: [number, number, number, number, number][] = [
+    [0.0, -0.1, 0.46, 0.085, 0],
+    [-0.14, -0.04, 0.34, 0.07, 0.22],
+    [0.14, -0.05, 0.36, 0.07, -0.22],
+    [-0.07, -0.18, 0.3, 0.06, 0.12],
+    [0.1, -0.2, 0.27, 0.055, -0.15],
+    [-0.2, 0.06, 0.22, 0.05, 0.3],
+  ];
+  crystals.slice(0, 3 + level).forEach(([x, z, h, r, tilt], i) => {
+    put(head, cone(r, h, 5), glow(i % 2 ? ICE_MID : ICE), x, 0.2, z, [tilt * 0.6, 0.4 * i, tilt]);
+  });
+  put(head, octo(0.19, 0.17, 0.04), solid(STEEL_DARK), 0, 0.19, -0.08);
+  // Tubos de refrigerante del racimo a la boca, con abrazaderas.
+  for (const sx of [-1, 1]) {
+    put(head, tube(0.022, 0.5), solid(FROST_WHITE), sx * 0.13, 0.2, 0.12);
+    for (const z of [-0.06, 0.1, 0.26]) put(head, tube(0.032, 0.025), solid(STEEL_DARK), sx * 0.13, 0.2, z);
+  }
+  if (level >= 2) for (const sx of [-1, 1]) put(head, bevelBox(0.045, 0.17, 0.32, 0.012), solid(STEEL_DARK), sx * 0.285, 0.0, 0.04);
+  const nb = level >= 3 ? 2 : 1;
+  put(head, bevelBox(nb === 2 ? 0.46 : 0.3, 0.13, 0.1, 0.02), solid(STEEL_DARK), 0, 0.03, 0.27);
+  const gun = new THREE.Group();
   head.add(gun);
-  const extra = (geo: THREE.BufferGeometry, mat: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
-    const o = put(head, geo, mat, x, y, z);
-    o.scale.set(sx, sy, sz);
-  };
-  if (kind === 'turret_bullet') extra(BOX_GEO, solid(0x5d6b3a), 0.16, 0.2, 0.28, 0.2, 0.1, -0.04);
-  else if (kind === 'turret_laser') extra(HUB_GEO, glow(col), 0.17, 0.17, 0.17, 0, 0.24, -0.06);
-  else if (kind === 'turret_fire') extra(CYL_GEO, solid(0xc0392b), 0.2, 0.3, 0.2, 0, 0.12, -0.24);
-  else extra(GEM_GEO, glow(0xcff6ff), 0.18, 0.3, 0.18, 0, 0.3, -0.04);
+  const ext = level >= 2 ? 0.07 : 0;
+  for (let i = 0; i < nb; i++) {
+    const x = nb === 2 ? (i - 0.5) * 0.25 : 0;
+    const r = nb === 2 ? 0.11 : 0.15;
+    put(gun, tube(0.085, 0.3), solid(STEEL), x, 0.1, 0.36);
+    put(gun, tube(0.1, 0.03), acc, x, 0.1, 0.54);
+    put(gun, flare(0.08, r, 0.2 + ext), solid(0xaec9d8), x, 0.1, 0.66 + ext / 2);
+    put(gun, tube(r - 0.02, 0.02), glow(FROST_WHITE), x, 0.1, 0.76 + ext);
+    // Carámbanos alrededor de la boca.
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2;
+      put(gun, cone(0.022, 0.1, 4), glow(ICE), x + Math.cos(a) * (r + 0.005), 0.1 + Math.sin(a) * (r + 0.005), 0.74 + ext, [Math.PI / 2, 0, 0]);
+    }
+  }
   const root = new THREE.Group();
   root.add(base, head);
-  return { root, base, head, gun, gunRest: 0.15, muzzle: { fwd: 0.42, y: 0.12 }, height: top + rings * RING_STEP + 0.25 };
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: 0.78 + ext, y: 0.1 }, height: neck + 0.5 + 0.02 * level };
 }
 
-/** Tipos con modelo propio (el resto usa el aspecto anterior hasta su hito). */
-export const REDESIGNED: TurretKind[] = ['turret_bullet', 'turret_laser', 'turret_fire'];
+// ---------- torreta de misiles (sólo galería) ----------
+const MIL_GREEN = 0x56703f;
+const MIL_DARK = 0x3d5030;
+const MIL_ACCENT = 0xb5c95a;
+const WARHEAD = 0xc0392b;
+
+/**
+ * Torreta de misiles. Base de acero con franja verde militar; cuerpo verde con rejilla; **rack de tubos inclinados** hacia
+ * arriba, con las **cabezas rojas** de los misiles asomando y una banda blanca; antena con plato. Tubos: 2, 4 y 6
+ * (nivel 3: tres columnas); nivel 2 añade blindaje y nivel 3 el plato de radar. La lógica no tiene este tipo de torreta.
+ */
+function missileRig(level: number): TurretRig {
+  const acc = solid(MIL_ACCENT);
+  const { base, neck } = makeBase(MIL_ACCENT, level);
+  const head = new THREE.Group();
+  head.rotation.order = 'YXZ';
+  head.position.y = neck;
+  put(head, octo(0.3, 0.28, 0.15), solid(MIL_GREEN), 0, 0, 0);
+  put(head, octo(0.305, 0.305, 0.02), acc, 0, 0.085, 0);
+  put(head, octo(0.22, 0.2, 0.06), solid(MIL_DARK), 0, 0.15, -0.04);
+  // Rejilla de ventilación trasera.
+  for (const i of [0, 1, 2]) put(head, bevelBox(0.2, 0.014, 0.02, 0.004), solid(GUNMETAL), 0, 0.2 + i * 0.0, -0.18 - i * 0.03);
+  // Antena con plato (nivel 3: plato de radar más grande).
+  put(head, post(0.012, 0.3, 6), solid(STEEL_LIGHT), -0.2, 0.15, -0.14);
+  put(head, post(level >= 3 ? 0.09 : 0.05, 0.015, 10), solid(STEEL), -0.2, 0.44, -0.14);
+  put(head, post(0.014, 0.05, 6), glow(0xff3030), -0.2, 0.455, -0.14);
+  if (level >= 2) for (const sx of [-1, 1]) put(head, bevelBox(0.045, 0.17, 0.3, 0.012), solid(MIL_DARK), sx * 0.285, 0.0, 0.04);
+  // Soportes del rack.
+  for (const sx of [-1, 1]) put(head, bevelBox(0.05, 0.2, 0.18, 0.012), solid(STEEL_DARK), sx * 0.15 * (level >= 3 ? 1.5 : 1), 0.1, 0.06);
+  // Rack: caja inclinada con tubos y cabezas de misil.
+  const gun = new THREE.Group();
+  head.add(gun);
+  const rack = new THREE.Group();
+  rack.position.set(0, 0.24, 0.08);
+  rack.rotation.x = -0.5;
+  gun.add(rack);
+  const cols = level >= 3 ? 3 : level >= 2 ? 2 : 2;
+  const rows = level >= 2 ? 2 : 1;
+  const pitch = 0.16;
+  const w = cols * pitch + 0.06;
+  const h = rows * pitch + 0.06;
+  put(rack, bevelBox(w, h, 0.5, 0.03), solid(MIL_DARK), 0, -h / 2, 0.25);
+  const TL = 0.62;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = (c - (cols - 1) / 2) * pitch;
+      const y = -h / 2 + (r - (rows - 1) / 2) * pitch;
+      put(rack, tube(0.068, TL), solid(STEEL_DARK), x, y, TL / 2 - 0.02);
+      put(rack, tube(0.075, 0.03), acc, x, y, TL - 0.05);
+      put(rack, tube(0.055, 0.03), solid(0xf0f0f0), x, y, TL - 0.12);
+      put(rack, cone(0.052, 0.13, 8), solid(WARHEAD), x, y, TL - 0.04, [Math.PI / 2, 0, 0]);
+    }
+  }
+  // La boca está en el extremo del rack, ya inclinado.
+  const fwd = 0.08 + TL * Math.cos(0.5);
+  const my = 0.24 + TL * Math.sin(0.5) - h / 2;
+  const root = new THREE.Group();
+  root.add(base, head);
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd, y: my }, height: neck + my + 0.1 };
+}
+
+/** Tipos de torreta que se pueden dibujar: los del juego más el misil, que de momento sólo sale en la galería. */
+export type TurretModelKind = TurretKind | 'turret_missile';
+export const MODEL_KINDS: TurretModelKind[] = ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'turret_missile'];
+/** Tipos con modelo propio (todos). */
+export const REDESIGNED: TurretModelKind[] = MODEL_KINDS;
+/** Modelos que existen sólo para la galería: la lógica no tiene ese tipo de torreta (no se puede colocar en partida). */
+export const GALLERY_ONLY: TurretModelKind[] = ['turret_missile'];
 
 /** Modelo completo de una torreta de ese tipo y nivel (1-3). */
-export function buildTurret(kind: TurretKind, level: number): TurretRig {
+export function buildTurret(kind: TurretModelKind, level: number): TurretRig {
   const lv = Math.max(1, Math.min(3, Math.round(level)));
   if (kind === 'turret_bullet') return bulletRig(lv);
   if (kind === 'turret_laser') return laserRig(lv);
   if (kind === 'turret_fire') return fireRig(lv);
-  return legacyRig(kind, lv);
+  if (kind === 'turret_frost') return frostRig(lv);
+  return missileRig(lv);
 }

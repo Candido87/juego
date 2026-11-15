@@ -8,22 +8,22 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CONFIG } from '../game/config';
-import type { TurretKind } from '../game/types';
 import { TURRET_COLOR } from './actors';
 import { allModels } from './catalog';
 import { PITCH } from './camera';
 import { Effects } from './effects3d';
 import { OutlinePass, patchMaterial } from './fx';
 import { preload, tint } from './loader';
-import { BULLET_ACCENT, REDESIGNED, TurretRig, buildTurret } from './turrets3d';
+import { BULLET_ACCENT, GALLERY_ONLY, MODEL_KINDS, TurretModelKind, TurretRig, buildTurret } from './turrets3d';
 
-const ALL_KINDS: TurretKind[] = ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost'];
+type TurretKind = TurretModelKind;
+const ALL_KINDS: TurretKind[] = MODEL_KINDS;
 // Filtros por dirección: `?tipo=turret_bullet`, `?nivel=2` y `?limpio=1` (sin botones ni etiquetas, para capturas).
 const query = new URLSearchParams(location.search);
 const KINDS = ALL_KINDS.filter((k) => !query.get('tipo') || query.get('tipo') === k);
 const LEVELS = [1, 2, 3].filter((l) => !query.get('nivel') || Number(query.get('nivel')) === l);
 const CLEAN = query.get('limpio') === '1';
-const NAMES: Record<TurretKind, string> = { turret_bullet: 'Balas', turret_laser: 'Láser', turret_fire: 'Lanzallamas', turret_frost: 'Hielo' };
+const NAMES: Record<TurretKind, string> = { turret_bullet: 'Balas', turret_laser: 'Láser', turret_fire: 'Lanzallamas', turret_frost: 'Hielo', turret_missile: 'Misil (sólo galería)' };
 const STATES = ['normal', 'apagada', 'en obra', 'dañada'] as const;
 type State = (typeof STATES)[number];
 const SPACING = 1.75;
@@ -142,7 +142,8 @@ async function main(): Promise<void> {
       const mu = c.rig.muzzle;
       const from = new THREE.Vector3(c.x + Math.sin(yaw) * mu.fwd, c.rig.head.position.y + mu.y, c.z + Math.cos(yaw) * mu.fwd);
       const to = new THREE.Vector3(c.x + Math.sin(yaw) * 4.2, 0.5, c.z + Math.cos(yaw) * 4.2);
-      fx.shot(c.kind, from, to, CONFIG.turrets[c.kind].area);
+      // El misil no existe en la lógica: sin efecto propio hasta el hito 5.
+      if (c.kind !== 'turret_missile') fx.shot(c.kind, from, to, CONFIG.turrets[c.kind].area);
     }
   };
 
@@ -184,7 +185,7 @@ async function main(): Promise<void> {
     document.body.appendChild(el);
     labels.push({ el, p });
   };
-  KINDS.forEach((k, r) => label(`${NAMES[k]}${REDESIGNED.includes(k) ? ' ★' : ''}`, new THREE.Vector3(-0.9, 0, r * SPACING)));
+  KINDS.forEach((k, r) => label(`${NAMES[k]}${GALLERY_ONLY.includes(k) ? '' : ' ★'}`, new THREE.Vector3(-0.9, 0, r * SPACING)));
   LEVELS.forEach((l, c) => label(`nivel ${l}`, new THREE.Vector3(c * SPACING, 0, -0.95)));
 
   // ---------- bucle ----------

@@ -80,14 +80,6 @@ export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
   wall_gate: [{ model: 'factory/structure-medium', fit: 1.05, tint: 0xd9a35a }],
 };
 
-/** Arma montada como cañón sobre la base de cada torreta (gira hacia el objetivo). */
-export const TURRET_GUN: Record<TurretKind, { model: ModelId; fit: number; y: number }> = {
-  turret_bullet: { model: 'weapons/blaster-a', fit: 0.7, y: 0.75 },
-  turret_laser: { model: 'weapons/blaster-m', fit: 0.7, y: 0.75 },
-  turret_fire: { model: 'weapons/blaster-h', fit: 0.65, y: 0.75 },
-  turret_frost: { model: 'weapons/blaster-e', fit: 0.65, y: 0.75 },
-};
-
 export const NPC_MODEL: ModelId = 'characters/character-worker';
 export const CHAR_SCALE = 1.3;
 
@@ -115,7 +107,6 @@ export const TERRAIN = {
 export function allModels(): ModelId[] {
   const s = new Set<ModelId>();
   for (const parts of Object.values(BUILDING_PARTS)) for (const p of parts) if (p.model) s.add(p.model);
-  for (const g of Object.values(TURRET_GUN)) s.add(g.model);
   s.add(NPC_MODEL);
   for (const r of Object.values(ROLE_LOOK)) s.add(r.model);
   for (const e of Object.values(ENEMY_MODEL)) s.add(e.model);
