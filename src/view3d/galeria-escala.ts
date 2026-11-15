@@ -252,6 +252,27 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
   scene.add(cube);
   label('cubo 1×1×1', 30.5, 1.7, 30.5, 0.4);
 
+  // ---------- cajas de los tamaños objetivo (naranja) ----------
+  const targetBoxes = new THREE.Group();
+  scene.add(targetBoxes);
+  for (const e of entries) {
+    const t = CONFIG.scale.targets[e.key];
+    if (!t || e.cat === 'huella') continue;
+    e.group.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(e.group);
+    const size = bb.getSize(new THREE.Vector3());
+    const c = bb.getCenter(new THREE.Vector3());
+    const linear = /^(belt|pipeline)/.test(e.key);
+    const w0 = t.w ?? (e.cat === 'edificio' || e.cat === 'torreta' ? CONFIG.scale.fill * Math.max(...e.cell) : undefined);
+    const k = w0 !== undefined && t.h === undefined ? w0 / Math.max(size.x, size.z) : t.h !== undefined && w0 === undefined ? t.h / size.y : 1;
+    const ww = w0 ?? Math.max(size.x, size.z) * k;
+    const hh = t.h ?? size.y * k;
+    const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(linear ? 1 : ww, hh, ww)), new THREE.LineBasicMaterial({ color: 0xff7a00 }));
+    const base = e.cat === 'objeto' ? bb.min.y : e.baseY;
+    box.position.set(c.x, base + hh / 2, c.z);
+    targetBoxes.add(box);
+  }
+
   // ---------- cámaras ----------
   const rig = new CameraRig();
   rig.yaw = BASE_YAW;
@@ -334,6 +355,10 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
       labels.visible = on;
       render();
     },
+    targets: (on: boolean) => {
+      targetBoxes.visible = on;
+      render();
+    },
     yaw: (steps: number) => {
       rig.yaw = BASE_YAW + (steps * Math.PI) / 2;
       render();
@@ -347,7 +372,7 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
     '<b>Escala</b>' +
     '<span class="grp"><button data-mode="iso" class="on">Isométrica</button><button data-mode="orbit">Orbital</button></span>' +
     `<span class="grp">${Object.keys(ZONES).map((z) => `<button data-zone="${z}">${z}</button>`).join('')}</span>` +
-    '<span class="grp"><button data-act="labels" class="on">Etiquetas</button><button data-act="yaw">Girar 90°</button></span>';
+    '<span class="grp"><button data-act="labels" class="on">Etiquetas</button><button data-act="targets" class="on">Objetivos</button><button data-act="yaw">Girar 90°</button></span>';
   let yawSteps = 0;
   bar.addEventListener('click', (ev) => {
     const t = (ev.target as HTMLElement).closest('button');
@@ -358,6 +383,9 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
     else if (t.dataset.act === 'labels') {
       t.classList.toggle('on');
       api.labels(t.classList.contains('on'));
+    } else if (t.dataset.act === 'targets') {
+      t.classList.toggle('on');
+      (window as unknown as { __esc: { targets: (b: boolean) => void } }).__esc.targets(t.classList.contains('on'));
     } else if (t.dataset.act === 'yaw') api.yaw(++yawSteps);
   });
   void tint;

@@ -207,6 +207,7 @@ export const CONFIG = {
     unit: 1,
     footprints: {
       drill: [2, 2], generator: [2, 2], house: [2, 2], storage: [2, 2], pump: [2, 2], core: [2, 2],
+      turret_laser: [2, 2], turret_fire: [2, 2], turret_frost: [2, 2],
       factory: [3, 3], workshop: [3, 3], laboratory: [3, 3], refinery: [3, 4], farm: [4, 4],
     } as Partial<Record<BuildKind | 'core', [number, number]>>,
     /**
@@ -215,26 +216,36 @@ export const CONFIG = {
      * las piezas encajen. Los edificios caben en su casilla (≤ `maxWidth`); cuando haya huellas se multiplican por ellas.
      */
     targets: {
-      belt: { w: 0.6, h: 0.15 }, belt_curve: { w: 0.6, h: 0.15 }, belt_fast: { w: 0.6, h: 0.15 }, belt_ramp: { w: 0.6, h: 0.15 },
+      belt: { w: 0.65, h: 0.18 }, belt_curve: { w: 0.65, h: 0.18 }, belt_fast: { w: 0.65, h: 0.18 }, belt_ramp: { w: 0.65, h: 0.18 },
       elevator: { w: 0.85, h: 1.2 },
-      pipeline: { w: 0.35, h: 0.42 }, pipeline_curve: { w: 0.35, h: 0.42 }, pipeline_t: { w: 0.35, h: 0.42 },
+      pipeline: { w: 0.35, h: 0.45 }, pipeline_curve: { w: 0.35, h: 0.45 }, pipeline_t: { w: 0.35, h: 0.45 },
       pole: { w: 0.7, h: 1.4 },
-      item_lump: { w: 0.24 }, item_log: { w: 0.28 }, item_slab: { w: 0.28 }, item_disc: { w: 0.24 }, item_shell: { w: 0.2 }, item_crate: { w: 0.22 },
+      item_lump: { w: 0.22 }, item_log: { w: 0.25 }, item_slab: { w: 0.25 }, item_disc: { w: 0.22 }, item_shell: { w: 0.18 }, item_crate: { w: 0.22 },
       npc_constructor: { h: 0.62 }, npc_transporter: { h: 0.62 }, npc_operator: { h: 0.62 }, npc_mechanic: { h: 0.62 }, npc_researcher: { h: 0.62 },
       enemy_grunt: { h: 0.65 }, enemy_runner: { h: 0.62 }, enemy_armored: { h: 0.8 }, enemy_flyer: { h: 0.6 }, enemy_tank: { h: 1.0 },
-      turret_bullet: { w: 0.9, h: 1.0 }, turret_laser: { w: 0.9, h: 1.0 }, turret_fire: { w: 0.9, h: 1.0 }, turret_frost: { w: 0.9, h: 1.0 },
-      drill: { w: 0.9, h: 1.2 }, storage: { w: 0.9, h: 0.55 }, factory: { w: 0.95, h: 1.6 }, farm: { w: 0.9, h: 0.8 }, pump: { w: 0.85, h: 0.8 },
-      refinery: { w: 0.95, h: 1.7 }, workshop: { w: 0.95, h: 1.1 }, laboratory: { w: 0.95, h: 1.3 }, house: { w: 0.95, h: 1.1 },
-      generator: { w: 0.85, h: 0.9 }, solar: { w: 0.95, h: 0.12 }, turbine: { w: 0.8, h: 1.6 }, accumulator: { w: 0.8, h: 0.6 }, feeder: { w: 0.7, h: 0.8 },
-      core: { w: 1.8, h: 1.2 },
+      turret_bullet: { h: 1.0 }, turret_laser: { h: 1.0 }, turret_fire: { h: 1.0 }, turret_frost: { h: 1.0 },
+      turret_2x2: { w: 1.8, h: 1.3 },
+      drill: { h: 1.2 }, storage: { h: 0.9 }, factory: { h: 1.6 }, farm: { h: 0.8 }, pump: { h: 0.8 },
+      refinery: { h: 1.7 }, workshop: { h: 1.2 }, laboratory: { h: 1.3 }, house: { h: 1.1 },
+      generator: { h: 0.9 }, solar: { h: 0.12 }, turbine: { h: 1.6 }, accumulator: { h: 0.7 }, feeder: { h: 0.8 },
+      core: { h: 1.4 },
       wall_wood: { h: 0.7 }, wall_stone: { h: 0.85 }, wall_metal: { h: 1.0 }, wall_gate: { h: 1.0 },
-      tree_default: { h: 1.35 }, tree_oak: { h: 1.2 }, tree_pineTallA: { h: 1.45 }, tree_fat: { h: 1.2 }, tree_cone: { h: 1.5 },
+      tree_default: { h: 1.3 }, tree_oak: { h: 1.15 }, tree_pineTallA: { h: 1.3 }, tree_fat: { h: 1.1 }, tree_cone: { h: 1.3 },
       rock_largeA: { w: 0.63 }, rock_tallA: { w: 0.74 }, plant_bush: { w: 0.48 },
     } as Record<string, { w?: number; h?: number }>,
-    /** Límites: ningún edificio pasa de esta altura ni de este ancho (casillas 1×1); carril útil de la cinta para los objetos. */
+    /** Ancho de un edificio como fracción de su huella (95 %): el ancho objetivo es `fill` × lado de la huella, no un valor absoluto. */
+    fill: 0.95,
+    /** Alturas mínimas por tipo (casillas): ninguna persona (0,62) es más alta que un edificio pequeño. La fábrica 1,4–2,0 (chimeneas hasta 2,4). */
+    minHeight: { house: 1.0, storage: 0.9, workshop: 1.2, laboratory: 1.2, factory: 1.4 } as Partial<Record<BuildKind, number>>,
+    maxFactoryHeight: 2.0,
+    maxChimneyHeight: 2.4,
+    /** Árboles: alto 1,0–1,3 y copa de 0,8 de ancho como máximo; se vuelven transparentes si tapan cintas o edificios. */
+    tree: { minHeight: 1.0, maxHeight: 1.3, maxCanopy: 0.8 },
     maxBuildingHeight: 1.8,
     maxWidth: 1,
     beltLane: 0.5,
+    /** Objetos transportados: lado máximo entre estos valores, apoyados sobre la cinta. */
+    itemSize: [0.15, 0.25] as [number, number],
   },
   belt: { speed: 2, fastSpeed: 4, rampUpFactor: 0.5 },
   /** Ascensor de cintas: salva hasta `maxRise` niveles; mueve `speed` casillas de cinta por segundo (limitado) y necesita energía. */

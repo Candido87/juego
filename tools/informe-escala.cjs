@@ -15,6 +15,7 @@ for (const m of block.matchAll(/(\w+): \{ ([^}]*) \}/g)) {
   }
   targets[m[1]] = t;
 }
+const fill = Number((src.match(/fill: ([0-9.]+)/) || [])[1] || 0.95);
 const rows = JSON.parse(fs.readFileSync('docs/escala/medidas.json', 'utf8'));
 const seen = new Set();
 const out = ['| Tipo | Modelo | Tamaño actual (ancho × fondo × alto) | Tamaño objetivo | Factor de escala | Base (y mín.) |', '|---|---|---|---|---|---|'];
@@ -23,7 +24,8 @@ const f = (n) => (Number.isFinite(n) ? n.toFixed(2) : '—');
 for (const r of rows) {
   if (r.cat === 'huella' || seen.has(r.key)) continue;
   seen.add(r.key);
-  const t = targets[r.key];
+  let t = targets[r.key];
+  if (t && !t.w && (r.cat === 'edificio' || r.cat === 'torreta')) t = { ...t, w: +(fill * Math.max(...r.cell)).toFixed(3) };
   const linear = /^(belt|pipeline)/.test(r.key);
   const cross = linear ? Math.min(r.w, r.d) : Math.max(r.w, r.d);
   const parts = [];

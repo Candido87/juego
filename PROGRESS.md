@@ -163,9 +163,10 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] CON-B5. Resaltado de cadenas (`cadena.ts`: aguas arriba y abajo con flechas que corren), vista de logística (tecla L: mapa atenuado, todas las flechas de puertos y líneas por colores), texto de cada puerto bajo el ratón (tipo, sentido, estado, qué conectar), ayuda y guía actualizadas, y 3 tests (cadenas, empalme y guardado/carga de puertos y redes). **No hecho:** el bot de la guía sigue con su propio trazado (`guia-bot.ts connect`); no usa Conectar porque el núcleo aún no tiene puertos en `ports()`.
 
 ## Escala de la vista 3D (reglas en SPEC.md; sólo capa visual)
-- [x] ESC-0. Auditoría: unidad única (`CONFIG.scale`), medidas de todos los modelos (`docs/escala/medidas.json`), tabla objetivo y informe `docs/escala/informe.md`. **Parado: esperando visto bueno del informe.**
+- [x] ESC-0. Auditoría: unidad única (`CONFIG.scale`), medidas de todos los modelos (`docs/escala/medidas.json`), tabla objetivo y informe `docs/escala/informe.md`. Tabla aprobada con cambios (15-11-2026): `CONFIG.scale` actualizada. **Parado: esperando visto bueno de las capturas.**
 - [x] ESC-1. Galería de escala `/galeria-escala.html` (isométrica fija y orbital) y capturas en `docs/escala/`. **Parado: esperando visto bueno.**
 - [ ] ESC-2. Cintas, tuberías, postes y objetos transportados con el tamaño objetivo.
 - [ ] ESC-3. Hundimiento en el terreno (causa, regla de base y test con desniveles).
 - [ ] ESC-4. Escala del resto (registro de aspectos con un factor por modelo, y tests de proporciones).
 - [ ] ESC-5. Revisión final con capturas.
+- [ ] ESC-6. Detalles de encaje (conectores físicos en puertos, luz de estado, conos y marcas de suelo, flechas, adornos animados opcionales) según la referencia del Factory Kit; ver SPEC.md.

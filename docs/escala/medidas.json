@@ -794,6 +794,45 @@
  },
  {
   "cat": "huella",
+  "name": "Torreta láser 2×2",
+  "key": "turret_laser",
+  "w": 0.92,
+  "d": 1.355,
+  "h": 1.015,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Lanzallamas 2×2",
+  "key": "turret_fire",
+  "w": 0.92,
+  "d": 1.25,
+  "h": 0.81,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Torreta de hielo 2×2",
+  "key": "turret_frost",
+  "w": 0.92,
+  "d": 1.3,
+  "h": 1.01,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
   "name": "Fábrica 3×3",
   "key": "factory",
   "w": 0.72,
