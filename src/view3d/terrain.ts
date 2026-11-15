@@ -4,6 +4,7 @@ import { Ore } from '../game/types';
 import { World, heightAt, inBounds } from '../game/world';
 import { TERRAIN } from './catalog';
 import { instanced } from './loader';
+import { GROUND_TINT, ORE_COLOR } from './palette';
 import { LEVEL_H } from './pick';
 
 /** Giro (rad, eje Y) de la rampa para que baje hacia cada dirección 0:+x 1:+z 2:-x 3:-z. El modelo baja hacia -z con giro 0 (comprobado en sus vértices). */
@@ -11,15 +12,6 @@ export const SLOPE_YAW = [-Math.PI / 2, Math.PI, Math.PI / 2, 0];
 const DX = [1, 0, -1, 0];
 const DY = [0, 1, 0, -1];
 
-export const ORE_COLOR: Record<number, number> = {
-  [Ore.Iron]: 0x9db4d6,
-  [Ore.Copper]: 0xe0894a,
-  [Ore.Coal]: 0x3a3a44,
-  [Ore.Stone]: 0xd9d4c4,
-  [Ore.Wood]: 0x6fbf5a,
-  [Ore.Oil]: 0x22222c,
-  [Ore.Sulfur]: 0xf0e04a,
-};
 
 export function hash2(x: number, y: number, seed = 0): number {
   let h = (x * 374761393 + y * 668265263 + seed * 144665) | 0;
@@ -39,6 +31,9 @@ interface Chunk {
   flat: THREE.Matrix4[];
   blocks: THREE.Matrix4[];
   slopes: THREE.Matrix4[];
+  flatC: THREE.Color[];
+  blocksC: THREE.Color[];
+  slopesC: THREE.Color[];
   decor: Map<string, { mats: THREE.Matrix4[]; colors: THREE.Color[]; keys: string[] }>;
 }
 
@@ -52,7 +47,7 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
   const chunkAt = (x: number, y: number): Chunk => {
     const k = Math.floor(y / size) * 100000 + Math.floor(x / size);
     let c = chunks.get(k);
-    if (!c) chunks.set(k, (c = { flat: [], blocks: [], slopes: [], decor: new Map() }));
+    if (!c) chunks.set(k, (c = { flat: [], blocks: [], slopes: [], flatC: [], blocksC: [], slopesC: [], decor: new Map() }));
     return c;
   };
   const place = (px: number, py: number, pz: number, yaw = 0, sx = 1, sy = 1, sz = 1) =>
@@ -71,7 +66,9 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
       const h = heightAt(world, x, y);
       const cx = x + 0.5;
       const cz = y + 0.5;
-      if (h <= 0) c.flat.push(place(cx, 0, cz));
+      // Tinte del suelo: zona según el recurso y una variación suave por casilla para que no sea un plano liso.
+      const tint = new THREE.Color(GROUND_TINT[world.ore[y * world.w + x]] ?? 0xffffff).multiplyScalar(0.93 + hash2(x, y, seed + 90) * 0.07);
+      if (h <= 0) (c.flat.push(place(cx, 0, cz)), c.flatC.push(tint));
       else {
         // Rampa: una sola vecina más baja y las demás iguales o más altas.
         let lower = -1;
@@ -87,8 +84,8 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
             lowerCount++;
           } else if (nh < h) okOthers = false;
         }
-        if (lowerCount === 1 && okOthers && h === 1) c.slopes.push(place(cx, 0, cz, SLOPE_YAW[lower], 1, LEVEL_H, 1));
-        else c.blocks.push(place(cx, 0, cz, 0, 1, h * LEVEL_H, 1));
+        if (lowerCount === 1 && okOthers && h === 1) (c.slopes.push(place(cx, 0, cz, SLOPE_YAW[lower], 1, LEVEL_H, 1)), c.slopesC.push(tint));
+        else (c.blocks.push(place(cx, 0, cz, 0, 1, h * LEVEL_H, 1)), c.blocksC.push(tint));
       }
       const o = world.ore[y * world.w + x];
       const key = `${x},${y}`;
@@ -121,9 +118,9 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
     group.add(g);
   };
   for (const c of chunks.values()) {
-    addGroup(instanced(TERRAIN.flat, c.flat));
-    addGroup(instanced(TERRAIN.block, c.blocks));
-    addGroup(instanced(TERRAIN.slope, c.slopes));
+    addGroup(instanced(TERRAIN.flat, c.flat, c.flatC, 'grass', true));
+    addGroup(instanced(TERRAIN.block, c.blocks, c.blocksC, 'grass', true));
+    addGroup(instanced(TERRAIN.slope, c.slopes, c.slopesC, 'grass', true));
     for (const [model, d] of c.decor) {
       const g = instanced(model, d.mats, d.colors);
       addGroup(g);

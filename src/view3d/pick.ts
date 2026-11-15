@@ -32,3 +32,43 @@ export function pickTile3D(origin: Vec3, dir: Vec3, world: PickWorld, maxT = 400
   }
   return null;
 }
+
+export interface Box {
+  id: number;
+  minX: number;
+  minY: number;
+  minZ: number;
+  maxX: number;
+  maxY: number;
+  maxZ: number;
+}
+
+/** Caja más cercana que corta el rayo (método de las losas), o null. Sirve para elegir un edificio por su cuerpo visible. */
+export function pickBox(origin: Vec3, dir: Vec3, boxes: Iterable<Box>): number | null {
+  let best: number | null = null;
+  let bestT = Infinity;
+  for (const b of boxes) {
+    let t0 = -Infinity;
+    let t1 = Infinity;
+    let hit = true;
+    for (const [o, d, lo, hi] of [
+      [origin.x, dir.x, b.minX, b.maxX],
+      [origin.y, dir.y, b.minY, b.maxY],
+      [origin.z, dir.z, b.minZ, b.maxZ],
+    ]) {
+      if (Math.abs(d) < 1e-9) {
+        if (o < lo || o > hi) hit = false;
+        continue;
+      }
+      const a = (lo - o) / d;
+      const c = (hi - o) / d;
+      t0 = Math.max(t0, Math.min(a, c));
+      t1 = Math.min(t1, Math.max(a, c));
+    }
+    if (hit && t0 <= t1 && t1 >= 0 && t0 < bestT) {
+      bestT = t0;
+      best = b.id;
+    }
+  }
+  return best;
+}

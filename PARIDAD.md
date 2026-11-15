@@ -7,7 +7,7 @@ Rama de trabajo: `vista-3d`. Entrada 3D: `vista3d.html` + `src/view3d/`. Entrada
 
 **Vista 2D congelada:** desde hoy `src/view/` sólo recibe correcciones graves. Todo lo nuevo que se vea va a `src/view3d/`.
 
-Resumen: **42 hecho · 13 parcial · 37 pendiente · 5 no existe** (97 líneas).
+Resumen: **47 hecho · 13 parcial · 35 pendiente · 5 no existe** (100 líneas).
 
 ## Hallazgos al inventariar (cambian el plan)
 - **(Fase 1 hecha)** La interfaz es una sola para las dos vistas: `vista3d.html` usa `src/view/ui.ts`, `tooltip.ts` y `guia.ts`, que ya no importan Phaser (hay un test que lo vigila).
@@ -76,16 +76,19 @@ Resumen: **42 hecho · 13 parcial · 37 pendiente · 5 no existe** (97 líneas).
 | 5.2 | Zoom con rueda hacia el cursor | hecho | `CameraRig.zoomAt`, con test |
 | 5.3 | Selección de casilla con relieve | hecho | `pick.ts` |
 | 5.4 | Seleccionar edificio con contorno | hecho | marca la huella entera |
-| 5.5 | Semitransparencia de lo que tapa | pendiente | |
+| 5.5 | Semitransparencia de lo que tapa | hecho | trama de transparencia en un círculo alrededor del cursor (al construir) y del edificio seleccionado; vale también para árboles |
 | 5.6 | Temblor de cámara al golpear el núcleo | pendiente | |
 | 5.7 | Giro de cámara en pasos de 90° | hecho | nuevo en 3D |
+| 5.8 | Contorno oscuro de objetos y escalones | hecho | nuevo en 3D; pase de bordes por profundidad, con interruptor en Opciones |
+| 5.9 | Personajes visibles cuando algo los tapa | hecho | disco de color (azul NPC, rojo enemigo) que sólo aparece si están ocultos |
+| 5.10 | Elegir un edificio haciendo clic en su cuerpo | hecho | además de por su casilla; lo tapado se elige por la casilla |
 
 ## 6. Terreno y decoración
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
 | 6.1 | Relieve por niveles con laterales | hecho | |
-| 6.2 | Zonas de terreno (hierba, tierra, roca, arena) | pendiente | la 3D sólo tiene hierba; paleta turquesa por corregir |
-| 6.3 | Yacimientos marcados por tipo | parcial | piedras teñidas; falta que se lean bien |
+| 6.2 | Zonas de terreno (hierba, tierra, roca, arena) | parcial | hierba verde con tinte de suelo por recurso y variación por casilla; faltan arena y roca como zonas propias |
+| 6.3 | Yacimientos marcados por tipo | hecho | suelo teñido por recurso más piedras de color |
 | 6.4 | Árboles y decoración procedural con semilla y regla de bloqueo | parcial | hay árboles y rocas; sin las reglas de `decor.ts` |
 | 6.5 | Puntos de aparición de enemigos marcados | pendiente | |
 | 6.6 | Ruta prevista de los enemigos | pendiente | |

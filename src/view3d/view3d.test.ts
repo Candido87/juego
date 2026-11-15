@@ -149,8 +149,8 @@ describe('opciones de la vista 3D', () => {
     const store = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
     expect(loadOptions(store)).toEqual(DEFAULT_OPTIONS);
     expect(loadOptions(null)).toEqual(DEFAULT_OPTIONS);
-    saveOptions(store, { shadows: false, speed: 4, perf: true });
-    expect(loadOptions(store)).toEqual({ shadows: false, speed: 4, perf: true });
+    saveOptions(store, { shadows: false, outline: false, speed: 4, perf: true });
+    expect(loadOptions(store)).toEqual({ shadows: false, outline: false, speed: 4, perf: true });
     data.set(OPTIONS_KEY, '{"speed":7,"shadows":"x"}');
     expect(loadOptions(store)).toEqual(DEFAULT_OPTIONS);
     data.set(OPTIONS_KEY, 'no es json');
@@ -180,5 +180,34 @@ describe('interfaz sin Phaser', () => {
     expect(bad).toEqual([]);
     expect([...seen].some((f) => f.endsWith('GameScene.ts') || f.endsWith('shapes.ts'))).toBe(false);
     expect([...seen].some((f) => f.endsWith(join('view', 'ui.ts')))).toBe(true);
+  });
+});
+
+describe('elegir un edificio por su cuerpo', () => {
+  it('devuelve la caja más cercana que corta el rayo', async () => {
+    const { pickBox } = await import('./pick');
+    const boxes = [
+      { id: 1, minX: 0, minY: 0, minZ: 0, maxX: 1, maxY: 2, maxZ: 1 },
+      { id: 2, minX: 3, minY: 0, minZ: 0, maxX: 4, maxY: 2, maxZ: 1 },
+    ];
+    expect(pickBox({ x: 10, y: 1, z: 0.5 }, { x: -1, y: 0, z: 0 }, boxes)).toBe(2);
+    expect(pickBox({ x: -10, y: 1, z: 0.5 }, { x: 1, y: 0, z: 0 }, boxes)).toBe(1);
+    expect(pickBox({ x: 10, y: 5, z: 0.5 }, { x: -1, y: 0, z: 0 }, boxes)).toBeNull();
+    expect(pickBox({ x: 10, y: 1, z: 0.5 }, { x: 1, y: 0, z: 0 }, boxes)).toBeNull();
+  });
+});
+
+describe('paleta', () => {
+  it('la hierba y las hojas son verdes, y el agua azul', async () => {
+    const { NATURE_PALETTE, GROUND_TINT, rgb } = await import('./palette');
+    for (const k of ['grass', 'leafsGreen', 'leafsDark']) {
+      const [r, g, b] = rgb(NATURE_PALETTE[k]);
+      expect(g, k).toBeGreaterThan(r);
+      expect(g, k).toBeGreaterThan(b * 1.3);
+    }
+    const [wr, , wb] = rgb(NATURE_PALETTE.water);
+    expect(wb).toBeGreaterThan(wr);
+    // los tintes de suelo sólo oscurecen o matizan: ninguno pasa de 255 ni deja la hierba sin verde
+    for (const tint of Object.values(GROUND_TINT)) expect(rgb(tint)[1]).toBeGreaterThan(120);
   });
 });

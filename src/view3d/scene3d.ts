@@ -9,8 +9,9 @@ import { DX, DY, Dir, BuildKind, EnemyKind, TurretKind } from '../game/types';
 import { heightAt, heightAtPoint } from '../game/world';
 import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, NPC_MODEL, TURRET_GUN, allModels } from './catalog';
 import { CameraRig } from './camera';
+import { HOLES, OutlinePass, patchMaterial } from './fx';
 import { animations, instance, preload, tint } from './loader';
-import { LEVEL_H, pickTile3D } from './pick';
+import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { Terrain, buildTerrain } from './terrain';
 
 type Tile = { x: number; y: number };
@@ -24,10 +25,18 @@ export interface ViewOptions {
   /** Lado en casillas de cada trozo de terreno (0 = un solo trozo). */
   chunk: number;
   shadows: boolean;
+  /** Contorno oscuro en siluetas y escalones. */
+  outline: boolean;
 }
-export const OPT_ON: ViewOptions = { batch: true, cull: true, chunk: 32, shadows: true };
-export const OPT_OFF: ViewOptions = { batch: false, cull: false, chunk: 0, shadows: true };
+export const OPT_ON: ViewOptions = { batch: true, cull: true, chunk: 32, shadows: true, outline: true };
+export const OPT_OFF: ViewOptions = { batch: false, cull: false, chunk: 0, shadows: true, outline: false };
 const MAX_ITEMS = 8192;
+const MAX_MARKERS = 2048;
+/** Radio (en casillas) del agujero de transparencia y margen de profundidad (unidades de mundo) para no tramar lo que está en la propia casilla. */
+const HOLE_RADIUS = 1.7;
+const HOLE_MARGIN = 1.25;
+const NPC_MARK = new THREE.Color(0x6fd3ff);
+const ENEMY_MARK = new THREE.Color(0xff5a5a);
 /** Personajes con esqueleto a la vez (el resto va instanciado). */
 const ANIMATED_BUDGET = 250;
 const MAX_LOD = 4096;
@@ -52,6 +61,8 @@ interface BView {
   recoil: number;
   item?: THREE.Mesh;
   baseY: number;
+  /** Altura del modelo (para elegirlo por su cuerpo). */
+  height: number;
   /** Mallas del edificio en espacio de mundo, para agruparlas cuando es estático. */
   statics?: { geo: THREE.BufferGeometry; mat: THREE.Material | THREE.Material[]; matrix: THREE.Matrix4 }[];
 }
@@ -76,10 +87,13 @@ const angleLerp = (a: number, b: number, k: number) => {
 export class View3D {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -200, 400);
+  readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 320);
   readonly rig = new CameraRig();
   terrain!: Terrain;
   hover: Tile | null = null;
+  /** Edificio bajo el cursor: el de la casilla o, si está vacía, el que se ve en ese punto de la pantalla. */
+  hoverBuildingId: number | null = null;
+  private bodyPick: number | null = null;
   /** Modo construcción (lo pone la interfaz). */
   buildKind: BuildKind | null = null;
   buildDir: Dir = 0;
@@ -116,7 +130,12 @@ export class View3D {
   private belts: Building[] = [];
   private itemMesh: THREE.InstancedMesh | null = null;
   private frustum = new THREE.Frustum();
+  readonly outline: OutlinePass;
+  /** Marcas que sólo se ven cuando un personaje queda tapado (profundidad invertida). */
+  private markers: THREE.InstancedMesh;
+  private markerN = 0;
   private lod = new Map<EnemyKind, { meshes: THREE.InstancedMesh[]; locals: THREE.Matrix4[] }>();
+  private toCamera = new THREE.Vector3();
   private frameNo = 0;
   private inView = 0;
   private inViewNext = 0;
@@ -126,6 +145,14 @@ export class View3D {
   constructor(private host: HTMLElement, readonly game: Game, readonly opts: ViewOptions = OPT_ON) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.info.autoReset = false;
+    this.outline = new OutlinePass(this.renderer);
+    this.outline.enabled = opts.outline;
+    this.markers = new THREE.InstancedMesh(new THREE.CircleGeometry(0.17, 14), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthFunc: THREE.GreaterDepth, depthWrite: false }), MAX_MARKERS);
+    this.markers.count = 0;
+    this.markers.frustumCulled = false;
+    this.markers.renderOrder = 10;
+    this.scene.add(this.markers);
     this.renderer.shadowMap.enabled = opts.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(this.renderer.domElement);
@@ -228,7 +255,21 @@ export class View3D {
     const o = new THREE.Vector3(ndc.x, ndc.y, -1).unproject(this.camera);
     const d = new THREE.Vector3(0, 0, -1).transformDirection(this.camera.matrixWorld);
     const w = this.game.world;
-    return pickTile3D(o, d, { w: w.w, h: w.h, levelAt: (x, y) => heightAt(w, x, y) }, 600);
+    const tile = pickTile3D(o, d, { w: w.w, h: w.h, levelAt: (x, y) => heightAt(w, x, y) }, 600);
+    const onTile = tile ? this.game.buildingAt(tile.x, tile.y) : undefined;
+    this.bodyPick = null;
+    if (!onTile) {
+      const boxes = [];
+      for (const [id, bv] of this.buildings) {
+        const b = this.game.buildings.get(id);
+        if (!b || bv.height < 0.6) continue;
+        const base = this.levelTop(b);
+        boxes.push({ id, minX: b.x + 0.1, minY: base, minZ: b.y + 0.1, maxX: b.x + b.w - 0.1, maxY: base + bv.height, maxZ: b.y + b.d - 0.1 });
+      }
+      this.bodyPick = pickBox(o, d, boxes);
+    }
+    this.hoverBuildingId = onTile?.id ?? this.bodyPick;
+    return tile;
   }
 
   // ---------- edificios ----------
@@ -265,7 +306,7 @@ export class View3D {
 
   private makeBuilding(b: Building, sig: string): BView {
     const group = new THREE.Group();
-    const view: BView = { group, sig, spin: [], bob: [], yaw: 0, recoil: 0, baseY: 0 };
+    const view: BView = { group, sig, spin: [], bob: [], yaw: 0, recoil: 0, baseY: 0, height: 0 };
     const kind = b.kind;
     let top = 0;
     const parts = BUILDING_PARTS[kind];
@@ -307,6 +348,7 @@ export class View3D {
       if (p.bob) view.bob.push(o);
       group.add(o);
     });
+    view.height = top;
     // Torreta: cañón sobre un pivote que gira hacia el objetivo.
     if (kind in CONFIG.turrets) {
       const g = TURRET_GUN[kind as TurretKind];
@@ -328,6 +370,7 @@ export class View3D {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         m.material = (m.material as THREE.Material).clone();
+        patchMaterial(m.material as THREE.Material);
         (m.material as THREE.Material).transparent = true;
         (m.material as THREE.Material).opacity = 0.55;
       });
@@ -544,7 +587,9 @@ export class View3D {
         this.npcs.set(n.id, v);
         this.scene.add(v.group);
       }
-      this.moveChar(v, n.x, n.y, heightAtPoint(w, n.x, n.y) * LEVEL_H, dt);
+      const ny = heightAtPoint(w, n.x, n.y) * LEVEL_H;
+      this.moveChar(v, n.x, n.y, ny, dt);
+      this.mark(n.x, ny, n.y, NPC_MARK);
     }
     for (const [id, v] of this.npcs) if (!seenN.has(id)) (this.scene.remove(v.group), this.npcs.delete(id));
     const seenE = new Set<number>();
@@ -574,8 +619,10 @@ export class View3D {
           this.scene.add(v.group);
         }
         this.moveChar(v, en.x, en.y, y, dt, en.kind === 'runner');
+        this.mark(en.x, y, en.y, ENEMY_MARK);
       } else if (this.frustum.intersectsSphere(new THREE.Sphere(new THREE.Vector3(en.x, y + 0.5, en.y), 1.6))) {
         this.drawLod(en.kind, en.x, y, en.y, en.id);
+        this.mark(en.x, y, en.y, ENEMY_MARK);
       }
     }
     for (const lod of this.lod.values()) for (const im of lod.meshes) im.instanceMatrix.needsUpdate = true;
@@ -647,6 +694,37 @@ export class View3D {
     });
   }
 
+  /** Coloca los agujeros de transparencia: A = casilla bajo el cursor, B = edificio seleccionado. */
+  private updateHoles(): void {
+    const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    const radius = HOLE_RADIUS * this.rig.ppu * this.rig.zoom * this.renderer.getPixelRatio();
+    const range = this.camera.far - this.camera.near;
+    const set = (h: THREE.Vector4, p: THREE.Vector3 | null, extra = 0) => {
+      const margin = (HOLE_MARGIN + extra) / range;
+      if (!p) return void h.set(0, 0, 0, 0);
+      p.project(this.camera);
+      h.set((p.x * 0.5 + 0.5) * size.x, (p.y * 0.5 + 0.5) * size.y, radius, p.z * 0.5 + 0.5 - margin);
+    };
+    const w = this.game.world;
+    const t = this.hover;
+    // Sin herramienta, apuntar al cuerpo de un edificio lo elige (no se trama). Con herramienta, se trama para construir detrás.
+    const placing = !!this.buildKind || this.removeMode;
+    const peek = t && !this.game.buildingAt(t.x, t.y) && (placing || this.bodyPick === null);
+    set(HOLES.a.value, t && peek ? new THREE.Vector3(t.x + 0.5, heightAt(w, t.x, t.y) * LEVEL_H, t.y + 0.5) : null);
+    const sb = this.selectedId !== null ? this.game.buildings.get(this.selectedId) : undefined;
+    // Un edificio grande necesita más margen para no tramarse a sí mismo.
+    set(HOLES.b.value, sb ? new THREE.Vector3(sb.x + sb.w / 2, this.levelTop(sb), sb.y + sb.d / 2) : null, sb ? Math.max(sb.w, sb.d) - 1 : 0);
+  }
+
+  /** Añade la marca de "tapado" de un personaje: un disco hacia la cámara, adelantado para no chocar con su propio cuerpo. */
+  private mark(x: number, y: number, z: number, color: THREE.Color): void {
+    if (this.markerN >= MAX_MARKERS) return;
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x, y + 0.55, z).addScaledVector(this.toCamera, 0.7), this.camera.quaternion, new THREE.Vector3(1, 1, 1));
+    this.markers.setMatrixAt(this.markerN, m);
+    this.markers.setColorAt(this.markerN, color);
+    this.markerN++;
+  }
+
   private updateHighlights(): void {
     const w = this.game.world;
     const set = (g: THREE.Object3D, t: Tile | null) => {
@@ -704,6 +782,11 @@ export class View3D {
     this.renderer.setSize(w, h);
   }
 
+  setOutline(on: boolean): void {
+    this.opts.outline = on;
+    this.outline.enabled = on;
+  }
+
   /** Enciende o apaga las sombras (las más caras de la escena). */
   setShadows(on: boolean): void {
     this.opts.shadows = on;
@@ -750,6 +833,8 @@ export class View3D {
     this.camera.updateMatrixWorld();
     this.frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));
     this.frameNo++;
+    this.markerN = 0;
+    this.toCamera.set(0, 0, 1).transformDirection(this.camera.matrixWorld);
     this.stats.charsAnimated = 0;
     this.stats.charsSkipped = 0;
     this.inView = this.inViewNext;
@@ -758,7 +843,12 @@ export class View3D {
     this.syncChars(dt);
     this.handleEvents();
     this.updateHighlights();
-    this.renderer.render(this.scene, this.camera);
+    this.updateHoles();
+    this.markers.count = this.markerN;
+    this.markers.instanceMatrix.needsUpdate = true;
+    if (this.markers.instanceColor) this.markers.instanceColor.needsUpdate = true;
+    this.renderer.info.reset();
+    this.outline.render(this.scene, this.camera);
   }
 
   counts(): { buildings: number; npcs: number; enemies: number } {

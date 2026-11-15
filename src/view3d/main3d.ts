@@ -72,6 +72,7 @@ async function start() {
   const opts = q.get('opt') === '0' ? { ...OPT_OFF } : { ...OPT_ON };
   opts.shadows = q.get('shadows') === '0' ? false : options.shadows;
   if (q.get('chunk')) opts.chunk = Number(q.get('chunk'));
+  opts.outline = q.get('outline') === '0' || q.get('opt') === '0' ? false : options.outline;
   const view = new View3D($('v'), game, opts);
   await view.init((d, t) => ($('load').textContent = `Cargando modelos… ${d}/${t}`));
   $('load').remove();
@@ -112,10 +113,8 @@ async function start() {
     if (button === 2) {
       hud.setTool(null);
       ui.selected = null;
-    } else if (button === 0 && t) {
-      if (ui.tool === null) ui.selected = game.buildingAt(t.x, t.y)?.id ?? null;
-      else placeAt(t);
-    }
+    } else if (button === 0 && ui.tool === null) ui.selected = view.hoverBuildingId;
+    else if (button === 0 && t) placeAt(t);
   };
   // Mayús + arrastrar: traza cintas o tuberías casilla a casilla orientándolas según el movimiento.
   let painting: Tile | null = null;
@@ -150,6 +149,7 @@ async function start() {
   const applyOptions = () => {
     saveOptions(localStorage, options);
     if (view.opts.shadows !== options.shadows) view.setShadows(options.shadows);
+    if (view.opts.outline !== options.outline) view.setOutline(options.outline);
     speed = options.speed;
     $('perf').style.display = options.perf ? 'flex' : 'none';
   };
@@ -159,6 +159,7 @@ async function start() {
     $('options').innerHTML =
       `<h3>Opciones <button data-optclose title="Cerrar (O o Esc)">✕</button></h3>` +
       `<div class="orow"><span>Sombras</span>${seg('shadows', [['1', 'Sí'], ['0', 'No']], options.shadows ? '1' : '0')}</div>` +
+      `<div class="orow"><span>Contorno de objetos</span>${seg('outline', [['1', 'Sí'], ['0', 'No']], options.outline ? '1' : '0')}</div>` +
       `<div class="orow"><span>Velocidad del juego</span>${seg('speed', [['1', 'x1'], ['2', 'x2'], ['4', 'x4']], String(options.speed))}</div>` +
       `<div class="orow"><span>Mostrar rendimiento</span>${seg('perf', [['1', 'Sí'], ['0', 'No']], options.perf ? '1' : '0')}</div>` +
       `<div class="orow"><span>Guía de inicio</span><button data-optguide>${hud.guia.disabled ? 'Activar' : 'Reiniciar'}</button></div>`;
@@ -182,6 +183,7 @@ async function start() {
     if (!o) return;
     const [k, v] = o.split(':');
     if (k === 'shadows') options.shadows = v === '1';
+    if (k === 'outline') options.outline = v === '1';
     if (k === 'speed') options.speed = Number(v);
     if (k === 'perf') options.perf = v === '1';
     applyOptions();

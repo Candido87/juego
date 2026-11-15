@@ -530,3 +530,12 @@ El juego pasa a 3D con Three.js; la vista 2D de Phaser se retira cuando `PARIDAD
 - **Sin solapamientos:** los paneles flotantes (recetas, ayuda, opciones, avisos) se colocan debajo del alto real del HUD (`--hudh`) y entre las dos columnas. Comprobado por script con todos abiertos a 967×853 y 1024×640.
 - **Iconos del menú:** siguen siendo los de la hoja 2D Tiny Factory. Las miniaturas de los modelos 3D quedan anotadas en PARIDAD 3.4.
 - **El bot ya no arranca solo:** `?auto=1` lo activa (antes era el modo por defecto del prototipo).
+
+## Migración, Fase 2: aspecto y legibilidad
+- **Paleta** (`palette.ts`, con test): el Nature Kit no trae textura, así que al cargar se sustituye el color de cada material por nombre (hierba y hojas verdes, tierra, madera, piedra, agua). Todos los materiales pasan a mate (metalness 0, roughness 1) para que los cinco packs reaccionen igual a la luz.
+- **Zonas:** la cara de hierba de cada casilla se tiñe según su recurso (hierro, cobre, carbón, piedra, bosque, petróleo, azufre) con una variación suave por casilla. Arena y roca como zonas propias quedan pendientes: la lógica no las define.
+- **Contorno:** se eligió un **pase de bordes por profundidad** en vez del casco invertido, porque vale igual para mallas instanciadas y con esqueleto y cuesta una sola pasada a pantalla completa (~0,4 ms). Usa el laplaciano de la profundidad, que es cero en planos inclinados y alto en siluetas y escalones; por eso también marca los desniveles del terreno. Umbral ajustado a ojo (0,13–0,36 unidades) para que no dibuje las juntas entre casillas. Interruptor en Opciones.
+- **Lo que tapa:** en vez de volver semitransparente cada objeto (imposible por instancia), los materiales descartan 3 de cada 4 píxeles dentro de un círculo de 1,7 casillas cuando el fragmento queda por delante del punto de interés. Hay dos puntos: la casilla bajo el cursor (sólo al construir o quitar, o si no se apunta a ningún edificio) y el edificio seleccionado. El suelo nunca se trama. Margen de 1,25 unidades para no tramar lo que está en la propia casilla.
+- **Seleccionar:** sin herramienta, un clic elige el edificio de la casilla o, si está vacía, el edificio cuyo cuerpo se ve bajo el cursor (`pickBox`, con test). Con herramienta, siempre manda la casilla, así que se puede construir detrás de algo alto.
+- **Personajes tapados:** un disco de color con la prueba de profundidad invertida; sólo se ve si algo oculta al personaje.
+- **Cámara:** planos de recorte 1–320 (antes −200–400) para dar más precisión a la profundidad del contorno.
