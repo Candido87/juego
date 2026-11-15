@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../game/config';
 import type { Building, Game } from '../game/game';
 import { isElectric } from '../game/power';
-import { ports } from '../game/puertos';
+import { Port, PortFlow, PortState, hasPorts, ports, portsWithStatus } from '../game/puertos';
 import type { BuildKind, BuildingKind, Dir, TurretKind } from '../game/types';
 import { heightAt, inBounds } from '../game/world';
 import { ITEM_COLORS } from '../view/itemColors';
@@ -46,6 +46,10 @@ export interface OverlayState {
 
 const SOLID = 0xffd166;
 const LIQUID = 0x6fd3ff;
+/** Color de cada tipo de flujo en los conectores (iguales a los de la interfaz: sólido naranja, petróleo marrón, gasolina amarilla). */
+export const FLOW_COLOR: Record<PortFlow, number> = { solid: 0xe0872a, oil: 0x8a5a2b, gasoline: 0xf2e040 };
+/** Color de la luz de cada estado de puerto. */
+export const PORT_LIGHT: Record<PortState, number> = { free: 0xcfd6e2, connected: 0x2ee27a, error: 0xff3b3b, blocked: 0xff9a1f };
 const TONE = { bad: '#ff6b6b', warn: '#ffd166' };
 
 /** Triángulo plano que apunta a +x (se gira hacia la dirección del flujo). */
@@ -106,6 +110,9 @@ export class Overlay {
   private icons = new Map<number, { sprite: THREE.Sprite; key: string }>();
   private iconTimer = 0;
   private arrowGeo = arrowGeometry();
+  private lamps: THREE.Mesh[] = [];
+  private lampN = 0;
+  private lampGeo = new THREE.CircleGeometry(0.1, 14).rotateX(-Math.PI / 2);
   private rangeGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   /** Flecha que rebota sobre la casilla que recomienda la guía (cono apuntando hacia abajo). */
   private marker: THREE.Mesh;
@@ -178,9 +185,44 @@ export class Overlay {
     mat.opacity = (filled ? 0.95 : 0.5) * alpha;
   }
 
-  /** Salida = flecha llena que se aleja del edificio; entrada = flecha tenue que apunta hacia él. Amarillo = sólidos, celeste = líquidos. */
+  /** Luz de estado del puerto, pegada al borde del edificio (verde conectado, rojo error, naranja bloqueado, gris libre). */
+  private lamp(p: Port, state: PortState, pulse: number): void {
+    if (!inBounds(this.game.world, p.x, p.y)) return;
+    let m = this.lamps[this.lampN];
+    if (!m) {
+      m = new THREE.Mesh(this.lampGeo, new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false }));
+      m.renderOrder = 22;
+      this.lamps.push(m);
+      this.group.add(m);
+    }
+    this.lampN++;
+    m.visible = true;
+    const dx = [1, 0, -1, 0][p.side];
+    const dz = [0, 1, 0, -1][p.side];
+    m.position.set(p.x + 0.5 - dx * 0.4, this.ground(p.x, p.y) + 0.16, p.y + 0.5 - dz * 0.4);
+    const bad = state === 'error' || state === 'blocked';
+    m.scale.setScalar(bad ? 1.2 + 0.25 * pulse : state === 'free' ? 0.8 : 1);
+    const mat = m.material as THREE.MeshBasicMaterial;
+    mat.color.setHex(PORT_LIGHT[state]);
+    mat.opacity = state === 'free' ? 0.55 : 0.95;
+  }
+
+  /** Conector de un puerto: flecha del color de su flujo (salida llena que se aleja, entrada tenue que apunta al edificio) y luz de estado. */
+  private portMark(p: Port, state: PortState, alpha: number, pulse: number, showArrow: boolean): void {
+    if (showArrow) this.arrow(p.x, p.y, p.dir, FLOW_COLOR[p.flow], p.io === 'out', alpha * (p.io === 'out' ? pulse : 1));
+    this.lamp(p, state, pulse);
+  }
+
+  /** Puertos de un edificio colocado con su estado real. `emph` = resaltados (seleccionado, ratón encima, guía): todas las flechas. */
+  private portsOfBuilding(b: Building, alpha: number, pulse: number, emph: boolean): void {
+    for (const { port, status } of portsWithStatus(this.game, b)) {
+      this.portMark(port, status.state, emph ? alpha : 0.5, pulse, emph || status.state !== 'connected');
+    }
+  }
+
+  /** Puertos de un edificio que aún no existe (herramienta de construcción): todos libres. */
   private portsOf(kind: BuildingKind, x: number, y: number, dir: Dir, alpha: number, pulse: number): void {
-    for (const p of ports(kind, x, y, dir)) this.arrow(p.x, p.y, p.dir, p.medium === 'liquid' ? LIQUID : SOLID, p.io === 'out', alpha * (p.io === 'out' ? pulse : 1));
+    for (const p of ports(kind, x, y, dir)) this.portMark(p, 'free', alpha, pulse, true);
   }
 
   // ---------- alcances ----------
@@ -248,7 +290,7 @@ export class Overlay {
     const g = this.game;
     this.marker.visible = false;
     if (!a) return;
-    if (a.portKinds) for (const b of g.buildings.values()) if (b.built && a.portKinds.includes(b.kind as BuildKind)) this.portsOf(b.kind, b.x, b.y, b.dir, 0.9, pulse);
+    if (a.portKinds) for (const b of g.buildings.values()) if (b.built && a.portKinds.includes(b.kind as BuildKind)) this.portsOfBuilding(b, 0.9, pulse, true);
     if (a.poleRange) for (const p of g.buildings.values()) if (p.kind === 'pole' && p.built) this.range(p.x + 0.5, p.y + 0.5, this.ground(p.x, p.y), 2 * CONFIG.power.supplyRadius + 1, 0xffe066, 0.13);
     if (a.route) {
       const col = a.liquid ? LIQUID : SOLID;
@@ -272,6 +314,7 @@ export class Overlay {
     const g = this.game;
     this.syncWires();
     this.arrowN = 0;
+    this.lampN = 0;
     this.rangeN = 0;
     this.ring.visible = false;
     const pulse = 0.75 + 0.25 * Math.sin(s.time * 5);
@@ -286,12 +329,14 @@ export class Overlay {
     };
 
     if (sel) {
-      this.portsOf(sel.kind, sel.x, sel.y, sel.dir, 1, pulse);
+      this.portsOfBuilding(sel, 1, pulse, true);
       if (sel.kind === 'pole') poleRange(sel.x, sel.y, true);
       if (sel.kind in CONFIG.turrets) turretRing(sel.x, sel.y, g.turretRange(sel.kind as TurretKind), 0x6fd3ff);
     }
     const hb = s.tool === null && s.hoverBuildingId !== null ? g.buildings.get(s.hoverBuildingId) : undefined;
-    if (hb && hb !== sel && hb.built) this.portsOf(hb.kind, hb.x, hb.y, hb.dir, 0.8, pulse);
+    if (hb && hb !== sel && hb.built) this.portsOfBuilding(hb, 0.8, pulse, true);
+    // Todos los demás conectores se ven siempre: la luz de estado y, si no están conectados, su flecha tenue.
+    for (const b of g.buildings.values()) if (b.built && b !== sel && b !== hb && hasPorts(b.kind)) this.portsOfBuilding(b, 1, pulse, false);
 
     if (s.tool) {
       // Al colocar un poste o algo eléctrico se ve hasta dónde llega cada poste.
@@ -305,6 +350,7 @@ export class Overlay {
     }
     this.guideAids(s, pulse);
     for (let i = this.arrowN; i < this.arrows.length; i++) this.arrows[i].visible = false;
+    for (let i = this.lampN; i < this.lamps.length; i++) this.lamps[i].visible = false;
     for (let i = this.rangeN; i < this.ranges.length; i++) this.ranges[i].visible = false;
     this.stats.arrows = this.arrowN;
     this.stats.ranges = this.rangeN;

@@ -156,7 +156,7 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] UI-A0. Inventario del pack de UI: elegido el UI Pack Sci-Fi (el más reciente por fecha); contenido, tamaños, estados y lo que falta en ASSETS.md; hoja en `docs/ui-pack-inventario.png`.
 - [x] UI-A1. Sistema de diseño HTML/CSS (`public/assets/ui-pack/ds/ds.css`, prefijo `.ds-`: paneles, ventanas, botones con estados y colores, pestañas, barras, casilla, deslizador, tooltip, ranura, separador, lista, 14 iconos SVG, distintivos de estado y puertos por tipo/estado) y galería `/galeria-ui.html` (captura en `docs/ui/galeria-ui.png`). **Parado: esperando visto bueno del estilo antes de A2.**
 - [x] UI-A2. Aplicación a todos los menús, HUD, paneles y tooltips, con iconos de estado. Hecho con `ds/game.css` sobre el mismo HTML (paneles de cristal, botones del pack, pestañas, barras, tooltips, árbol de investigación, iconos en el HUD e iconos de estado); capturas a 1024×600, 1280×720 y 1920×1080 en `docs/ui/`.
-- [ ] CON-B1. Puertos tipados con aspecto y estados, y tests.
+- [x] CON-B1. Puertos tipados (`flow` sólido/petróleo/gasolina en `CONFIG.portFlow`, `side`), `canLink`, `portStatus` (libre, conectado, error con motivo y solución, bloqueado) y conectores siempre visibles con flecha del color del flujo y luz de estado; 7 tests nuevos en `puertos.test.ts`.
 - [ ] CON-B2. Encaje magnético y previsualización con retroalimentación por extremo.
 - [ ] CON-B3. Tuberías: redimensionado, curvas, uniones, desniveles y exclusividad de líquido.
 - [ ] CON-B4. Herramienta Conectar con A*, ajuste de ruta y mensajes con solución.

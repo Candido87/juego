@@ -199,6 +199,14 @@ export const CONFIG = {
   belt: { speed: 2, fastSpeed: 4 },
   /** Tuberías (sin energía): unidades de líquido que caben por casilla y que pasan a la siguiente por segundo. */
   pipe: { cap: 4, rate: 4 },
+  /**
+   * Tipo de flujo de los puertos que no son de sólidos (el resto, y todo lo que no esté aquí, es sólido). Un puerto de un
+   * líquido sólo se conecta con otro del mismo líquido; los generadores admiten el combustible que queman (`power.generators`).
+   */
+  portFlow: {
+    pump: { out: 'oil' },
+    refinery: { in: 'oil', out: 'gasoline' },
+  } as Partial<Record<BuildKind, { in?: 'oil' | 'gasoline'; out?: 'oil' | 'gasoline' }>>,
   drill: { period: 2, outCap: 6 },
   /** Granja: 1 comida cada `period` s (sin red; con red, más rápido según power.mult.farm). */
   farm: { period: 4, outCap: 8 },
