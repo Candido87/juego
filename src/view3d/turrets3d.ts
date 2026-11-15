@@ -93,6 +93,14 @@ function post(r: number, h: number, seg = 10): THREE.BufferGeometry {
 function octo(rBot: number, rTop: number, h: number): THREE.BufferGeometry {
   return cached(`oc${rBot}|${rTop}|${h}`, () => new THREE.CylinderGeometry(rTop, rBot, h, 8).rotateY(Math.PI / 8).translate(0, h / 2, 0));
 }
+/** Cono (o pirámide de `seg` lados) de radio `r` y altura `h` apoyado en y = 0. */
+function cone(r: number, h: number, seg = 6): THREE.BufferGeometry {
+  return cached(`co${r}|${h}|${seg}`, () => new THREE.ConeGeometry(r, h, seg).translate(0, h / 2, 0));
+}
+/** Tronco de cono tumbado a lo largo de z (radio `rBack` atrás y `rFront` delante), centrado en el origen. */
+function flare(rBack: number, rFront: number, len: number, seg = 10): THREE.BufferGeometry {
+  return cached(`fl${rBack}|${rFront}|${len}|${seg}`, () => new THREE.CylinderGeometry(rFront, rBack, len, seg).rotateX(Math.PI / 2));
+}
 /** Cilindro tumbado a lo largo de z, centrado en el origen. */
 function tube(r: number, len: number, seg = 10): THREE.BufferGeometry {
   return cached(`tu${r}|${len}|${seg}`, () => new THREE.CylinderGeometry(r, r, len, seg).rotateX(Math.PI / 2));
@@ -111,6 +119,26 @@ function put(parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Mater
   return m;
 }
 
+/**
+ * Base común de todas las torretas: dos placas achaflanadas con franja del color de acento del tipo, remaches, pedestal,
+ * plato y aro giratorio (y refuerzos a los cuatro lados en el nivel 3). `neck` es la altura a la que va la torreta giratoria.
+ */
+function makeBase(accent: number, level: number): { base: THREE.Group; neck: number } {
+  const acc = solid(accent);
+  const base = new THREE.Group();
+  put(base, bevelBox(0.92, 0.08, 0.92, 0.03), solid(STEEL_DARK), 0, 0, 0);
+  put(base, bevelBox(0.86, 0.018, 0.86, 0.006), acc, 0, 0.07, 0);
+  put(base, bevelBox(0.78, 0.06, 0.78, 0.025), solid(STEEL), 0, 0.08, 0);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(base, post(0.032, 0.03, 6), solid(STEEL_LIGHT), sx * 0.32, 0.14, sz * 0.32);
+  put(base, post(0.15, 0.17, 10), solid(STEEL_DARK), 0, 0.14, 0);
+  put(base, post(0.17, 0.03, 10), solid(STEEL), 0, 0.2, 0);
+  put(base, post(0.235, 0.04, 12), solid(GUNMETAL), 0, 0.31, 0);
+  if (level >= 3) {
+    for (const [x, z] of [[0, 0.34], [0, -0.34], [0.34, 0], [-0.34, 0]]) put(base, bevelBox(0.13, 0.09, 0.13, 0.02), solid(STEEL), x, 0.14, z);
+  }
+  return { base, neck: 0.35 };
+}
+
 // ---------- torreta de balas ----------
 
 /**
@@ -122,20 +150,7 @@ function put(parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Mater
 function bulletRig(level: number): TurretRig {
   const accent = BULLET_ACCENT[level - 1];
   const acc = solid(accent);
-  const base = new THREE.Group();
-  // --- base: dos placas achaflanadas con franja de color, remaches, pedestal y aro giratorio ---
-  put(base, bevelBox(0.92, 0.08, 0.92, 0.03), solid(STEEL_DARK), 0, 0, 0);
-  put(base, bevelBox(0.86, 0.018, 0.86, 0.006), acc, 0, 0.07, 0);
-  put(base, bevelBox(0.78, 0.06, 0.78, 0.025), solid(STEEL), 0, 0.08, 0);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(base, post(0.032, 0.03, 6), solid(STEEL_LIGHT), sx * 0.32, 0.14, sz * 0.32);
-  put(base, post(0.15, 0.17, 10), solid(STEEL_DARK), 0, 0.14, 0);
-  put(base, post(0.17, 0.03, 10), solid(STEEL), 0, 0.2, 0);
-  put(base, post(0.235, 0.04, 12), solid(GUNMETAL), 0, 0.31, 0);
-  if (level >= 3) {
-    // Refuerzos a los cuatro lados.
-    for (const [x, z] of [[0, 0.34], [0, -0.34], [0.34, 0], [-0.34, 0]]) put(base, bevelBox(0.13, 0.09, 0.13, 0.02), solid(STEEL), x, 0.14, z);
-  }
-  const neck = 0.35;
+  const { base, neck } = makeBase(accent, level);
 
   // --- torreta giratoria ---
   const head = new THREE.Group();
@@ -193,6 +208,112 @@ function bulletRig(level: number): TurretRig {
   return { root, base, head, gun, gunRest: 0, muzzle: { fwd: L, y: 0.1 }, height: neck + 0.38 };
 }
 
+// ---------- torreta láser ----------
+export const CYAN = 0x45e0ff;
+export const COPPER = 0xc8793a;
+const NAVY = 0x44506b;
+
+/**
+ * Torreta láser. Chasis esbelto azul acero con franja cian; cristal de energía alto y brillante sobre un engarce; aletas
+ * disipadoras detrás; cables del cristal al cañón; cañón largo y fino con bobinas de cobre y lente cian en la boca.
+ * Nivel 2: blindaje lateral, cristal mayor y cañón más largo. Nivel 3: cañón doble y aletas extra.
+ */
+function laserRig(level: number): TurretRig {
+  const acc = solid(CYAN);
+  const { base, neck } = makeBase(CYAN, level);
+  const head = new THREE.Group();
+  head.rotation.order = 'YXZ';
+  head.position.y = neck;
+  put(head, octo(0.28, 0.26, 0.15), solid(level >= 3 ? 0x37425a : NAVY), 0, 0, 0);
+  put(head, octo(0.285, 0.285, 0.02), acc, 0, 0.085, 0);
+  put(head, octo(0.21, 0.14, 0.11), solid(0x667599), 0, 0.15, 0);
+  // Cristal de energía: engarce de acero, punta facetada y núcleo casi blanco.
+  const ch = 0.3 + 0.07 * level;
+  const cr = 0.07 + 0.012 * level;
+  put(head, octo(0.12, 0.1, 0.035), solid(STEEL_DARK), 0, 0.26, 0);
+  put(head, cone(cr, ch, 6), glow(CYAN), 0, 0.295, 0);
+  put(head, cone(cr * 0.45, ch * 0.8, 6), glow(0xd8fbff), 0, 0.3, 0);
+  // Aletas disipadoras detrás del cuerpo.
+  const fins = 3 + level;
+  for (let i = 0; i < fins; i++) put(head, bevelBox(0.32, 0.22, 0.03, 0.007), solid(i % 2 ? STEEL : STEEL_LIGHT), 0, 0.02, -0.3 - i * 0.048);
+  // Cables del cristal al cañón.
+  for (const sx of [-1, 1]) put(head, bevelBox(0.016, 0.016, 0.34, 0.004), solid(GUNMETAL), sx * 0.09, 0.2, 0.14, [-0.3, 0, 0]);
+  if (level >= 2) for (const sx of [-1, 1]) put(head, bevelBox(0.045, 0.17, 0.34, 0.012), solid(STEEL_DARK), sx * 0.27, 0.0, 0.0);
+  // Cuna y cañón(es): carcasa trasera, alma fina, bobinas de cobre, anillo de boca y lente.
+  const nb = level >= 3 ? 2 : 1;
+  put(head, bevelBox(nb === 2 ? 0.46 : 0.3, 0.13, 0.1, 0.02), solid(STEEL_DARK), 0, 0.03, 0.27);
+  const gun = new THREE.Group();
+  head.add(gun);
+  const L = [0.88, 0.94, 1.0][level - 1];
+  for (let i = 0; i < nb; i++) {
+    const x = nb === 2 ? (i - 0.5) * 0.2 : 0;
+    put(gun, tube(0.085, 0.26), solid(GUNMETAL), x, 0.1, 0.3);
+    put(gun, tube(0.092, 0.025), acc, x, 0.1, 0.38);
+    put(gun, tube(0.04, L - 0.4), solid(STEEL_LIGHT), x, 0.1, (0.4 + L) / 2);
+    for (let k = 0; k < 3 + level; k++) put(gun, tube(0.068, 0.05), solid(COPPER), x, 0.1, 0.46 + k * 0.085);
+    put(gun, tube(0.062, 0.035), solid(STEEL_DARK), x, 0.1, L - 0.035);
+    put(gun, tube(0.045, 0.03), glow(CYAN), x, 0.1, L);
+  }
+  const root = new THREE.Group();
+  root.add(base, head);
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: L + 0.015, y: 0.1 }, height: neck + 0.3 + ch };
+}
+
+// ---------- lanzallamas ----------
+export const FIRE = 0xff7b2e;
+export const TANK_RED = 0xb5452f;
+const ASH = 0x34343b;
+
+/**
+ * Lanzallamas. Cuerpo negro con franja naranja; depósitos de combustible cilíndricos, altos y rojizos, con abrazaderas y
+ * tapa; tuberías hasta la boquilla; boquilla abocinada con brasa; pilotos rojos y llama piloto. Nivel 2: blindaje y boquilla
+ * más larga. Nivel 3: tercer depósito, más alto, y boquilla doble.
+ */
+function fireRig(level: number): TurretRig {
+  const acc = solid(FIRE);
+  const { base, neck } = makeBase(FIRE, level);
+  const head = new THREE.Group();
+  head.rotation.order = 'YXZ';
+  head.position.y = neck;
+  put(head, octo(0.3, 0.28, 0.15), solid(ASH), 0, 0, 0);
+  put(head, octo(0.305, 0.305, 0.02), acc, 0, 0.085, 0);
+  put(head, octo(0.22, 0.17, 0.07), solid(0x4a4a52), 0, 0.15, 0);
+  // Depósitos de combustible con abrazaderas, tapa y válvula.
+  const tanks: [number, number, number][] = [[-0.2, -0.13, 0.34 + 0.02 * level], [0.2, -0.13, 0.34 + 0.02 * level]];
+  if (level >= 3) tanks.push([0, -0.27, 0.48]);
+  for (const [x, z, h] of tanks) {
+    put(head, post(0.105, h, 10), solid(TANK_RED), x, 0.0, z);
+    for (const y of [0.09, h - 0.1]) put(head, post(0.113, 0.03, 10), solid(STEEL_DARK), x, y, z);
+    put(head, post(0.07, 0.04, 10), solid(STEEL), x, h, z);
+    put(head, post(0.03, 0.06, 6), solid(GUNMETAL), x, h + 0.04, z);
+    // Indicador de nivel: ventanilla naranja en el frente del depósito.
+    put(head, bevelBox(0.03, 0.15, 0.012, 0.003), glow(FIRE), x, 0.1, z + 0.105);
+  }
+  // Tuberías de los depósitos a la boquilla.
+  for (const sx of [-1, 1]) put(head, tube(0.022, 0.46), solid(STEEL_DARK), sx * 0.13, 0.15, 0.1);
+  // Pilotos rojos y llama piloto.
+  for (const sx of [-1, 1]) put(head, bevelBox(0.03, 0.03, 0.03, 0.005), glow(0xff3030), sx * 0.07, 0.22, 0.1);
+  put(head, cone(0.025, 0.07, 5), glow(0xffd166), 0, 0.22, 0.33);
+  if (level >= 2) for (const sx of [-1, 1]) put(head, bevelBox(0.045, 0.17, 0.3, 0.012), solid(STEEL_DARK), sx * 0.285, 0.0, 0.04);
+  // Boquilla(s): carcasa, brida de acento, abocinado negro y brasa dentro.
+  const nb = level >= 3 ? 2 : 1;
+  put(head, bevelBox(nb === 2 ? 0.46 : 0.3, 0.13, 0.1, 0.02), solid(STEEL_DARK), 0, 0.03, 0.27);
+  const gun = new THREE.Group();
+  head.add(gun);
+  const ext = level >= 2 ? 0.08 : 0;
+  for (let i = 0; i < nb; i++) {
+    const x = nb === 2 ? (i - 0.5) * 0.24 : 0;
+    const r = nb === 2 ? 0.1 : 0.13;
+    put(gun, tube(0.08, 0.3), solid(GUNMETAL), x, 0.1, 0.36);
+    put(gun, tube(0.1, 0.03), acc, x, 0.1, 0.54);
+    put(gun, flare(0.075, r, 0.22 + ext), solid(0x2b2523), x, 0.1, 0.67 + ext / 2);
+    put(gun, tube(r - 0.015, 0.02), glow(FIRE), x, 0.1, 0.78 + ext);
+  }
+  const root = new THREE.Group();
+  root.add(base, head);
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: 0.8 + ext, y: 0.1 }, height: neck + 0.52 };
+}
+
 // ---------- tipos aún sin rediseñar (aspecto anterior) ----------
 const RING_GEO = new THREE.CylinderGeometry(0.34, 0.34, 0.07, 14);
 const RING_STEP = 0.09;
@@ -236,10 +357,13 @@ function legacyRig(kind: TurretKind, level: number): TurretRig {
 }
 
 /** Tipos con modelo propio (el resto usa el aspecto anterior hasta su hito). */
-export const REDESIGNED: TurretKind[] = ['turret_bullet'];
+export const REDESIGNED: TurretKind[] = ['turret_bullet', 'turret_laser', 'turret_fire'];
 
 /** Modelo completo de una torreta de ese tipo y nivel (1-3). */
 export function buildTurret(kind: TurretKind, level: number): TurretRig {
   const lv = Math.max(1, Math.min(3, Math.round(level)));
-  return kind === 'turret_bullet' ? bulletRig(lv) : legacyRig(kind, lv);
+  if (kind === 'turret_bullet') return bulletRig(lv);
+  if (kind === 'turret_laser') return laserRig(lv);
+  if (kind === 'turret_fire') return fireRig(lv);
+  return legacyRig(kind, lv);
 }

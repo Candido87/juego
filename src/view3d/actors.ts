@@ -57,7 +57,7 @@ export const ROLE_LOOK: Record<NpcRole, { model: string; tint: number | null; sc
 /** Color propio de cada torreta (anillos de nivel, disparo y brillo). */
 export const TURRET_COLOR: Record<TurretKind, number> = {
   turret_bullet: 0xffd060,
-  turret_laser: 0xff66ff,
+  turret_laser: 0x45e0ff,
   turret_fire: 0xff8030,
   turret_frost: 0x9fe8ff,
 };

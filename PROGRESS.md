@@ -134,7 +134,7 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 ## Rediseño de las torretas 3D (rama `vista-3d`; sólo capa visual)
 - [x] TR0. Referencia 2D (tag `v-2d-final`), capturas en `docs/torretas/`, qué falla y reglas de diseño en SPEC.md.
 - [x] TR1. Torreta de balas de referencia (`turrets3d.ts`, galería `/galeria-torretas.html`, capturas comparadas en `docs/torretas/`). **Parado: esperando visto bueno antes de seguir con TR2.**
-- [ ] TR2. Láser y fuego.
+- [x] TR2. Láser y lanzallamas (`turrets3d.ts`, fotos en `docs/torretas/`; `tools/fotos-torreta.cjs` para repetirlas).
 - [ ] TR3. Misil (sólo galería: la lógica no lo tiene) y hielo.
 - [ ] TR4. Niveles, estados y animaciones.
 - [ ] TR5. Efectos de disparo por tipo y pulido a zoom alejado.

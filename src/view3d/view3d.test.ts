@@ -587,3 +587,69 @@ describe('torretas 3D (rediseño)', () => {
     expect(bevelBox(0.5, 0.2, 0.3, 0.03)).toBe(g);
   });
 });
+
+describe('torretas 3D: láser y lanzallamas', () => {
+  /** Piezas de un grupo cuyo material tiene ese color. */
+  const withColor = async (root: import('three').Object3D, hex: number) => {
+    let n = 0;
+    root.traverse((o) => {
+      const m = (o as import('three').Mesh).material as import('three').MeshBasicMaterial | undefined;
+      if ((o as import('three').Mesh).isMesh && m?.color?.getHex() === hex) n++;
+    });
+    return n;
+  };
+
+  it('el láser: cristal alto que crece con el nivel, bobinas de cobre y cañón doble en el nivel 3', async () => {
+    const THREE = await import('three');
+    const { COPPER, CYAN, REDESIGNED, buildTurret } = await import('./turrets3d');
+    expect(REDESIGNED).toContain('turret_laser');
+    const [a, b, c] = [1, 2, 3].map((l) => buildTurret('turret_laser', l));
+    expect(a.gun.parent).toBe(a.head);
+    // Bobinas: 4, 5 y 6 por cañón; un cañón en los niveles 1 y 2 y dos en el 3.
+    expect([await withColor(a.gun, COPPER), await withColor(b.gun, COPPER), await withColor(c.gun, COPPER)]).toEqual([4, 5, 12]);
+    // Cada cañón lleva un anillo cian y una lente que brilla en la boca; el cristal también es cian.
+    expect(await withColor(a.gun, CYAN)).toBe(2);
+    expect(await withColor(c.gun, CYAN)).toBe(4);
+    expect(await withColor(a.head, CYAN)).toBeGreaterThanOrEqual(2);
+    // El cristal sobresale: cada nivel es más alto.
+    const top = (r: typeof a) => new THREE.Box3().setFromObject(r.root).max.y;
+    expect(top(a)).toBeLessThan(top(b));
+    expect(top(b)).toBeLessThan(top(c));
+    expect(top(a)).toBeGreaterThan(0.85);
+    expect(c.muzzle.fwd).toBeGreaterThan(a.muzzle.fwd);
+  });
+
+  it('el lanzallamas: depósitos altos (2, 2 y 3), boquilla abocinada y pilotos rojos', async () => {
+    const THREE = await import('three');
+    const { FIRE, REDESIGNED, TANK_RED, buildTurret } = await import('./turrets3d');
+    expect(REDESIGNED).toContain('turret_fire');
+    const [a, b, c] = [1, 2, 3].map((l) => buildTurret('turret_fire', l));
+    // Cada depósito es una pieza roja; el nivel 3 añade el tercero.
+    expect([await withColor(a.head, TANK_RED), await withColor(b.head, TANK_RED), await withColor(c.head, TANK_RED)]).toEqual([2, 2, 3]);
+    // La brasa de la boquilla brilla en naranja (una por boquilla) y hay pilotos rojos.
+    expect(await withColor(a.gun, FIRE)).toBeGreaterThanOrEqual(1);
+    expect(await withColor(c.gun, FIRE)).toBeGreaterThan(await withColor(a.gun, FIRE));
+    expect(await withColor(a.head, 0xff3030)).toBe(2);
+    // El depósito domina la silueta: la torreta es bastante más alta que la de balas.
+    const h = (r: typeof a) => new THREE.Box3().setFromObject(r.root).max.y;
+    expect(h(a)).toBeGreaterThan(h(buildTurret('turret_bullet', 1)));
+    // La boca asoma por delante y el nivel 2 la alarga.
+    expect(a.muzzle.fwd).toBeGreaterThan(0.75);
+    expect(b.muzzle.fwd).toBeGreaterThan(a.muzzle.fwd);
+  });
+
+  it('los tres tipos rediseñados comparten la base y los acentos son distintos', async () => {
+    const { buildTurret } = await import('./turrets3d');
+    const kinds = ['turret_bullet', 'turret_laser', 'turret_fire'] as const;
+    const count = (o: import('three').Object3D) => {
+      let n = 0;
+      o.traverse((c) => (c as import('three').Mesh).isMesh && n++);
+      return n;
+    };
+    const bases = kinds.map((k) => count(buildTurret(k, 1).base));
+    expect(new Set(bases).size).toBe(1);
+    expect(new Set(kinds.map((k) => buildTurret(k, 1).head.position.y)).size).toBe(1);
+    // Siluetas distintas: la altura total de cada tipo es propia.
+    expect(new Set(kinds.map((k) => buildTurret(k, 2).height)).size).toBe(3);
+  });
+});
