@@ -1,0 +1,2 @@
+UI Pack Sci-Fi by Kenney (www.kenney.nl) - License (CC0): public domain, free for personal and commercial use, credit appreciated.
+Files in this folder are an unmodified subset of PNG/{Blue,Green,Grey,Red,Yellow,Extra}/Default (renamed hdr_*, hdrs_*, barL_*).

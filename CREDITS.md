@@ -39,4 +39,4 @@ Copiados a `public/assets/3d/<pack>/` (cada carpeta con su `License.txt`):
 - **Pattern Pack Lines 1.0** — https://kenney.nl/assets/pattern-pack-lines — `public/assets/belts/` (texturas de dirección de las cintas).
 - **Space Kit** — https://kenney.nl/assets/space-kit — `public/assets/3d/space/` (naves de los enemigos aéreos).
 
-- **UI Pack Sci-Fi** — Kenney (https://kenney.nl/assets/ui-pack-sci-fi), CC0: paneles, botones, barras, cursores y tipografías (`public/assets/ui-pack/`, y lo que se amplíe en la fase A1). El `License.txt` original de este pack se perdió al mezclar carpetas en `assets-juego/`; Kenney publica todos sus packs como CC0. El pack **UI RPG extension** (2014, también CC0) está en la carpeta de origen pero no se usa.
+- **UI Pack Sci-Fi** — Kenney (https://kenney.nl/assets/ui-pack-sci-fi), CC0: paneles, botones, barras, cursores y tipografías (`public/assets/ui-pack/`, y `public/assets/ui-pack/ds/` de la fase A1). El `License.txt` original de este pack se perdió al mezclar carpetas en `assets-juego/`; Kenney publica todos sus packs como CC0. El pack **UI RPG extension** (2014, también CC0) está en la carpeta de origen pero no se usa.

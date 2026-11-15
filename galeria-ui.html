@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galería de interfaz (sistema de diseño)</title>
+    <link rel="stylesheet" href="/assets/ui-pack/ds/ds.css" />
+    <style>
+      html, body { margin: 0; min-height: 100%; background: radial-gradient(ellipse at 30% 0%, #46586e 0%, #2a3342 55%, #1b212c 100%) fixed; font-family: system-ui, sans-serif; }
+      body.ds { padding: 18px 22px 40px; color: #e8ecf2; cursor: url('/assets/ui-pack/cursor_a.png') 0 0, auto; }
+      h1 { font: 22px 'KenneyNarrow', sans-serif; letter-spacing: 0.1em; margin: 0 0 4px; color: #ffd166; }
+      .sub { color: #9fb0c6; margin-bottom: 14px; font-size: 12px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; align-items: start; }
+      section > h2 { font: 14px 'KenneyNarrow', sans-serif; letter-spacing: 0.1em; color: #98c1d9; margin: 0 0 6px; text-transform: uppercase; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+      .col { display: flex; flex-direction: column; gap: 8px; }
+      .wide { grid-column: 1 / -1; }
+      .hud { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+    </style>
+  </head>
+  <body class="ds">
+    <h1>Galería de interfaz</h1>
+    <div class="sub">UI Pack Sci-Fi (Kenney, CC0) + componentes en CSS/SVG · <code>public/assets/ui-pack/ds/ds.css</code> · prefijo <code>.ds-</code></div>
+    <div class="grid">
+      <section>
+        <h2>Botones</h2>
+        <div class="row"><button class="ds-btn">Normal</button><button class="ds-btn sel">Seleccionado</button><button class="ds-btn pressed">Pulsado</button><button class="ds-btn" disabled>Desactivado</button></div>
+        <div class="row"><button class="ds-btn blue">Principal</button><button class="ds-btn green">Aceptar</button><button class="ds-btn yellow">Aviso</button><button class="ds-btn red">Peligro</button><button class="ds-btn grey">Gris</button></div>
+        <div class="row"><button class="ds-btn sm">Pequeño</button><button class="ds-btn sm blue"><i class="ds-ico" data-i="link"></i>Conectar</button><button class="ds-btn square"><i class="ds-ico" data-i="gear"></i></button><button class="ds-btn square red"><i class="ds-ico" data-i="cross"></i></button></div>
+      </section>
+
+      <section>
+        <h2>Paneles</h2>
+        <div class="row">
+          <div class="ds-panel" style="width:150px"><h3>Panel</h3><div class="ds-mut">Cristal claro</div></div>
+          <div class="ds-panel screws" style="width:150px"><h3>Tornillos</h3><div class="ds-mut">Para fichas</div></div>
+        </div>
+        <div class="row">
+          <div class="ds-panel notched" style="width:150px"><h3>Esquinas</h3><div class="ds-mut">Avisos</div></div>
+          <div class="ds-panel dark" style="width:150px"><h3>Oscuro</h3><div>Barra superior</div></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Ventanas</h2>
+        <div class="row" style="align-items:flex-start">
+          <div class="ds-window" style="width:200px"><header><i class="ds-ico" data-i="flask"></i>Investigación</header><div class="ds-body">Contenido de la ventana con su barra de título azul.</div></div>
+          <div class="ds-window red" style="width:200px"><header><i class="ds-ico" data-i="warn"></i>Alerta aérea</header><div class="ds-body">Variante roja para peligros.</div></div>
+        </div>
+        <div class="row" style="align-items:flex-start">
+          <div class="ds-window green" style="width:200px"><header>Logística</header><div class="ds-body">Verde: éxito y energía.</div></div>
+          <div class="ds-window yellow" style="width:200px"><header>Aviso</header><div class="ds-body">Amarillo: atención.</div></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Pestañas</h2>
+        <div class="ds-panel" style="padding:0">
+          <div class="ds-tabs" style="margin-top:2px;padding-right:0"><span class="ds-tab sel">Defensa</span><span class="ds-tab">Economía</span><span class="ds-tab">Logística</span><span class="ds-tab disabled">Bloq.</span></div>
+          <div style="padding:8px">Contenido de la pestaña activa.</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Barras</h2>
+        <div class="col" style="width:300px">
+          <div class="ds-bar green" style="--v:80%"><i></i><b>Vida 80%</b></div>
+          <div class="ds-bar blue" style="--v:55%"><i></i><b>Energía 55%</b></div>
+          <div class="ds-bar yellow" style="--v:30%"><i></i><b>Comida 30%</b></div>
+          <div class="ds-bar red" style="--v:12%"><i></i><b>Núcleo 12%</b></div>
+          <div class="ds-bar grey v0"><i></i><b>Vacía</b></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Controles</h2>
+        <div class="col" style="width:300px">
+          <label class="ds-check"><input type="checkbox" checked /><i></i>Mostrar cuadrícula</label>
+          <label class="ds-check"><input type="checkbox" /><i></i>Sonido</label>
+          <label class="ds-check"><input type="checkbox" disabled /><i></i>No disponible</label>
+          <div class="ds-slider"><span>Volumen</span><input type="range" min="0" max="100" value="60" /><output>60</output></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Tooltip</h2>
+        <div class="ds-tip">
+          <h4>Torreta de balas</h4>
+          <p>Dispara munición a enemigos terrestres. Necesita energía y balas.</p>
+          <div class="kv"><span>Daño</span><b>12</b></div>
+          <div class="kv"><span>Alcance</span><b>6,5 casillas</b></div>
+          <div class="kv"><span>Coste</span><b>30 chatarra</b></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Ranuras y lista</h2>
+        <div class="row">
+          <span class="ds-slot"><span class="key">1</span><i class="ds-ico l" data-i="box"></i><small>12</small></span>
+          <span class="ds-slot sel"><span class="key">2</span><i class="ds-ico l" data-i="bolt"></i></span>
+          <span class="ds-slot"><i class="ds-ico l" data-i="drop"></i><small>3</small></span>
+          <span class="ds-slot disabled"><i class="ds-ico l" data-i="lock"></i></span>
+        </div>
+        <div class="ds-panel" style="width:300px">
+          <ul class="ds-list">
+            <li><i class="ds-ico" data-i="people"></i><b>Constructor</b><span class="ds-spacer"></span>2</li>
+            <li class="sel"><i class="ds-ico" data-i="wrench"></i><b>Operario</b><span class="ds-spacer"></span>3</li>
+            <li><i class="ds-ico" data-i="flask"></i><b>Investigador</b><span class="ds-spacer"></span>1</li>
+          </ul>
+          <hr class="ds-sep" />
+          <div class="ds-mut">Población 6 / 8</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Iconos y estados</h2>
+        <div class="ds-panel" style="width:330px">
+          <div class="row">
+            <i class="ds-ico l" data-i="check"></i><i class="ds-ico l" data-i="cross"></i><i class="ds-ico l" data-i="warn"></i><i class="ds-ico l" data-i="bolt"></i><i class="ds-ico l" data-i="drop"></i><i class="ds-ico l" data-i="box"></i><i class="ds-ico l" data-i="gear"></i>
+            <i class="ds-ico l" data-i="link"></i><i class="ds-ico l" data-i="arrow"></i><i class="ds-ico l" data-i="lock"></i><i class="ds-ico l" data-i="flask"></i><i class="ds-ico l" data-i="people"></i><i class="ds-ico l" data-i="wrench"></i><i class="ds-ico l" data-i="wave"></i>
+          </div>
+          <div class="row"><span class="ds-badge ok"><i class="ds-ico" data-i="check"></i>Activo</span><span class="ds-badge warn"><i class="ds-ico" data-i="warn"></i>Sin entrada</span><span class="ds-badge error"><i class="ds-ico" data-i="cross"></i>Sin energía</span><span class="ds-badge info"><i class="ds-ico" data-i="gear"></i>Produciendo</span><span class="ds-badge">Parado</span></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Puertos (tipo y estado)</h2>
+        <div class="ds-panel" style="width:330px">
+          <div class="row"><span class="ds-port solid free"><i class="ds-ico" data-i="arrow"></i></span><span class="ds-port solid ok"><i class="ds-ico" data-i="arrow"></i></span><span class="ds-port solid error"><i class="ds-ico" data-i="arrow"></i></span><span class="ds-port solid blocked"><i class="ds-ico" data-i="arrow"></i></span><span class="ds-mut">Sólidos · libre, conectado, error, bloqueado</span></div>
+          <div class="row"><span class="ds-port liquid free"><i class="ds-ico" data-i="drop"></i></span><span class="ds-port liquid ok"><i class="ds-ico" data-i="drop"></i></span><span class="ds-port liquid error"><i class="ds-ico" data-i="drop"></i></span><span class="ds-port liquid blocked"><i class="ds-ico" data-i="drop"></i></span><span class="ds-mut">Líquidos</span></div>
+          <div class="row"><span class="ds-port power free"><i class="ds-ico" data-i="bolt"></i></span><span class="ds-port power ok"><i class="ds-ico" data-i="bolt"></i></span><span class="ds-mut">Energía</span></div>
+        </div>
+      </section>
+
+      <section class="wide">
+        <h2>Ejemplo: barra de recursos y panel de edificio</h2>
+        <div class="hud">
+          <div class="ds-panel dark" style="flex:1;min-width:320px">
+            <div class="row" style="margin:0"><i class="ds-ico info" data-i="box"></i>Hierro 124<i class="ds-sep vert"></i><i class="ds-ico warn" data-i="bolt"></i>Energía 12 / 20<i class="ds-sep vert"></i><i class="ds-ico" data-i="people"></i>Gente 6 / 8<span style="flex:1"></span><button class="ds-btn sm red"><i class="ds-ico" data-i="wave"></i>Oleada</button></div>
+          </div>
+          <div class="ds-window" style="width:260px"><header><i class="ds-ico" data-i="gear"></i>Fundición<span class="ds-spacer"></span><span class="ds-badge ok"><i class="ds-ico" data-i="check"></i>Activa</span></header>
+            <div class="ds-body">
+              <div class="ds-bar blue" style="--v:64%"><i></i><b>Progreso 64%</b></div>
+              <hr class="ds-sep" />
+              <div class="row" style="margin:0"><span class="ds-port solid ok"><i class="ds-ico" data-i="arrow"></i></span>Mineral de hierro<span style="flex:1"></span><span class="ds-port solid free"><i class="ds-ico" data-i="arrow"></i></span>Lingote</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

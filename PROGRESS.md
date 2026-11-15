@@ -154,7 +154,7 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 
 ## Estética de interfaz con pack de UI y conexión de transporte (después de la parte C; reglas en SPEC.md)
 - [x] UI-A0. Inventario del pack de UI: elegido el UI Pack Sci-Fi (el más reciente por fecha); contenido, tamaños, estados y lo que falta en ASSETS.md; hoja en `docs/ui-pack-inventario.png`.
-- [ ] UI-A1. Sistema de diseño HTML/CSS y galería de interfaz (`/galeria-ui`). **Parar y enseñar capturas para aprobar el estilo.**
+- [x] UI-A1. Sistema de diseño HTML/CSS (`public/assets/ui-pack/ds/ds.css`, prefijo `.ds-`: paneles, ventanas, botones con estados y colores, pestañas, barras, casilla, deslizador, tooltip, ranura, separador, lista, 14 iconos SVG, distintivos de estado y puertos por tipo/estado) y galería `/galeria-ui.html` (captura en `docs/ui/galeria-ui.png`). **Parado: esperando visto bueno del estilo antes de A2.**
 - [ ] UI-A2. Aplicación a todos los menús, HUD, paneles y tooltips, con iconos de estado.
 - [ ] CON-B1. Puertos tipados con aspecto y estados, y tests.
 - [ ] CON-B2. Encaje magnético y previsualización con retroalimentación por extremo.

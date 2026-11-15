@@ -288,3 +288,5 @@ En total, por color: 60 imágenes por tamaño (barras 40, botones 16, miras 4); 
 - **Hoja de sprites y atlas**: no hay; cada pieza es un PNG suelto, así que en la práctica se usan `border-image` (9-slice) para paneles y botones y se cargan sólo los que se usen.
 
 **Ya aplicado en el juego (fase G3, 2026):** `public/assets/ui-pack/` contiene un subconjunto de este mismo pack (barras, cinco botones, dos cursores, tres paneles y la fuente Kenney Future Narrow). La nueva estética (A1/A2) lo amplía y lo ordena en un sistema de componentes.
+
+**A1:** subconjunto usado copiado a `public/assets/ui-pack/ds/` (38 PNG: paneles de cristal y gris, botones base y con cabecera de color, barras largas por color y fondo de barra; con su `License.txt`). Iconos y puertos hechos en SVG propio (sin assets). Galería en `galeria-ui.html`.
