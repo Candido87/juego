@@ -26,6 +26,22 @@ export interface TurretRig {
   muzzle: { fwd: number; y: number };
   /** Altura total sobre el suelo (para barras e iconos). */
   height: number;
+  /** Luz roja de aviso en la base: parpadea cuando la torreta no puede disparar (sin munición ni energía). */
+  alarm: THREE.Object3D;
+  /** Piezas que laten (cristales) mientras la torreta está lista; apagada, se encogen. */
+  pulse: THREE.Object3D[];
+  /** Brillos puntuales (lentes, cristales, pilotos) en coordenadas de `head`; sólo lucen con la torreta lista. */
+  halos: TurretHalo[];
+}
+
+export interface TurretHalo {
+  x: number;
+  y: number;
+  z: number;
+  size: number;
+  color: number;
+  /** Se enciende y se apaga (pilotos de aviso). */
+  blink?: boolean;
 }
 
 // ---------- paleta ----------
@@ -120,7 +136,7 @@ function put(parent: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Mater
  * Base común de todas las torretas: dos placas achaflanadas con franja del color de acento del tipo, remaches, pedestal,
  * plato y aro giratorio (y refuerzos a los cuatro lados en el nivel 3). `neck` es la altura a la que va la torreta giratoria.
  */
-function makeBase(accent: number, level: number): { base: THREE.Group; neck: number } {
+function makeBase(accent: number, level: number): { base: THREE.Group; neck: number; alarm: THREE.Object3D } {
   const acc = solid(accent);
   const base = new THREE.Group();
   put(base, bevelBox(0.92, 0.08, 0.92, 0.03), solid(STEEL_DARK), 0, 0, 0);
@@ -133,7 +149,14 @@ function makeBase(accent: number, level: number): { base: THREE.Group; neck: num
   if (level >= 3) {
     for (const [x, z] of [[0, 0.34], [0, -0.34], [0.34, 0], [-0.34, 0]]) put(base, bevelBox(0.13, 0.09, 0.13, 0.02), solid(STEEL), x, 0.14, z);
   }
-  return { base, neck: 0.35 };
+  // Luz de aviso (oculta salvo cuando la torreta no puede disparar), detrás del pedestal.
+  const alarm = new THREE.Group();
+  put(alarm, post(0.03, 0.05, 6), solid(STEEL_DARK), 0, 0, 0);
+  put(alarm, new THREE.SphereGeometry(0.04, 8, 6), glow(0xff3030), 0, 0.07, 0);
+  alarm.position.set(0, 0.14, -0.34);
+  alarm.visible = false;
+  base.add(alarm);
+  return { base, neck: 0.35, alarm };
 }
 
 // ---------- torreta de balas ----------
@@ -147,7 +170,7 @@ function makeBase(accent: number, level: number): { base: THREE.Group; neck: num
 function bulletRig(level: number): TurretRig {
   const accent = BULLET_ACCENT[level - 1];
   const acc = solid(accent);
-  const { base, neck } = makeBase(accent, level);
+  const { base, neck, alarm } = makeBase(accent, level);
 
   // --- torreta giratoria ---
   const head = new THREE.Group();
@@ -202,7 +225,7 @@ function bulletRig(level: number): TurretRig {
 
   const root = new THREE.Group();
   root.add(base, head);
-  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: L, y: 0.1 }, height: neck + 0.38 };
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: L, y: 0.1 }, height: neck + 0.38, alarm, pulse: [], halos: [{ x: 0.2, y: 0.185, z: 0.14, size: 0.07, color: 0x7be3ff }] };
 }
 
 // ---------- torreta láser ----------
@@ -217,7 +240,7 @@ const NAVY = 0x44506b;
  */
 function laserRig(level: number): TurretRig {
   const acc = solid(CYAN);
-  const { base, neck } = makeBase(CYAN, level);
+  const { base, neck, alarm } = makeBase(CYAN, level);
   const head = new THREE.Group();
   head.rotation.order = 'YXZ';
   head.position.y = neck;
@@ -228,8 +251,8 @@ function laserRig(level: number): TurretRig {
   const ch = 0.3 + 0.07 * level;
   const cr = 0.07 + 0.012 * level;
   put(head, octo(0.12, 0.1, 0.035), solid(STEEL_DARK), 0, 0.26, 0);
-  put(head, cone(cr, ch, 6), glow(CYAN), 0, 0.295, 0);
-  put(head, cone(cr * 0.45, ch * 0.8, 6), glow(0xd8fbff), 0, 0.3, 0);
+  const crystal = put(head, cone(cr, ch, 6), glow(CYAN), 0, 0.295, 0);
+  const core = put(head, cone(cr * 0.45, ch * 0.8, 6), glow(0xd8fbff), 0, 0.3, 0);
   // Aletas disipadoras detrás del cuerpo.
   const fins = 3 + level;
   for (let i = 0; i < fins; i++) put(head, bevelBox(0.32, 0.22, 0.03, 0.007), solid(i % 2 ? STEEL : STEEL_LIGHT), 0, 0.02, -0.3 - i * 0.048);
@@ -253,7 +276,11 @@ function laserRig(level: number): TurretRig {
   }
   const root = new THREE.Group();
   root.add(base, head);
-  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: L + 0.015, y: 0.1 }, height: neck + 0.3 + ch };
+  const halos: TurretHalo[] = [
+    { x: 0, y: 0.3 + ch * 0.55, z: 0, size: 0.22, color: CYAN },
+    { x: 0, y: 0.1, z: L + 0.02, size: 0.12, color: CYAN },
+  ];
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: L + 0.015, y: 0.1 }, height: neck + 0.3 + ch, alarm, pulse: [crystal, core], halos };
 }
 
 // ---------- lanzallamas ----------
@@ -268,7 +295,7 @@ const ASH = 0x34343b;
  */
 function fireRig(level: number): TurretRig {
   const acc = solid(FIRE);
-  const { base, neck } = makeBase(FIRE, level);
+  const { base, neck, alarm } = makeBase(FIRE, level);
   const head = new THREE.Group();
   head.rotation.order = 'YXZ';
   head.position.y = neck;
@@ -308,7 +335,12 @@ function fireRig(level: number): TurretRig {
   }
   const root = new THREE.Group();
   root.add(base, head);
-  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: 0.8 + ext, y: 0.1 }, height: neck + 0.52 };
+  const halos: TurretHalo[] = [
+    { x: 0, y: 0.26, z: 0.33, size: 0.07, color: 0xffd166 },
+    { x: -0.07, y: 0.235, z: 0.1, size: 0.05, color: 0xff3030, blink: true },
+    { x: 0.07, y: 0.235, z: 0.1, size: 0.05, color: 0xff3030, blink: true },
+  ];
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: 0.8 + ext, y: 0.1 }, height: neck + 0.52, alarm, pulse: [], halos };
 }
 
 // ---------- torreta de hielo ----------
@@ -324,7 +356,7 @@ const FROST_BODY = 0x5d7a99;
  */
 function frostRig(level: number): TurretRig {
   const acc = solid(FROST_WHITE);
-  const { base, neck } = makeBase(FROST_WHITE, level);
+  const { base, neck, alarm } = makeBase(FROST_WHITE, level);
   const head = new THREE.Group();
   head.rotation.order = 'YXZ';
   head.position.y = neck;
@@ -340,8 +372,9 @@ function frostRig(level: number): TurretRig {
     [0.1, -0.2, 0.27, 0.055, -0.15],
     [-0.2, 0.06, 0.22, 0.05, 0.3],
   ];
+  const shards: THREE.Object3D[] = [];
   crystals.slice(0, 3 + level).forEach(([x, z, h, r, tilt], i) => {
-    put(head, cone(r, h, 5), glow(i % 2 ? ICE_MID : ICE), x, 0.2, z, [tilt * 0.6, 0.4 * i, tilt]);
+    shards.push(put(head, cone(r, h, 5), glow(i % 2 ? ICE_MID : ICE), x, 0.2, z, [tilt * 0.6, 0.4 * i, tilt]));
   });
   put(head, octo(0.19, 0.17, 0.04), solid(STEEL_DARK), 0, 0.19, -0.08);
   // Tubos de refrigerante del racimo a la boca, con abrazaderas.
@@ -370,7 +403,11 @@ function frostRig(level: number): TurretRig {
   }
   const root = new THREE.Group();
   root.add(base, head);
-  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: 0.78 + ext, y: 0.1 }, height: neck + 0.5 + 0.02 * level };
+  const halos: TurretHalo[] = [
+    { x: 0, y: 0.42, z: -0.1, size: 0.2, color: ICE },
+    { x: 0, y: 0.1, z: 0.78 + ext, size: 0.13, color: FROST_WHITE },
+  ];
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd: 0.78 + ext, y: 0.1 }, height: neck + 0.5 + 0.02 * level, alarm, pulse: shards, halos };
 }
 
 // ---------- torreta de misiles (sólo galería) ----------
@@ -386,7 +423,7 @@ const WARHEAD = 0xc0392b;
  */
 function missileRig(level: number): TurretRig {
   const acc = solid(MIL_ACCENT);
-  const { base, neck } = makeBase(MIL_ACCENT, level);
+  const { base, neck, alarm } = makeBase(MIL_ACCENT, level);
   const head = new THREE.Group();
   head.rotation.order = 'YXZ';
   head.position.y = neck;
@@ -431,7 +468,77 @@ function missileRig(level: number): TurretRig {
   const my = 0.24 + TL * Math.sin(0.5) - h / 2;
   const root = new THREE.Group();
   root.add(base, head);
-  return { root, base, head, gun, gunRest: 0, muzzle: { fwd, y: my }, height: neck + my + 0.1 };
+  const halos: TurretHalo[] = [{ x: -0.2, y: 0.47, z: -0.14, size: 0.08, color: 0xff3030, blink: true }];
+  return { root, base, head, gun, gunRest: 0, muzzle: { fwd, y: my }, height: neck + my + 0.1, alarm, pulse: [], halos };
+}
+
+// ---------- estados: daño, obra y animación ----------
+
+/** Nivel de daño de una torreta según su vida: 0 intacta, 1 dañada (grietas y humo), 2 muy dañada (más grietas y un agujero). */
+export function turretDamage(hp: number, maxHp: number): 0 | 1 | 2 {
+  const f = maxHp > 0 ? hp / maxHp : 1;
+  return f < 0.25 ? 2 : f < 0.5 ? 1 : 0;
+}
+
+const CRACK = 0x14151a;
+/** Grietas y quemaduras sobre la base y la torreta; el nivel 2 añade más y un agujero en la cúpula. */
+function addDamage(rig: TurretRig, damage: number): void {
+  const dark = solid(CRACK);
+  const soot = solid(0x26262b);
+  // Base: dos grietas en la placa y una mancha de quemadura.
+  put(rig.base, bevelBox(0.32, 0.006, 0.014, 0.002), dark, 0.12, 0.142, 0.22, [0, 0.5, 0]);
+  put(rig.base, bevelBox(0.26, 0.006, 0.014, 0.002), dark, -0.22, 0.142, -0.1, [0, -0.7, 0]);
+  put(rig.base, bevelBox(0.22, 0.005, 0.16, 0.002), soot, 0.26, 0.141, -0.24, [0, 0.4, 0]);
+  // Torreta: grietas verticales en los costados y una en la cúpula.
+  put(rig.head, bevelBox(0.014, 0.12, 0.014, 0.003), dark, 0.285, 0.04, 0.1, [0, 0, 0.1]);
+  put(rig.head, bevelBox(0.014, 0.12, 0.014, 0.003), dark, -0.1, 0.04, 0.285, [0.12, 0, 0]);
+  put(rig.head, bevelBox(0.14, 0.006, 0.012, 0.002), dark, 0.04, 0.312, 0.0, [0, 0.8, 0]);
+  if (damage >= 2) {
+    put(rig.base, bevelBox(0.3, 0.006, 0.014, 0.002), dark, -0.08, 0.142, 0.3, [0, -0.3, 0]);
+    put(rig.head, bevelBox(0.014, 0.12, 0.014, 0.003), dark, -0.285, 0.04, -0.12, [0, 0, -0.15]);
+    put(rig.head, bevelBox(0.014, 0.12, 0.014, 0.003), dark, 0.2, 0.04, -0.2, [0.1, 0, 0]);
+    // Agujero en la cúpula y una chapa suelta.
+    put(rig.head, post(0.045, 0.012, 7), dark, -0.09, 0.3, 0.04);
+    put(rig.head, bevelBox(0.1, 0.012, 0.08, 0.003), soot, 0.1, 0.3, -0.06, [0.25, 0.4, 0.2]);
+  }
+}
+
+/** Andamio de madera alrededor de una torreta en obra (cuatro postes, dos pisos de travesaños y dos diagonales). */
+export function scaffold(height: number): THREE.Group {
+  const g = new THREE.Group();
+  const wood = solid(0xb98a52);
+  const h = Math.max(0.5, height);
+  const half = 0.47;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(g, post(0.02, h, 6), wood, sx * half, 0, sz * half);
+  for (const y of [0.22, h * 0.7]) {
+    for (const s of [-1, 1]) {
+      put(g, bevelBox(half * 2, 0.025, 0.025, 0.006), wood, 0, y, s * half);
+      put(g, bevelBox(0.025, 0.025, half * 2, 0.006), wood, s * half, y, 0);
+    }
+  }
+  const len = Math.hypot(half * 2, h * 0.7 - 0.22);
+  const ang = Math.atan2(h * 0.7 - 0.22, half * 2);
+  put(g, bevelBox(0.02, 0.02, len, 0.005), wood, half, 0.22 + (h * 0.7 - 0.22) / 2, 0, [-ang, 0, 0]);
+  put(g, bevelBox(len, 0.02, 0.02, 0.005), wood, 0, 0.22 + (h * 0.7 - 0.22) / 2, half, [0, 0, ang]);
+  return g;
+}
+
+/**
+ * Anima lo que no es el giro ni el retroceso: cristales que laten, brillos y pilotos que parpadean y la luz roja de aviso.
+ * `ready` = la torreta puede disparar. `emit` pinta un brillo de un fotograma en una posición del mundo.
+ */
+export function animateRig(rig: TurretRig, t: number, ready: boolean, emit: (x: number, y: number, z: number, size: number, color: number) => void): void {
+  rig.alarm.visible = !ready && Math.sin(t * 7) > 0;
+  const k = ready ? 1 + 0.07 * Math.sin(t * 4) : 0.8;
+  for (const p of rig.pulse) p.scale.set(k, 1 + (k - 1) * 2, k);
+  if (!ready) return;
+  rig.head.updateWorldMatrix(true, false);
+  const v = new THREE.Vector3();
+  for (const h of rig.halos) {
+    if (h.blink && Math.sin(t * 5 + h.x * 20) < 0) continue;
+    v.set(h.x, h.y, h.z).applyMatrix4(rig.head.matrixWorld);
+    emit(v.x, v.y, v.z, h.size * (1 + 0.15 * Math.sin(t * 3 + h.y * 9)), h.color);
+  }
 }
 
 /** Tipos de torreta que se pueden dibujar: los del juego más el misil, que de momento sólo sale en la galería. */
@@ -443,11 +550,9 @@ export const REDESIGNED: TurretModelKind[] = MODEL_KINDS;
 export const GALLERY_ONLY: TurretModelKind[] = ['turret_missile'];
 
 /** Modelo completo de una torreta de ese tipo y nivel (1-3). */
-export function buildTurret(kind: TurretModelKind, level: number): TurretRig {
+export function buildTurret(kind: TurretModelKind, level: number, damage = 0): TurretRig {
   const lv = Math.max(1, Math.min(3, Math.round(level)));
-  if (kind === 'turret_bullet') return bulletRig(lv);
-  if (kind === 'turret_laser') return laserRig(lv);
-  if (kind === 'turret_fire') return fireRig(lv);
-  if (kind === 'turret_frost') return frostRig(lv);
-  return missileRig(lv);
+  const rig = kind === 'turret_bullet' ? bulletRig(lv) : kind === 'turret_laser' ? laserRig(lv) : kind === 'turret_fire' ? fireRig(lv) : kind === 'turret_frost' ? frostRig(lv) : missileRig(lv);
+  if (damage > 0) addDamage(rig, damage);
+  return rig;
 }

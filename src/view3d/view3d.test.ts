@@ -702,3 +702,63 @@ describe('torretas 3D: hielo y misil', () => {
     expect(new THREE.Box3().setFromObject(c.root).max.y).toBeGreaterThan(0.9);
   });
 });
+
+describe('torretas 3D: estados y animaciones', () => {
+  const count = (o: import('three').Object3D) => {
+    let n = 0;
+    o.traverse((c) => (c as import('three').Mesh).isMesh && n++);
+    return n;
+  };
+
+  it('el daño se reparte por la vida restante y añade grietas', async () => {
+    const { buildTurret, turretDamage } = await import('./turrets3d');
+    expect([turretDamage(100, 100), turretDamage(51, 100), turretDamage(49, 100), turretDamage(26, 100), turretDamage(24, 100), turretDamage(0, 100)]).toEqual([0, 0, 1, 1, 2, 2]);
+    expect(turretDamage(0, 0)).toBe(0);
+    for (const k of ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'turret_missile'] as const) {
+      const [a, b, c] = [0, 1, 2].map((d) => count(buildTurret(k, 2, d).root));
+      expect(a, k).toBeLessThan(b);
+      expect(b, k).toBeLessThan(c);
+    }
+  });
+
+  it('el andamio rodea la torreta con postes y travesaños', async () => {
+    const THREE = await import('three');
+    const { buildTurret, scaffold } = await import('./turrets3d');
+    const r = buildTurret('turret_fire', 1);
+    const s = scaffold(r.height + 0.05);
+    expect(count(s)).toBeGreaterThanOrEqual(14);
+    const sc = new THREE.Box3().setFromObject(s);
+    const tr = new THREE.Box3().setFromObject(r.base);
+    // Abarca la base entera y llega por encima de la torreta.
+    expect(sc.min.x).toBeLessThan(tr.min.x);
+    expect(sc.max.x).toBeGreaterThan(tr.max.x);
+    expect(sc.max.y).toBeGreaterThan(r.height);
+  });
+
+  it('lista: cristales que laten y brillos; sin munición ni energía: luz roja y todo apagado', async () => {
+    const { buildTurret, animateRig } = await import('./turrets3d');
+    const brillos = (kind: Parameters<typeof buildTurret>[0], ready: boolean, t = 0.3) => {
+      const r = buildTurret(kind, 2);
+      const seen: number[] = [];
+      animateRig(r, t, ready, (_x, _y, _z, size, color) => seen.push(color + size * 0));
+      return { r, n: seen.length };
+    };
+    // Lista: cada tipo emite brillos (las balas uno; el láser, dos) y la luz de aviso está apagada.
+    expect(brillos('turret_bullet', true).n).toBe(1);
+    expect(brillos('turret_laser', true).n).toBe(2);
+    expect(brillos('turret_frost', true).n).toBe(2);
+    expect(brillos('turret_laser', true).r.alarm.visible).toBe(false);
+    // Los cristales laten alrededor de 1 y se encogen al apagarse.
+    const laser = buildTurret('turret_laser', 2);
+    animateRig(laser, 0.4, true, () => {});
+    expect(laser.pulse[0].scale.x).toBeGreaterThan(0.9);
+    animateRig(laser, 0.4, false, () => {});
+    expect(laser.pulse[0].scale.x).toBeCloseTo(0.8, 5);
+    // Apagada: no emite brillos y la luz roja parpadea (visible en unas fases y no en otras).
+    expect(brillos('turret_laser', false).n).toBe(0);
+    const luz = buildTurret('turret_bullet', 1);
+    const fases = [0.1, 0.3, 0.5, 0.7, 0.9, 1.1].map((t) => (animateRig(luz, t, false, () => {}), luz.alarm.visible));
+    expect(fases).toContain(true);
+    expect(fases).toContain(false);
+  });
+});

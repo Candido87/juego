@@ -8,13 +8,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CONFIG } from '../game/config';
-import { TURRET_COLOR } from './actors';
 import { allModels } from './catalog';
 import { PITCH } from './camera';
 import { Effects } from './effects3d';
 import { OutlinePass, patchMaterial } from './fx';
 import { preload, tint } from './loader';
-import { BULLET_ACCENT, GALLERY_ONLY, MODEL_KINDS, TurretModelKind, TurretRig, buildTurret } from './turrets3d';
+import { BULLET_ACCENT, GALLERY_ONLY, MODEL_KINDS, TurretModelKind, TurretRig, animateRig, buildTurret, scaffold } from './turrets3d';
 
 type TurretKind = TurretModelKind;
 const ALL_KINDS: TurretKind[] = MODEL_KINDS;
@@ -24,7 +23,7 @@ const KINDS = ALL_KINDS.filter((k) => !query.get('tipo') || query.get('tipo') ==
 const LEVELS = [1, 2, 3].filter((l) => !query.get('nivel') || Number(query.get('nivel')) === l);
 const CLEAN = query.get('limpio') === '1';
 const NAMES: Record<TurretKind, string> = { turret_bullet: 'Balas', turret_laser: 'Láser', turret_fire: 'Lanzallamas', turret_frost: 'Hielo', turret_missile: 'Misil (sólo galería)' };
-const STATES = ['normal', 'apagada', 'en obra', 'dañada'] as const;
+const STATES = ['normal', 'apagada', 'en obra', 'dañada', 'muy dañada'] as const;
 type State = (typeof STATES)[number];
 const SPACING = 1.75;
 const OFF_TINT = 0x8f94a6;
@@ -107,7 +106,7 @@ async function main(): Promise<void> {
         tile.position.set(x, 0, z);
         tile.receiveShadow = true;
         ground.add(tile);
-        const rig = buildTurret(kind, level);
+        const rig = buildTurret(kind, level, state === 'dañada' ? 1 : state === 'muy dañada' ? 2 : 0);
         rig.root.position.set(x, 0, z);
         rig.root.traverse((o) => {
           const m = o as THREE.Mesh;
@@ -127,6 +126,9 @@ async function main(): Promise<void> {
             (m.material as THREE.Material).opacity = 0.55;
           });
           rig.root.scale.y = 0.6;
+          const sc = scaffold(rig.height + 0.05);
+          sc.position.set(x, 0, z);
+          holder.add(sc);
         }
         holder.add(rig.root);
         cells.push({ kind, level, rig, recoil: 0, x, z });
@@ -215,15 +217,14 @@ async function main(): Promise<void> {
       c.rig.head.rotation.y = yaw;
       c.recoil = Math.max(0, c.recoil - dt * 4);
       c.rig.gun.position.z = c.rig.gunRest - c.recoil * 0.1;
-      if (state === 'dañada' && Math.random() < 0.35) fx.smoke(c.x, c.rig.height * 0.7, c.z, 0x26262b, 0.22);
-      if (state === 'normal' || state === 'dañada') {
+      if ((state === 'dañada' && Math.random() < 0.35) || (state === 'muy dañada' && Math.random() < 0.5)) fx.smoke(c.x, c.rig.height * 0.7, c.z, 0x26262b, 0.22);
+      if (state === 'muy dañada' && Math.random() < dt * 8) fx.flame(c.x, c.rig.height * 0.5, c.z, 0.12);
+      const ready = state === 'normal' || state === 'dañada' || state === 'muy dañada';
+      c.rig.head.updateWorldMatrix(true, false);
+      animateRig(c.rig, t + c.x, ready, (x, y, z, s, col) => fx.glow(x, y, z, s, col));
+      if (ready && c.kind === 'turret_fire' && Math.random() < dt * 14) {
         const mu = c.rig.muzzle;
-        const my = c.rig.head.position.y + mu.y;
-        const mx = c.x + Math.sin(yaw) * mu.fwd;
-        const mz = c.z + Math.cos(yaw) * mu.fwd;
-        if (c.kind === 'turret_laser') fx.glow(mx, my, mz, 0.13 + 0.04 * Math.sin(t * 5 + c.x), TURRET_COLOR[c.kind]);
-        else if (c.kind === 'turret_frost') fx.glow(mx, my, mz, 0.15 + 0.04 * Math.sin(t * 3 + c.x), TURRET_COLOR[c.kind]);
-        else if (c.kind === 'turret_fire' && Math.random() < dt * 14) fx.flame(mx, my - 0.03, mz, 0.07);
+        fx.flame(c.x + Math.sin(yaw) * mu.fwd, c.rig.head.position.y + mu.y - 0.03, c.z + Math.cos(yaw) * mu.fwd, 0.07);
       }
     }
     controls.update();

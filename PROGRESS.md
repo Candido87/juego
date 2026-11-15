@@ -136,5 +136,5 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] TR1. Torreta de balas de referencia (`turrets3d.ts`, galería `/galeria-torretas.html`, capturas comparadas en `docs/torretas/`). **Parado: esperando visto bueno antes de seguir con TR2.**
 - [x] TR2. Láser y lanzallamas (`turrets3d.ts`, fotos en `docs/torretas/`; `tools/fotos-torreta.cjs` para repetirlas).
 - [x] TR3. Hielo y misil (el misil sólo en galería: la lógica no lo tiene). Ya no queda ningún tipo con el aspecto anterior.
-- [ ] TR4. Niveles, estados y animaciones.
+- [x] TR4. Niveles, estados (apagada con luz roja, en obra con andamio, dañada con grietas y humo) y animaciones (cristales que laten, brillos, pilotos).
 - [ ] TR5. Efectos de disparo por tipo y pulido a zoom alejado.

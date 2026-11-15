@@ -21,7 +21,7 @@ import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
 import { ThreatMarks } from './threat3d';
 import { QUALITY, QualityPreset } from './quality';
-import { buildTurret } from './turrets3d';
+import { TurretRig, animateRig, buildTurret, scaffold, turretDamage } from './turrets3d';
 import { Terrain, buildTerrain } from './terrain';
 
 type Tile = { x: number; y: number };
@@ -132,6 +132,8 @@ interface BView {
   pivot?: THREE.Group;
   /** Torreta: z de reposo del arma y boca del cañón (distancia hacia delante y altura sobre el pivote). */
   gunRest?: number;
+  /** Torreta: el modelo entero (para animar cristales, luces y brillos). */
+  rig?: TurretRig;
   muzzle?: { fwd: number; y: number };
   gun?: THREE.Object3D;
   yaw: number;
@@ -501,7 +503,7 @@ export class View3D {
   private signature(b: Building): string {
     let s = `${b.kind}|${b.dir}|${b.built ? 1 : 0}`;
     if (isWallKind(b.kind)) s += `|d${wallDamage(b.hp, b.maxHp)}`;
-    if (b.kind in CONFIG.turrets) s += `|L${this.game.turretLevel[b.kind as TurretKind]}`;
+    if (b.kind in CONFIG.turrets) s += `|L${this.game.turretLevel[b.kind as TurretKind]}|D${turretDamage(b.hp, b.maxHp)}`;
     if (b.kind === 'belt' || b.kind === 'belt_fast') {
       if (beltStopped(b)) s += '|off';
       for (let d = 0; d < 4; d++) {
@@ -614,8 +616,11 @@ export class View3D {
     } else if (kind in CONFIG.turrets) {
       // Torreta: base fija y torreta giratoria con su arma (ver `turrets3d.ts`). El juego gira `pivot` hacia el objetivo y
       // desliza `gun` para el retroceso.
-      const rig = buildTurret(kind as TurretKind, turretLook(this.game, kind as TurretKind).level);
+      const rig = buildTurret(kind as TurretKind, turretLook(this.game, kind as TurretKind).level, b.built ? turretDamage(b.hp, b.maxHp) : 0);
       group.add(rig.root);
+      // En obra: andamio alrededor.
+      if (!b.built) group.add(scaffold(rig.height + 0.05));
+      view.rig = rig;
       view.pivot = rig.head;
       view.gun = rig.gun;
       view.gunRest = rig.gunRest;
@@ -837,15 +842,15 @@ export class View3D {
     pivot.rotation.set(v.pitch, v.yaw, 0);
     v.recoil = Math.max(0, v.recoil - dt * 4);
     v.gun!.position.z = (v.gunRest ?? 0.15) - v.recoil * 0.1;
+    // Cristales que laten, brillos, pilotos y luz roja de aviso.
+    if (v.rig) animateRig(v.rig, this.time + b.id, ready, (x, y, z, s, c) => this.fx.glow(x, y, z, s, c));
     if (!ready) return;
     // Lista para disparar: brillo en la boca (láser y hielo) o llama piloto (fuego).
     const mu = v.muzzle ?? { fwd: 0.42, y: 0.12 };
     const mx = cx + Math.sin(v.yaw) * mu.fwd;
     const mz = cy + Math.cos(v.yaw) * mu.fwd;
     const my = v.group.position.y + pivot.position.y + mu.y;
-    if (kind === 'turret_laser') this.fx.glow(mx, my, mz, 0.13 + 0.04 * Math.sin(this.time * 5 + b.id), TURRET_COLOR[kind]);
-    else if (kind === 'turret_frost') this.fx.glow(mx, my, mz, 0.15 + 0.04 * Math.sin(this.time * 3 + b.id), TURRET_COLOR[kind]);
-    else if (kind === 'turret_fire' && Math.random() < dt * 14) this.fx.flame(mx, my - 0.03, mz, 0.07);
+    if (kind === 'turret_fire' && Math.random() < dt * 14) this.fx.flame(mx, my - 0.03, mz, 0.07);
   }
 
   // ---------- personajes ----------
