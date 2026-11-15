@@ -260,6 +260,9 @@ export class View3D {
   private lastH = 0;
   private time = 0;
   private sun: THREE.DirectionalLight;
+  private hemi: THREE.HemisphereLight;
+  /** Vista de logística (L): mapa atenuado y puertos y conexiones resaltados. */
+  logistics = false;
   fps = 0;
   private fpsAcc = 0;
   private fpsN = 0;
@@ -308,7 +311,8 @@ export class View3D {
     host.appendChild(this.renderer.domElement);
     this.scene.background = new THREE.Color(0x9fd0e8);
     this.scene.fog = new THREE.Fog(0x9fd0e8, 140, 300);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x7a8a9a, 1.7));
+    this.hemi = new THREE.HemisphereLight(0xffffff, 0x7a8a9a, 1.7);
+    this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xfff2d8, 2.4);
     this.sun.castShadow = opts.shadows;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -1399,7 +1403,10 @@ export class View3D {
     this.syncBuildingFx(sdt);
     this.updateHighlights();
     this.threat.update();
-    this.overlay.update({ connect: this.connect, guide: this.guide, selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
+    const dim = this.logistics ? 0.4 : 1;
+    this.hemi.intensity = 1.7 * dim;
+    this.sun.intensity = 2.4 * dim;
+    this.overlay.update({ logistics: this.logistics, connect: this.connect, guide: this.guide, selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
     this.fx.update(sdt, this.camera);
     this.updateHoles();
     this.markers.count = this.markerN;

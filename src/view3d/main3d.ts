@@ -5,7 +5,7 @@
 import { botTick } from '../game/bot';
 import { HELP_CONTROLS } from '../game/ayuda';
 import { isLineTool, portsAt, previewLine, snapDir } from '../game/conectar';
-import { Port, canLink } from '../game/puertos';
+import { FLOW_NAMES, Port, canLink, portStatus } from '../game/puertos';
 import { RouteResult, RouteTarget, buildRoute, canAffordRoute, findRoute, freeInPorts, freeOutPorts } from '../game/ruta';
 import { pipeJoinConflict } from '../game/tuberias';
 import { Game } from '../game/game';
@@ -357,6 +357,7 @@ async function start() {
   };
   window.addEventListener('pointerup', () => (painting = null));
   let lastSnapKey = '';
+  let logistics = false;
 
   // ---------- opciones y pausa ----------
   const governor = new QualityGovernor();
@@ -466,6 +467,10 @@ async function start() {
       ui.selected = null;
     } else if (k === 'x') hud.setTool('remove');
     else if (k === 'v') hud.setTool(ui.tool === 'connect' ? null : 'connect');
+    else if (k === 'l') {
+      logistics = !logistics;
+      hud.flash(logistics ? 'Vista de logística: puertos y conexiones por colores (L para salir)' : 'Vista normal');
+    }
     else if (k === 't') hud.toggleTech();
     else if (k === 'p') hud.togglePause();
     else if (k === 'q') hud.cycleCategory(-1);
@@ -511,6 +516,15 @@ async function start() {
     if (b && beltStopped(b)) parts.push('⚠ Cinta parada: sin energía');
     const st = b ? statusIcon(game, b) : null;
     if (st && st.type !== 'producing') parts.push(`⚠ ${STATUS_STYLE[st.type].title}`);
+    // Puerto bajo el ratón (casilla exterior de un edificio): tipo, sentido, estado y qué conectar.
+    if (!b) {
+      for (const { owner, port } of portsAt(game, t.x, t.y)) {
+        const st = portStatus(game, owner, port);
+        const label = { free: 'libre', connected: 'conectado', error: 'error', blocked: 'bloqueado' }[st.state];
+        const what = port.medium === 'liquid' ? 'tubería' : 'cinta';
+        parts.push(`Puerto de ${port.io === 'out' ? 'salida' : 'entrada'} de ${FLOW_NAMES[port.flow]} (${game.def(owner.kind).name}): ${label}${st.reason ? ` · ${st.reason}` : ''}${st.fix ? ` · ${st.fix}` : st.state === 'free' ? ` · conecta ${port.io === 'out' ? 'su salida con una entrada' : 'una salida a esta entrada'} con una ${what} (V traza la ruta sola)` : ''}`);
+      }
+    }
     if (ui.tool === 'connect') {
       if (!conn) parts.push('Conectar: pulsa una salida libre');
       else {
@@ -623,6 +637,7 @@ async function start() {
             return { from: conn?.from ?? null, route: r?.ok ? r.route.pieces : null, liquid: conn?.from.medium === 'liquid' };
           })()
         : null;
+    view.logistics = logistics;
     view.buildKind = ui.tool && ui.tool !== 'remove' && ui.tool !== 'connect' ? ui.tool : null;
     view.buildDir = ui.dir;
     view.removeMode = ui.tool === 'remove';

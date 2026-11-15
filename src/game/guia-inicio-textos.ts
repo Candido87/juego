@@ -38,7 +38,7 @@ export const GUIA_TEXT: Record<string, (g: Game) => GuiaText> = {
   }),
   belt_connect: () => ({
     title: 'Cintas: une el taladro con el almacén',
-    text: `Los materiales sólidos se mueven con cintas (${costOf('belt')} cada una). ① Elige Cinta en la categoría Transporte. ② Haz clic en cada casilla, o mantén Mayús y arrastra para dibujar el recorrido. ③ R gira el sentido; las flechas indican hacia dónde va. Conecta la flecha de salida del taladro con el almacén: se marca una ruta de ejemplo.`,
+    text: `Los materiales sólidos se mueven con cintas (${costOf('belt')} cada una). ① Elige Cinta en la categoría Transporte. ② Haz clic en cada casilla, o mantén Mayús y arrastra para dibujar el recorrido. ③ R gira el sentido; las flechas indican hacia dónde va. Conecta la flecha de salida del taladro con el almacén: se marca una ruta de ejemplo. Atajo: con Conectar (V) pulsas la salida y luego la entrada y la ruta se traza sola. Las luces de los puertos avisan: verde conectado, rojo error, naranja bloqueado; L activa la vista de logística.`,
   }),
   power_gen: () => ({
     title: 'Energía: un generador',

@@ -8,6 +8,7 @@ import type { Building, Game } from '../game/game';
 import { isElectric } from '../game/power';
 import { isLineTool, previewLine, EndState } from '../game/conectar';
 import { pipeConflicts, pipeJoinConflict } from '../game/tuberias';
+import { Chain, chainOf } from '../game/cadena';
 import { Port, PortFlow, PortState, hasPorts, ports, portsWithStatus } from '../game/puertos';
 import type { BuildKind, BuildingKind, Dir, TurretKind } from '../game/types';
 import { heightAt, inBounds } from '../game/world';
@@ -43,6 +44,8 @@ export interface ConnectAids {
 
 export interface OverlayState {
   connect?: ConnectAids | null;
+  /** Vista de logística: todos los puertos y conexiones por colores. */
+  logistics?: boolean;
   guide?: GuideAids | null;
   selectedId: number | null;
   hoverBuildingId: number | null;
@@ -122,6 +125,9 @@ export class Overlay {
   private arrowGeo = arrowGeometry();
   private lamps: THREE.Mesh[] = [];
   private lampN = 0;
+  private chainKey = '';
+  private chainAt = -1;
+  private chain: Chain | null = null;
   private mixAt = -1;
   private mixTiles: { x: number; y: number }[] = [];
   private lampGeo = new THREE.CircleGeometry(0.1, 14).rotateX(-Math.PI / 2);
@@ -252,6 +258,34 @@ export class Overlay {
     }
   }
 
+  /** Cadena del edificio señalado: cintas y tuberías con flechas que corren en el sentido del flujo y los edificios que une. En logística, todas las líneas por colores. */
+  private chainHighlight(s: OverlayState, focus: Building | null, pulse: number): void {
+    const g = this.game;
+    if (s.logistics) {
+      for (const b of g.buildings.values()) {
+        if (!b.built || !(b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline')) continue;
+        const liq = Object.keys(b.inv).find((k) => (b.inv[k as keyof typeof b.inv] ?? 0) > 0) as PortFlow | undefined;
+        const col = b.kind === 'pipeline' ? (liq ? FLOW_COLOR[liq] : LIQUID) : FLOW_COLOR.solid;
+        this.range(b.x + 0.5, b.y + 0.5, this.ground(b.x, b.y), 0.9, col, 0.45);
+        this.arrow(b.x, b.y, b.dir, col, true, 0.9);
+      }
+    }
+    if (!focus || s.tool) return;
+    const key = `${focus.id}|${g.buildings.size}`;
+    if (key !== this.chainKey || s.time - this.chainAt > 0.6) {
+      this.chainKey = key;
+      this.chainAt = s.time;
+      this.chain = chainOf(g, focus);
+    }
+    const c = this.chain!;
+    c.lines.forEach((l, i) => {
+      const flow = 0.45 + 0.55 * Math.max(0, Math.sin(s.time * 6 - i * 0.7));
+      this.range(l.x + 0.5, l.y + 0.5, this.ground(l.x, l.y), 0.96, l.liquid ? 0x6fd3ff : 0xffd166, 0.22 * flow);
+      this.arrow(l.x, l.y, l.dir as Dir, l.liquid ? 0x6fd3ff : 0xffd166, true, flow);
+    });
+    for (const b of c.buildings) this.range(b.x + b.w / 2, b.y + b.d / 2, this.ground(b.x, b.y), Math.max(b.w, b.d) + 0.2, 0x7dd3fc, 0.25 + 0.15 * pulse);
+  }
+
   /** Con una cinta o tubería elegida: los puertos libres del mismo medio parpadean suave (también los de la guía y la selección). */
   private compatiblePorts(medium: 'solid' | 'liquid', pulse: number): void {
     for (const b of this.game.buildings.values()) {
@@ -377,8 +411,9 @@ export class Overlay {
     }
     const hb = s.tool === null && s.hoverBuildingId !== null ? g.buildings.get(s.hoverBuildingId) : undefined;
     if (hb && hb !== sel && hb.built) this.portsOfBuilding(hb, 0.8, pulse, true);
-    // Todos los demás conectores se ven siempre: la luz de estado y, si no están conectados, su flecha tenue.
-    for (const b of g.buildings.values()) if (b.built && b !== sel && b !== hb && hasPorts(b.kind)) this.portsOfBuilding(b, 1, pulse, false);
+    // Todos los demás conectores se ven siempre: la luz de estado y, si no están conectados, su flecha tenue (en logística, todas).
+    for (const b of g.buildings.values()) if (b.built && b !== sel && b !== hb && hasPorts(b.kind)) this.portsOfBuilding(b, 1, pulse, !!s.logistics);
+    this.chainHighlight(s, hb ?? sel ?? null, pulse);
 
     if (s.tool) {
       // Al colocar un poste o algo eléctrico se ve hasta dónde llega cada poste.
