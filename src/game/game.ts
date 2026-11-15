@@ -148,6 +148,8 @@ export interface GameState {
   unlockedRecipes: string[];
   bonus: Game['bonus'];
   turretLevel: Game['turretLevel'];
+  /** Puntos de investigación acumulados (ausente en guardados antiguos). */
+  researchPoints?: number;
   nextId: number;
   acc: number;
   queue: QueuedSpawn[];
@@ -203,7 +205,9 @@ export class Game {
   readonly unlockedBuildings = new Set<BuildKind>(CONFIG.startUnlocks.buildings);
   readonly unlockedRecipes = new Set<string>(CONFIG.startUnlocks.recipes);
   /** Bonificaciones de investigación. */
-  readonly bonus = { npcSpeed: 0, npcCapacity: 0, npcWork: 0, houseCapacity: 0 };
+  readonly bonus = { npcSpeed: 0, npcCapacity: 0, npcWork: 0, houseCapacity: 0, researchRate: 0 };
+  /** Puntos de investigación acumulados (los produce el laboratorio con sus investigadores; ver `pointsPerMinute`). */
+  researchPoints = 0;
   /** Nivel global de cada tipo de torreta (sube con el árbol). */
   readonly turretLevel: Record<TurretKind, number> = { turret_bullet: 1, turret_laser: 1, turret_fire: 1, turret_frost: 1 };
 
@@ -358,7 +362,8 @@ export class Game {
   /** Pasa a una persona al rol `role`, sacándola del rol libre con más gente (prefiere a quien no trabaja). */
   reassignTo(role: NpcRole): boolean {
     if (role === 'mechanic') return false;
-    const donors = this.npcs.filter((n) => n.role !== role && n.role !== 'mechanic');
+    if (role === 'researcher' && this.researcherBlock()) return false;
+    const donors = this.npcs.filter((n) => n.role !== role && n.role !== 'mechanic' && n.role !== 'researcher');
     if (!donors.length) return false;
     const size = (r: NpcRole) => this.npcs.filter((n) => n.role === r).length;
     donors.sort((a, b) => size(b.role) - size(a.role) || Number(a.jobId !== null) - Number(b.jobId !== null) || a.id - b.id);
@@ -449,10 +454,11 @@ export class Game {
     return true;
   }
 
-  /** Cambia el rol de un NPC (no se puede poner/quitar Mecánico a mano: eso lo hace el Taller). */
+  /** Cambia el rol de un NPC (no se puede poner/quitar Mecánico a mano: eso lo hace el Taller; Investigador sólo con un puesto libre). */
   setRole(npcId: number, role: NpcRole): boolean {
     const n = this.npcs.find((o) => o.id === npcId);
     if (!n || n.role === role || role === 'mechanic' || n.role === 'mechanic') return false;
+    if (role === 'researcher' && this.researcherBlock()) return false;
     this.changeRole(n, role);
     return true;
   }
@@ -481,9 +487,75 @@ export class Game {
     return [...this.buildings.values()].filter((b) => b.kind === 'workshop' && b.built && !b.markedForRemoval);
   }
 
-  /** Personas fuera del taller (y de otros puestos fijos). */
+  /** Personas fuera del taller y de la investigación (los puestos fijos). */
   generalWorkers(): Npc[] {
-    return this.npcs.filter((n) => n.role !== 'mechanic');
+    return this.npcs.filter((n) => n.role !== 'mechanic' && n.role !== 'researcher');
+  }
+
+  // ---------------------------------------------------------------- investigación
+
+  /** Laboratorios terminados (y no marcados para desmontar), por orden de construcción. */
+  labs(): Building[] {
+    return [...this.buildings.values()].filter((b) => b.kind === 'laboratory' && b.built && !b.markedForRemoval).sort((a, b) => a.id - b.id);
+  }
+
+  /** Puestos de investigador en total. */
+  researchSlots(): number {
+    return this.labs().length * CONFIG.research.labSlots;
+  }
+
+  researchers(): Npc[] {
+    return this.npcs.filter((n) => n.role === 'researcher');
+  }
+
+  /**
+   * Motivo por el que no se puede pasar a nadie más a Investigador (null = se puede): sin laboratorio, sin puestos libres
+   * o porque tiene que quedar gente fuera de la investigación.
+   */
+  researcherBlock(): string | null {
+    if (!this.labs().length) return 'Hace falta un laboratorio terminado';
+    if (this.researchers().length >= this.researchSlots()) return 'No hay puestos libres: construye otro laboratorio';
+    if (this.generalWorkers().length <= CONFIG.research.minOutside) return 'Tiene que quedar gente fuera de la investigación';
+    return null;
+  }
+
+  /** Cuántos investigadores trabajan en cada laboratorio (se llenan por orden; los puestos que sobran quedan vacíos). */
+  labCrews(): { lab: Building; researchers: number }[] {
+    let left = this.researchers().length;
+    return this.labs().map((lab) => {
+      const n = Math.min(CONFIG.research.labSlots, left);
+      left -= n;
+      return { lab, researchers: n };
+    });
+  }
+
+  /**
+   * Puntos de investigación por minuto ahora mismo: por cada laboratorio con investigadores y energía, investigadores ×
+   * `pointsPerResearcher` × satisfacción de energía, y el laboratorio n-ésimo en activo rinde `labFalloff`^(n-1). Se recalcula
+   * cada vez: si un investigador muere o se reasigna, o falta energía, baja al instante.
+   */
+  pointsPerMinute(): number {
+    const R = CONFIG.research;
+    let total = 0;
+    let active = 0;
+    for (const { lab, researchers } of this.labCrews()) {
+      if (researchers <= 0) continue;
+      const power = powerMult(lab);
+      if (power <= 0) continue;
+      total += researchers * R.pointsPerResearcher * power * R.labFalloff ** active;
+      active++;
+    }
+    return total * (1 + this.bonus.researchRate);
+  }
+
+  /** Suma los puntos de este paso y devuelve a Constructor a los investigadores que se han quedado sin puesto. */
+  private stepResearch(dt: number): void {
+    const surplus = this.researchers().length - this.researchSlots();
+    if (surplus > 0) {
+      const list = this.researchers();
+      for (let i = 0; i < surplus; i++) this.changeRole(list[list.length - 1 - i], 'constructor');
+    }
+    this.researchPoints += (this.pointsPerMinute() * dt) / 60;
   }
 
   /**
@@ -660,6 +732,7 @@ export class Game {
     this.stepFood(dt);
     this.stepGrowth(dt);
     this.staffWorkshops();
+    this.stepResearch(dt);
     if (this.gameOver) return;
     this.jobs.update(this, dt);
     for (const n of [...this.npcs]) stepNpc(this, n, dt);
@@ -698,6 +771,7 @@ export class Game {
       unlockedRecipes: [...this.unlockedRecipes],
       bonus: this.bonus,
       turretLevel: this.turretLevel,
+      researchPoints: this.researchPoints,
       nextId: this.nextId,
       acc: this.acc,
       queue: this.queue,
@@ -731,6 +805,7 @@ export class Game {
     st.unlockedRecipes.forEach((k) => this.unlockedRecipes.add(k));
     Object.assign(this.bonus, st.bonus);
     Object.assign(this.turretLevel, st.turretLevel);
+    this.researchPoints = st.researchPoints ?? 0;
     this.nextId = st.nextId;
     this.acc = st.acc;
     this.queue = st.queue;

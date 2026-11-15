@@ -68,6 +68,7 @@ export const BUILD_KINDS = [
   'pump',
   'refinery',
   'workshop',
+  'laboratory',
   'house',
   'pole',
   'generator',
@@ -90,9 +91,11 @@ export type BuildingKind = 'core' | BuildKind;
 export type TurretKind = 'turret_bullet' | 'turret_laser' | 'turret_fire' | 'turret_frost';
 export type WallKind = 'wall_wood' | 'wall_stone' | 'wall_metal';
 
-export const NPC_ROLES = ['constructor', 'transporter', 'operator', 'mechanic'] as const;
-/** Roles que el jugador puede asignar a mano (el Mecánico lo pone el Taller). */
+export const NPC_ROLES = ['constructor', 'transporter', 'operator', 'mechanic', 'researcher'] as const;
+/** Roles de trabajo libres: a ellos van los recién llegados (el Mecánico lo pone el Taller y el Investigador lo asigna el jugador). */
 export const FREE_ROLES = ['constructor', 'transporter', 'operator'] as const;
+/** Roles que el jugador puede asignar a mano con "+1": los libres y el Investigador (sólo si hay un puesto libre en un laboratorio). */
+export const ASSIGNABLE_ROLES = ['constructor', 'transporter', 'operator', 'researcher'] as const;
 export type NpcRole = (typeof NPC_ROLES)[number];
 
 export const ENEMY_KINDS = ['grunt', 'runner', 'armored', 'flyer', 'tank'] as const;

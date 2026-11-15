@@ -169,7 +169,13 @@ export class Hud {
     $('npcs').addEventListener('click', (ev) => {
       const role = (ev.target as HTMLElement).closest<HTMLElement>('[data-assign]')?.dataset.assign as NpcRole | undefined;
       if (role && this.sim) {
-        if (!this.sim.reassignTo(role)) this.flash('No hay nadie a quien reasignar');
+        if (!this.sim.reassignTo(role)) this.flash(role === 'researcher' ? (this.sim.researcherBlock() ?? 'No hay nadie a quien reasignar') : 'No hay nadie a quien reasignar');
+        this.panelTimer = 0;
+      }
+      // Quitar un investigador: vuelve a Constructor y la producción baja al instante.
+      if ((ev.target as HTMLElement).closest('[data-release]') && this.sim) {
+        const r = this.sim.researchers()[0];
+        if (r) this.sim.setRole(r.id, 'constructor');
         this.panelTimer = 0;
       }
     });
@@ -378,9 +384,10 @@ export class Hud {
 
   /** Población, comida, gasolina, energía y taller de un vistazo. */
   private renderColony(sim: Game) {
-    const busy = sim.npcs.filter((n) => n.role !== 'mechanic' && (n.jobId !== null || total(n.carry) > 0)).length;
+    const busy = sim.npcs.filter((n) => n.role !== 'mechanic' && n.role !== 'researcher' && (n.jobId !== null || total(n.carry) > 0)).length;
     const mech = sim.npcs.filter((n) => n.role === 'mechanic').length;
-    const free = sim.population - busy - mech;
+    const res = sim.researchers().length;
+    const free = sim.population - busy - mech - res;
     const food = count(sim.storage, 'food');
     const perMin = sim.foodPerMinute();
     const mins = perMin > 0 ? food / perMin : Infinity;
@@ -396,13 +403,21 @@ export class Hud {
     const shop = sim.workshops().length
       ? `Taller: <b>${mech}</b> mecánicos, ${repairs} reparaciones`
       : `<span class="muted" title="Sin taller reparan los Constructores, más despacio">Sin taller (${repairs} reparaciones)</span>`;
+    // Puntos de investigación: sólo se enseñan si hay laboratorio o ya se tienen.
+    const ppm = sim.pointsPerMinute();
+    const labs = sim.labs().length;
+    const science =
+      labs || sim.researchPoints >= 1
+        ? `<span title="Puntos de investigación. Los produce el laboratorio con energía y sus Investigadores (${res}/${sim.researchSlots()} puestos)">Investigación <b>${Math.floor(sim.researchPoints)}</b> pts <span class="${ppm > 0 ? 'good' : 'muted'}">+${ppm.toFixed(1)}/min</span></span>`
+        : '';
     this.set(
       'colony',
-      `<span data-tip="hud:population">Población <b>${sim.population}</b>/${sim.housingCapacity()} <span class="muted">(${free} libres, ${busy} trabajando, ${mech} taller)</span></span>
+      `<span data-tip="hud:population">Población <b>${sim.population}</b>/${sim.housingCapacity()} <span class="muted">(${free} libres, ${busy} trabajando, ${mech} taller${res ? `, ${res} investigan` : ''})</span></span>
       <span class="${foodCls}" data-tip="hud:food">Comida <b>${food}</b> <span class="muted">−${perMin.toFixed(0)}/min</span>${foodState}</span>
       <span data-tip="hud:gasoline">Gasolina <b>${count(sim.storage, 'gasoline')}</b></span>
       <span data-tip="hud:energy">Energía <b class="${dem > prod ? 'bad' : ''}">${prod.toFixed(0)}/${dem.toFixed(0)}</b></span>
-      <span>${shop}</span>`,
+      <span>${shop}</span>
+      ${science}`,
       true,
     );
   }
@@ -426,9 +441,18 @@ export class Hud {
     const rows = NPC_ROLES.map((role) => {
       const all = sim.npcs.filter((n) => n.role === role);
       if (role === 'mechanic' && !all.length) return '';
+      // El Investigador sólo aparece cuando hay laboratorio (o ya hay alguno asignado).
+      if (role === 'researcher' && !all.length && !sim.labs().length) return '';
       const busy = all.filter((n) => n.jobId !== null || total(n.carry) > 0).length;
       const def = CONFIG.npc.roles[role];
-      const btn = role === 'mechanic' ? '<span class="muted">taller</span>' : `<button data-assign="${role}" title="Pasar a una persona de otro rol a ${def.name}">+1</button>`;
+      const block = role === 'researcher' ? sim.researcherBlock() : null;
+      const btn =
+        role === 'mechanic'
+          ? '<span class="muted">taller</span>'
+          : role === 'researcher'
+            ? `<span><button data-release="1" title="Devolver un Investigador a Constructor" ${all.length ? '' : 'disabled'}>−1</button> <button data-assign="researcher" title="${block ?? 'Pasar a una persona de otro rol a Investigador (trabaja en el laboratorio y produce puntos)'}" ${block ? 'class="muted"' : ''}>+1</button></span>`
+            : `<button data-assign="${role}" title="Pasar a una persona de otro rol a ${def.name}">+1</button>`;
+      if (role === 'researcher') return `<div class="npcrow"><span>${iconHtml(ROLE_ICONS[role], 22)}${def.name}: <b>${all.length}</b><span class="muted">/${sim.researchSlots()}</span></span>${btn}</div>`;
       return `<div class="npcrow"><span>${iconHtml(ROLE_ICONS[role], 22)}${def.name}: <b>${all.length}</b> <span class="muted">(${all.length - busy} libres)</span></span>${btn}</div>`;
     }).join('');
     const opts = ['<option value="">auto (rol con menos gente)</option>']

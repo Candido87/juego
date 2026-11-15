@@ -84,6 +84,8 @@ export interface EnemyDef {
 }
 
 export interface TechEffects {
+  /** Multiplicador sumado a los puntos de investigación por minuto (0.2 = +20 %). */
+  researchRate?: number;
   /** Multiplicador sumado a la velocidad de los NPCs (0.25 = +25 %). */
   npcSpeed?: number;
   npcCapacity?: number;
@@ -164,6 +166,7 @@ export const CONFIG = {
     pump: { name: 'Bomba de petróleo', cost: { pipe: 2, frame: 2, gear: 1 }, buildTime: 4, hp: 70, solid: true, size: [1, 1] },
     refinery: { name: 'Refinería', cost: { pipe: 3, frame: 3, gear: 2 }, buildTime: 6, hp: 110, solid: true, size: [1, 1] },
     workshop: { name: 'Taller', cost: { tool_kit: 4, frame: 3 }, buildTime: 6, hp: 120, solid: true, size: [1, 1] },
+    laboratory: { name: 'Laboratorio', cost: { tool_kit: 3, frame: 3, wire: 4 }, buildTime: 7, hp: 100, solid: true, size: [1, 1] },
     house: { name: 'Casa', cost: { frame: 2, wood: 4 }, buildTime: 4, hp: 80, solid: true, size: [1, 1] },
     pole: { name: 'Poste', cost: { wire: 2, frame: 1 }, buildTime: 1, hp: 40, solid: true, size: [1, 1] },
     generator: { name: 'Generador', cost: { frame: 3, gear: 2, wire: 4 }, buildTime: 5, hp: 80, solid: true, size: [1, 1] },
@@ -213,9 +216,9 @@ export const CONFIG = {
     /** Distancia Chebyshev máxima entre un edificio y su poste. */
     supplyRadius: 2,
     /** Consumo de cada edificio conectado. */
-    demand: { belt: 0.5, belt_fast: 1, drill: 3, farm: 2, pump: 2, refinery: 4, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6 } as Partial<Record<BuildKind, number>>,
+    demand: { belt: 0.5, belt_fast: 1, drill: 3, farm: 2, pump: 2, refinery: 4, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6, laboratory: 3 } as Partial<Record<BuildKind, number>>,
     /** Multiplicador de rendimiento [sin red, con red]; con apagón se interpola según la satisfacción. */
-    mult: { belt: [0, 1], belt_fast: [0, 1], drill: [1, 2], farm: [1, 2], pump: [1, 2], refinery: [0.5, 1.5], factory: [0.5, 1.5] } as Partial<Record<BuildKind, [number, number]>>,
+    mult: { belt: [0, 1], belt_fast: [0, 1], drill: [1, 2], farm: [1, 2], pump: [1, 2], refinery: [0.5, 1.5], factory: [0.5, 1.5], laboratory: [0, 1] } as Partial<Record<BuildKind, [number, number]>>,
     generators: {
       generator: { power: 20, fuel: 'gasoline', burnTime: 10, fuelCap: 10 },
       turbine: { power: 60, fuel: 'gasoline', burnTime: 6, fuelCap: 10 },
@@ -244,6 +247,12 @@ export const CONFIG = {
   growth: { interval: 30, foodMin: 15, foodCost: 8 },
   /** Taller: personas que toma de la población; siempre deja al menos `minOutside` fuera. */
   workshop: { workers: 2, minOutside: 1 },
+  /**
+   * Investigación con puntos. Cada laboratorio tiene `labSlots` puestos; cada investigador de la población en un puesto
+   * añade `pointsPerResearcher` puntos por minuto (con energía). El laboratorio n-ésimo en activo rinde `labFalloff`^(n-1).
+   * Siempre queda `minOutside` persona fuera de la investigación (y del taller).
+   */
+  research: { labSlots: 2, pointsPerResearcher: 6, labFalloff: 0.8, minOutside: 1 },
   deconstruct: { refund: 0.5, timeFactor: 0.5 },
 
 
@@ -298,6 +307,7 @@ export const CONFIG = {
       transporter: { name: 'Transportista', cost: { iron_plate: 3, gear: 2 }, speed: 2.6, capacity: 10, hp: 55, workRate: 1 },
       mechanic: { name: 'Mecánico', cost: {}, speed: 2.2, capacity: 8, hp: 60, workRate: 1 },
       operator: { name: 'Operario', cost: { iron_plate: 3, gear: 1, copper_plate: 2 }, speed: 2, capacity: 0, hp: 60, workRate: 1 },
+      researcher: { name: 'Investigador', cost: {}, speed: 2, capacity: 0, hp: 60, workRate: 1 },
     } as Record<NpcRole, NpcDef>,
     maintainTime: 2.5,
   },

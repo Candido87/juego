@@ -49,6 +49,7 @@ export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
   pump: [{ model: 'industrial/detail-tank', fit: 0.8 }, { model: 'factory/pipe-large-valve', fit: 0.5, stack: true }],
   refinery: [{ model: 'industrial/detail-tank-large', fit: 0.9 }, { model: 'industrial/chimney-medium', fit: 0.4, dx: 0.3, dz: -0.3 }],
   workshop: [{ model: 'industrial/building-c', fit: 0.95 }],
+  laboratory: [{ model: 'industrial/building-g', fit: 0.95 }, { model: 'factory/scanner-low', fit: 0.45, stack: true, dx: 0.15, dz: -0.15 }],
   house: [{ model: 'industrial/building-a', fit: 0.95, tint: 0xf4c9a0 }, { model: 'industrial/chimney-small', fit: 0.16, dx: 0.26, dz: -0.26 }],
   // Poste eléctrico: mástil de madera con cruceta y dos aisladores (el pack no trae ninguno).
   pole: [

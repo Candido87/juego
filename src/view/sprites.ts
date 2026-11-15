@@ -61,6 +61,10 @@ export const GENERATED_ICONS: Partial<Record<BuildKind, IconRect[]>> = {
     [1, 3, 14, 12, OUT], [2, 4, 12, 10, '#7a5530'],
     [3, 6, 10, 2, '#8fc43f'], [3, 9, 10, 2, '#8fc43f'], [3, 12, 10, 1, '#8fc43f'],
   ],
+  laboratory: [
+    [6, 2, 4, 4, OUT], [7, 3, 2, 3, '#cfe8f4'],
+    [3, 7, 10, 7, OUT], [4, 8, 8, 5, '#7be3ff'], [5, 9, 3, 2, '#e8fbff'],
+  ],
   pump: [
     [2, 12, 12, 3, OUT], [3, 12, 10, 2, '#55505a'],
     [7, 4, 2, 9, OUT], [7, 5, 2, 7, '#6b7482'],
@@ -87,6 +91,7 @@ export const ROLE_ICONS: Record<NpcRole, number> = {
   transporter: 110,
   operator: 108,
   mechanic: 121,
+  researcher: 108,
 };
 
 export const JOB_ICONS: Record<JobType, number> = {

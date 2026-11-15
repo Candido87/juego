@@ -36,9 +36,9 @@ export function inventorySummary(g: Game): string {
 
 /** Resumen del panel de NPCs: personas, libres y si hay hambre. */
 export function npcSummary(g: Game): string {
-  const busy = g.npcs.filter((n) => n.role !== 'mechanic' && (n.jobId !== null || total(n.carry) > 0)).length;
-  const mech = g.npcs.filter((n) => n.role === 'mechanic').length;
-  const free = g.population - busy - mech;
+  const busy = g.npcs.filter((n) => n.role !== 'mechanic' && n.role !== 'researcher' && (n.jobId !== null || total(n.carry) > 0)).length;
+  const fixed = g.npcs.filter((n) => n.role === 'mechanic' || n.role === 'researcher').length;
+  const free = g.population - busy - fixed;
   return `${g.population}/${g.housingCapacity()} personas · ${free} libres${g.hungry ? ' · ¡hambre!' : ''}`;
 }
 

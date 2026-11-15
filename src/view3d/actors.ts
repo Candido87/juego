@@ -52,6 +52,7 @@ export const ROLE_LOOK: Record<NpcRole, { model: string; tint: number | null; sc
   transporter: { model: 'characters/character-male-a', tint: 0xbfe0ff, scale: 0.9 },
   operator: { model: 'characters/character-female-a', tint: 0xfff0b0, scale: 0.88 },
   mechanic: { model: 'characters/character-soldier', tint: 0xffc890, scale: 0.92 },
+  researcher: { model: 'characters/character-male-a', tint: 0xd9c2ff, scale: 0.9 },
 };
 
 /** Color propio de cada torreta (anillos de nivel, disparo y brillo). */

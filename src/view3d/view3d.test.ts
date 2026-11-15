@@ -333,7 +333,7 @@ describe('personajes, torretas y humo', () => {
     expect(carried({ carry: {} })).toBeNull();
     expect(carried({ carry: { coal: 2, iron_plate: 5 } })).toBe('iron_plate');
     // cada rol tiene su modelo
-    expect(new Set(NPC_ROLES.map((r) => ROLE_LOOK[r].model)).size).toBe(NPC_ROLES.length);
+    expect(new Set(NPC_ROLES.map((r) => `${ROLE_LOOK[r].model}|${ROLE_LOOK[r].tint}`)).size).toBe(NPC_ROLES.length);
   });
   it('enemigo: ataca si lleva un rato parado, y el frío lo frena', async () => {
     const { enemyLook, STILL_TIME } = await import('./actors');

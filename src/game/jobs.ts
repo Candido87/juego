@@ -105,6 +105,7 @@ export function isCriticalInfra(game: Game, b: Building): boolean {
  * únicamente si no hay un taller con mecánicos.
  */
 export function canTake(game: Game, n: Npc, j: Job): boolean {
+  if (n.role === 'researcher') return false;
   if (n.role === 'mechanic') return j.type === 'repair';
   if (j.type === 'repair') return n.role === 'constructor' && !game.hasWorkshop();
   return JOB_ROLE[j.type] === n.role || isHelping(n, j);

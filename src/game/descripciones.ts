@@ -25,6 +25,7 @@ export const QUE: Record<BuildingKind, string> = {
   pump: 'Bombea petróleo de un yacimiento.',
   refinery: 'Refina petróleo y lo convierte en gasolina.',
   workshop: 'Reserva a dos personas como Mecánicos que sólo reparan daños.',
+  laboratory: 'Con energía e Investigadores genera puntos de investigación.',
   house: 'Vivienda para la población.',
   pole: 'Enlaza edificios con la red eléctrica mediante cables.',
   generator: 'Quema gasolina para producir electricidad.',
@@ -55,6 +56,7 @@ export const SIRVE: Record<BuildingKind, string> = {
   pump: 'El petróleo se refina en gasolina, el combustible de los generadores. Se coloca sobre petróleo.',
   refinery: 'Sin gasolina los generadores se paran y las cintas dejan de moverse.',
   workshop: 'Repara torretas, muros, cables y edificios dañados por las oleadas (primero lo crítico). Con poca gente es una decisión importante.',
+  laboratory: 'Produce puntos de investigación para comprar tecnologías. Tiene dos puestos: cada Investigador (una persona de tu población que deja de hacer otras tareas) añade puntos por minuto. Necesita energía; sin ella o sin Investigadores no produce.',
   house: 'Con plaza libre y comida de sobra, llega gente nueva. Más gente = más manos para trabajar.',
   pole: 'Cada edificio eléctrico se conecta al poste más cercano; los postes cercanos se enlazan solos formando una red.',
   generator: 'Alimenta cintas, taladros, fábricas y torretas eléctricas. Necesita gasolina y que un Operario lo arranque.',
@@ -106,6 +108,7 @@ export const ROLE_TEXT: Record<NpcRole, { que: string; sirve: string }> = {
   transporter: { que: 'Lleva a mano materiales, munición y combustible, y recoge lo que producen los edificios.', sirve: 'Es el motor del modo manual: cubre lo que las cintas no hacen sin electricidad.' },
   operator: { que: 'Arranca los generadores y da mantenimiento a fábricas y torretas desgastadas.', sirve: 'Sin Operarios los generadores no arrancan y las máquinas rinden menos.' },
   mechanic: { que: 'Sólo repara los daños de las oleadas (infraestructura crítica primero).', sirve: 'Lo asigna el Taller; no hace ninguna otra tarea.' },
+  researcher: { que: 'Trabaja en un laboratorio y produce puntos de investigación. No hace ninguna otra tarea, pero come como los demás.', sirve: 'Sin Investigadores el laboratorio no produce. Cada uno es un trabajador menos para el resto de tareas.' },
 };
 
 /** Grupo de cada material (para ordenar el Almacén). */
@@ -216,6 +219,10 @@ export function buildingStats(kind: BuildingKind): Stat[] {
   if (kind === 'house') s.push({ key: 'housing', label: 'Plazas', value: CONFIG.housing.house });
   if (kind === 'core') s.push({ key: 'housing', label: 'Plazas', value: CONFIG.housing.core });
   if (kind === 'workshop') s.push({ key: 'workers', label: 'Mecánicos', value: CONFIG.workshop.workers });
+  if (kind === 'laboratory') {
+    s.push({ key: 'slots', label: 'Puestos de Investigador', value: CONFIG.research.labSlots });
+    s.push({ key: 'points', label: 'Puntos por minuto y Investigador', value: CONFIG.research.pointsPerResearcher });
+  }
   const t = (CONFIG.turrets as Partial<Record<BuildingKind, (typeof CONFIG.turrets)[TurretKind]>>)[kind];
   if (t) {
     s.push({ key: 'range', label: 'Alcance', value: t.range, unit: 'casillas' });
@@ -335,7 +342,7 @@ export const CATEGORIES: Category[] = [
   { id: 'energy', name: 'Energía', kinds: ['pole', 'generator', 'solar', 'turbine', 'accumulator'] },
   { id: 'defense', name: 'Defensa', kinds: ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'wall_wood', 'wall_stone', 'wall_metal', 'wall_gate'] },
   { id: 'population', name: 'Población', kinds: ['farm', 'house'] },
-  { id: 'services', name: 'Servicios', kinds: ['workshop'] },
+  { id: 'services', name: 'Servicios', kinds: ['workshop', 'laboratory'] },
 ];
 
 export const categoryOf = (kind: BuildKind): CategoryId => CATEGORIES.find((c) => c.kinds.includes(kind))!.id;
