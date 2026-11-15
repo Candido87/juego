@@ -5,13 +5,16 @@
 import * as THREE from 'three';
 import { CONFIG } from '../game/config';
 import { Building, Enemy, Game } from '../game/game';
-import { DX, DY, Dir, BuildKind, EnemyKind, TurretKind } from '../game/types';
+import { DX, DY, Dir, BuildKind, EnemyKind, TurretKind, WallKind } from '../game/types';
 import { heightAt, heightAtPoint } from '../game/world';
 import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, NPC_MODEL, TURRET_GUN, allModels } from './catalog';
 import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
 import { animations, instance, preload, tint } from './loader';
+import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
+import { Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
+import { armsFor, beltPiece, maskOf, quarterYaw, yawToDir } from './pieces';
 import { Terrain, buildTerrain } from './terrain';
 
 type Tile = { x: number; y: number };
@@ -30,10 +33,45 @@ export interface ViewOptions {
 }
 export const OPT_ON: ViewOptions = { batch: true, cull: true, chunk: 32, shadows: true, outline: true };
 export const OPT_OFF: ViewOptions = { batch: false, cull: false, chunk: 0, shadows: true, outline: false };
+/** Grosor de las tuberías respecto al modelo (1 = ocupa la casilla entera). */
+const PIPE_T = 0.7;
+const FAST_TINT = 0xbfe0ff;
+const HUB_GEO = new THREE.SphereGeometry(0.5, 8, 6);
+const HUB_MAT = new THREE.MeshStandardMaterial({ color: 0x5f5d78, flatShading: true, roughness: 1, metalness: 0 });
+patchMaterial(HUB_MAT);
+/** Aspecto de cada muro: alto, color del cuerpo y de la albardilla. Son cajas macizas (los modelos del pack eran barandillas). */
+const WALL_STYLE: Record<WallKind, { h: number; color: number; cap: number }> = {
+  wall_wood: { h: 0.7, color: 0xa8713f, cap: 0x7d4f2a },
+  wall_stone: { h: 0.95, color: 0xa9afb6, cap: 0x858c95 },
+  wall_metal: { h: 1.2, color: 0x7f93ad, cap: 0xd0d8e4 },
+};
+const WALL_W = 0.36;
+const GATE_COLOR = 0xb9824a;
+const BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
+const wallMats = new Map<number, THREE.MeshStandardMaterial>();
+/** Material de muro por color (compartido, para que se agrupen en instancias). */
+function wallMat(color: number): THREE.MeshStandardMaterial {
+  let m = wallMats.get(color);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color, roughness: 1, metalness: 0 });
+    patchMaterial(m);
+    wallMats.set(color, m);
+  }
+  return m;
+}
+/** Lo que cuenta como vecino de muralla (la puerta se une a los muros). */
+const WALL_LINK: string[] = [...WALL_KINDS, 'wall_gate'];
+/** Oscurece un color (y lo enrojece un poco con el daño). */
+function shade(hex: number, f: number, dmg: number): number {
+  const r = Math.min(255, Math.round(((hex >> 16) & 255) * (f + dmg * 0.04)));
+  const g = Math.round(((hex >> 8) & 255) * f);
+  const b = Math.round((hex & 255) * f);
+  return (r << 16) | (g << 8) | b;
+}
 const MAX_ITEMS = 8192;
 const MAX_MARKERS = 2048;
 /** Radio (en casillas) del agujero de transparencia y margen de profundidad (unidades de mundo) para no tramar lo que está en la propia casilla. */
-const HOLE_RADIUS = 1.7;
+const HOLE_RADIUS = 0.95;
 const HOLE_MARGIN = 1.25;
 const NPC_MARK = new THREE.Color(0x6fd3ff);
 const ENEMY_MARK = new THREE.Color(0xff5a5a);
@@ -131,6 +169,7 @@ export class View3D {
   private itemMesh: THREE.InstancedMesh | null = null;
   private frustum = new THREE.Frustum();
   readonly outline: OutlinePass;
+  readonly overlay: Overlay;
   /** Marcas que sólo se ven cuando un personaje queda tapado (profundidad invertida). */
   private markers: THREE.InstancedMesh;
   private markerN = 0;
@@ -186,6 +225,9 @@ export class View3D {
     im.frustumCulled = false;
     this.itemMesh = im;
     this.scene.add(im);
+
+    this.overlay = new Overlay(game, (b) => this.levelTop(b), (b) => this.buildings.get(b.id)?.height ?? 1);
+    this.scene.add(this.overlay.group);
 
     const c = game.core;
     this.rig.x = c.x + 1;
@@ -287,6 +329,7 @@ export class View3D {
   /** Firma que cambia cuando hay que reconstruir el modelo (orientación, vecinos, estado). */
   private signature(b: Building): string {
     let s = `${b.kind}|${b.dir}|${b.built ? 1 : 0}`;
+    if (isWallKind(b.kind)) s += `|d${wallDamage(b.hp, b.maxHp)}`;
     if (b.kind === 'belt' || b.kind === 'belt_fast') {
       for (let d = 0; d < 4; d++) {
         const n = this.isKind(b.x + DX[d], b.y + DY[d], ['belt', 'belt_fast']);
@@ -294,8 +337,10 @@ export class View3D {
       }
     } else if (b.kind === 'pipeline') {
       for (let d = 0; d < 4; d++) s += this.pipeLinked(b.x + DX[d], b.y + DY[d]) ? 'p' : '-';
-    } else if (b.kind.startsWith('wall_')) {
-      for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], ['wall_wood', 'wall_stone', 'wall_metal']) ? 'w' : '-';
+    } else if (isWallKind(b.kind)) {
+      for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], WALL_LINK) ? 'w' : '-';
+    } else if (b.kind === 'wall_gate') {
+      for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], WALL_LINK) ? 'w' : '-';
     }
     return s;
   }
@@ -310,44 +355,100 @@ export class View3D {
     const kind = b.kind;
     let top = 0;
     const parts = BUILDING_PARTS[kind];
-    let special: { model: string; yaw: number } | null = null;
+    const flags = sig.slice(-4);
+    const on = (c: string) => [0, 1, 2, 3].filter((d) => flags[d] === c);
     if (kind === 'belt' || kind === 'belt_fast') {
-      const flags = sig.slice(-4);
-      const behind = flags[(b.dir + 2) % 4] === 'i';
-      const sideL = flags[(b.dir + 3) % 4] === 'i';
-      const sideR = flags[(b.dir + 1) % 4] === 'i';
-      if (!behind && (sideL !== sideR)) special = { model: 'factory/conveyor-corner', yaw: FLOW_YAW[b.dir] + (sideR ? Math.PI / 2 : 0) };
-    } else if (kind === 'pipeline') {
-      const m = [...sig.slice(-4)].map((c) => c === 'p');
-      const n = m.filter(Boolean).length;
-      if (n >= 3) special = { model: n === 4 ? 'factory/pipe-large-cross' : 'factory/pipe-large-junction', yaw: n === 3 ? FLOW_YAW[(m.findIndex((v, i) => !v && true) + 2) % 4] : 0 };
-      else if (n === 2 && m[0] === m[2]) special = null;
-      else if (n === 2) {
-        const first = m.findIndex((v, i) => v && m[(i + 1) % 4]);
-        special = { model: 'factory/pipe-large-curve', yaw: FLOW_YAW[first] };
-      }
-    }
-    parts.forEach((p, i) => {
-      const model = i === 0 && special ? special.model : p.model;
-      const o = instance(model, p.fit);
-      if (p.tint) tint(o, p.tint);
-      let yaw = 0;
-      if (kind === 'belt' || kind === 'belt_fast') yaw = special && i === 0 ? special.yaw : FLOW_YAW[b.dir];
-      else if (kind === 'pipeline') {
-        const m = sig.slice(-4);
-        yaw = special && i === 0 ? special.yaw : m[1] === 'p' || m[3] === 'p' ? Math.PI / 2 : 0;
-      } else if (kind.startsWith('wall_')) {
-        const m = sig.slice(-4);
-        yaw = m[0] === 'w' || m[2] === 'w' ? Math.PI / 2 : 0;
-      }
-      o.rotation.y = yaw;
-      if (p.sy) o.scale.y = p.sy;
-      o.position.set(p.dx ?? 0, p.stack ? top : 0, p.dz ?? 0);
-      top = Math.max(top, o.position.y + (new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).y));
-      if (p.spin) view.spin.push(o);
-      if (p.bob) view.bob.push(o);
+      // Cinta: recta, curva, empalme en T o cruce según por dónde le entran otras cintas.
+      const pc = beltPiece(b.dir, on('i'));
+      const o = instance(pc.piece === 'straight' ? parts[0].model : pc.model, 1);
+      if (kind === 'belt_fast' && pc.piece !== 'straight') tint(o, FAST_TINT);
+      o.rotation.y = quarterYaw(pc.k);
       group.add(o);
-    });
+      top = 0.4;
+    } else if (kind === 'pipeline') {
+      // Tubería: tramo recto, o medios tramos hacia cada vecino con un codo central.
+      const a = armsFor(maskOf(on('p')), (b.dir % 2) as 0 | 1);
+      const seg = (d: number, half: boolean) => {
+        const holder = new THREE.Group();
+        holder.rotation.y = yawToDir(d);
+        const o = instance('factory/pipe-large', 1);
+        o.scale.set(half ? 0.5 : 1, PIPE_T, PIPE_T);
+        o.position.x = half ? 0.25 : 0;
+        holder.add(o);
+        group.add(holder);
+      };
+      if (a.straightAxis !== null) seg(a.straightAxis, false);
+      else {
+        a.arms.forEach((d) => seg(d, true));
+        const hub = new THREE.Mesh(HUB_GEO, HUB_MAT);
+        hub.position.y = PIPE_T * 0.5;
+        hub.scale.setScalar(PIPE_T);
+        group.add(hub);
+      }
+      top = PIPE_T;
+    } else if (isWallKind(kind)) {
+      // Muro macizo: medios tramos hacia cada vecino y un poste central (esquina, T, cruz, extremo o suelto). El daño lo baja y lo oscurece.
+      const st = WALL_STYLE[kind];
+      const dmg = b.built ? wallDamage(b.hp, b.maxHp) : 0;
+      const h = st.h * [1, 0.8, 0.58][dmg];
+      const mat = wallMat(shade(st.color, [1, 0.78, 0.56][dmg], dmg));
+      const cap = wallMat(shade(st.cap, [1, 0.78, 0.56][dmg], dmg));
+      const a = armsFor(maskOf(on('w')), 0, true);
+      // Caja de ancho (x) `wide`, largo (z) `len` desplazada `off` hacia +z, girada `yaw`; con una albardilla encima.
+      const slab = (yaw: number, len: number, off: number, wide: number, tall: number) => {
+        const holder = new THREE.Group();
+        holder.rotation.y = yaw;
+        const body = new THREE.Mesh(BOX_GEO, mat);
+        body.scale.set(wide, tall, len);
+        body.position.set(0, tall / 2, off);
+        const top2 = new THREE.Mesh(BOX_GEO, cap);
+        top2.scale.set(wide + 0.08, 0.08, len + (len < 0.5 ? 0.08 : 0));
+        top2.position.set(0, tall + 0.04, off);
+        holder.add(body, top2);
+        group.add(holder);
+        top = Math.max(top, tall + 0.08);
+      };
+      // La caja va a lo largo de z; el giro lleva +z hacia la dirección d.
+      const yawZ = (d: number) => Math.atan2(DX[d], DY[d]);
+      if (a.straightAxis !== null) slab(a.straightAxis === 0 ? Math.PI / 2 : 0, 1, 0, WALL_W, h);
+      else {
+        a.arms.forEach((d) => slab(yawZ(d), 0.5, 0.25, WALL_W, h));
+        if (a.hub) slab(0, WALL_W + 0.16, 0, WALL_W + 0.16, h * 1.16);
+      }
+    } else if (kind === 'wall_gate') {
+      // Puerta: dos jambas altas y un dintel en el eje de la muralla, con dos hojas abiertas (se ve el hueco).
+      const w = on('w');
+      const axisX = w.includes(0) || w.includes(2) || (!w.length && b.dir % 2 === 0);
+      const holder = new THREE.Group();
+      holder.rotation.y = axisX ? Math.PI / 2 : 0;
+      const mat = wallMat(GATE_COLOR);
+      const dark = wallMat(shade(GATE_COLOR, 0.7, 0));
+      const box = (m: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number, yaw = 0) => {
+        const o = new THREE.Mesh(BOX_GEO, m);
+        o.scale.set(sx, sy, sz);
+        o.position.set(x, y, z);
+        o.rotation.y = yaw;
+        holder.add(o);
+      };
+      for (const side of [-1, 1]) {
+        box(mat, WALL_W + 0.1, 1.3, 0.2, 0, 0.65, side * 0.4);
+        box(dark, 0.07, 0.85, 0.34, 0.2, 0.43, side * 0.3, side * 0.9);
+      }
+      box(dark, WALL_W + 0.16, 0.14, 1, 0, 1.37, 0);
+      group.add(holder);
+      top = 1.45;
+    } else {
+      parts.forEach((p) => {
+        const o = instance(p.model, p.fit);
+        if (p.tint) tint(o, p.tint);
+        if (p.sy) o.scale.y = p.sy;
+        o.position.set(p.dx ?? 0, p.stack ? top : 0, p.dz ?? 0);
+        top = Math.max(top, o.position.y + new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).y);
+        if (p.spin) view.spin.push(o);
+        if (p.bob) view.bob.push(o);
+        group.add(o);
+      });
+    }
     view.height = top;
     // Torreta: cañón sobre un pivote que gira hacia el objetivo.
     if (kind in CONFIG.turrets) {
@@ -697,23 +798,23 @@ export class View3D {
   /** Coloca los agujeros de transparencia: A = casilla bajo el cursor, B = edificio seleccionado. */
   private updateHoles(): void {
     const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-    const radius = HOLE_RADIUS * this.rig.ppu * this.rig.zoom * this.renderer.getPixelRatio();
+    const unit = this.rig.ppu * this.rig.zoom * this.renderer.getPixelRatio();
     const range = this.camera.far - this.camera.near;
     const set = (h: THREE.Vector4, p: THREE.Vector3 | null, extra = 0) => {
       const margin = (HOLE_MARGIN + extra) / range;
       if (!p) return void h.set(0, 0, 0, 0);
       p.project(this.camera);
-      h.set((p.x * 0.5 + 0.5) * size.x, (p.y * 0.5 + 0.5) * size.y, radius, p.z * 0.5 + 0.5 - margin);
+      h.set((p.x * 0.5 + 0.5) * size.x, (p.y * 0.5 + 0.5) * size.y, (HOLE_RADIUS + extra * 0.5) * unit, p.z * 0.5 + 0.5 - margin);
     };
     const w = this.game.world;
     const t = this.hover;
     // Sin herramienta, apuntar al cuerpo de un edificio lo elige (no se trama). Con herramienta, se trama para construir detrás.
     const placing = !!this.buildKind || this.removeMode;
     const peek = t && !this.game.buildingAt(t.x, t.y) && (placing || this.bodyPick === null);
-    set(HOLES.a.value, t && peek ? new THREE.Vector3(t.x + 0.5, heightAt(w, t.x, t.y) * LEVEL_H, t.y + 0.5) : null);
+    set(HOLES.a.value, t && peek ? new THREE.Vector3(t.x + 0.5, heightAt(w, t.x, t.y) * LEVEL_H + 0.35, t.y + 0.5) : null);
     const sb = this.selectedId !== null ? this.game.buildings.get(this.selectedId) : undefined;
     // Un edificio grande necesita más margen para no tramarse a sí mismo.
-    set(HOLES.b.value, sb ? new THREE.Vector3(sb.x + sb.w / 2, this.levelTop(sb), sb.y + sb.d / 2) : null, sb ? Math.max(sb.w, sb.d) - 1 : 0);
+    set(HOLES.b.value, sb ? new THREE.Vector3(sb.x + sb.w / 2, this.levelTop(sb) + (this.buildings.get(sb.id)?.height ?? 1) * 0.5, sb.y + sb.d / 2) : null, sb ? Math.max(sb.w, sb.d) - 1 : 0);
   }
 
   /** Añade la marca de "tapado" de un personaje: un disco hacia la cámara, adelantado para no chocar con su propio cuerpo. */
@@ -843,6 +944,7 @@ export class View3D {
     this.syncChars(dt);
     this.handleEvents();
     this.updateHighlights();
+    this.overlay.update({ selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
     this.updateHoles();
     this.markers.count = this.markerN;
     this.markers.instanceMatrix.needsUpdate = true;

@@ -91,6 +91,7 @@ export const TOOL_ICONS: Partial<Record<BuildKind, number>> = {
   wall_wood: 124,
   wall_stone: 72,
   wall_metal: 117,
+  wall_gate: 124,
 };
 
 /**

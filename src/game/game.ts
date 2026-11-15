@@ -231,7 +231,8 @@ export class Game {
   npcPassable(x: number, y: number): boolean {
     if (!inBounds(this.world, x, y)) return false;
     const b = this.buildingAt(x, y);
-    return !b || !this.isSolid(b);
+    // La puerta es sólida para los enemigos (la rodean o la rompen) pero la colonia la cruza.
+    return !b || !this.isSolid(b) || b.kind === 'wall_gate';
   }
 
   /** ¿Está la casilla pegada (4 vecinos) a la huella del edificio, o dentro si no es sólido? */

@@ -539,3 +539,17 @@ El juego pasa a 3D con Three.js; la vista 2D de Phaser se retira cuando `PARIDAD
 - **Seleccionar:** sin herramienta, un clic elige el edificio de la casilla o, si está vacía, el edificio cuyo cuerpo se ve bajo el cursor (`pickBox`, con test). Con herramienta, siempre manda la casilla, así que se puede construir detrás de algo alto.
 - **Personajes tapados:** un disco de color con la prueba de profundidad invertida; sólo se ve si algo oculta al personaje.
 - **Cámara:** planos de recorte 1–320 (antes −200–400) para dar más precisión a la profundidad del contorno.
+
+## Migración, Fase 3: construcción y logística
+- **Piezas por conexiones** (`pieces.ts`, con tests): cada modelo declara qué lados tiene abiertos (medidos en los vértices del .glb: un borde alto = lado cerrado) y `orient` busca el giro que los hace coincidir con las conexiones. Sustituye a las tablas ajustadas a ojo de la Fase 1.
+- **Cintas:** recta (sin entradas o sólo por detrás), curva (una entrada lateral), **T** (detrás + un lado, o los dos lados) y **cruce** (las tres). La cinta rápida usa el modelo rayado en recta y un tinte azulado en el resto.
+- **Tuberías:** los codos y cruces del pack están en un plano vertical y no sirven tumbados, así que se componen: tramo recto, o medios tramos hacia cada vecino con un codo esférico. Grosor al 70 % para que no llenen la casilla.
+- **Murallas:** los modelos del Factory Kit resultaron ser barandillas, así que son **cajas macizas** con albardilla: medios tramos hacia cada vecino más un poste central (esquina, T, cruz, extremo, suelto). Tres alturas y colores (madera, piedra, metal). El daño (`wallDamage` de la 2D) las baja y oscurece en dos niveles.
+- **Puerta — único cambio en `src/game/`:** edificio nuevo `wall_gate` ("Puerta", 2 bastidores + 1 engranaje, 220 de vida). Es sólido para los enemigos, pero `Game.npcPassable` la deja cruzar a la colonia. Va en la categoría Defensa y se desbloquea junto al muro de madera en el tutorial. Tests nuevos en `game.test.ts`. La 2D congelada recibió lo mínimo para no romperse (un aspecto y un icono).
+- **Energía:** cables con caída entre postes enlazados (`grid.wires`); el alcance de suministro de cada poste se ve al seleccionarlo y al colocar postes o edificios eléctricos.
+- **Torretas:** anillo de alcance al seleccionarlas y al colocarlas (verde si se puede, rojo si no).
+- **Puertos** (`puertos.ts`): flecha llena = salida, tenue = entrada; amarillo = sólidos, celeste = líquidos. Se ven en el edificio seleccionado, en el que está bajo el cursor y al colocar.
+- **Iconos de estado** (`status.ts`, con tests): marcado para desmontar; fábrica sin receta, falta material, salida llena, poca energía o produciendo (color del objeto); generador sin combustible; torreta sin munición.
+- **Transparencia ajustada:** el círculo pasa a 0,95 casillas y se centra a media altura, porque con 1,7 tramaba cintas y objetos bajos que no tapaban nada.
+- **Hallazgo:** en la partida normal los muros (y la puerta) están siempre bloqueados: sólo los desbloquea el tutorial. Anotado en PARIDAD.md.
+- **Sin hacer:** la cinta parada sin energía no se distingue; el líquido dentro de las tuberías no se ve; falta el aviso general de "sin conexión a la red".

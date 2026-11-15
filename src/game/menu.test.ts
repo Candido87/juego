@@ -35,7 +35,7 @@ describe('menú por categorías', () => {
   it('los atajos son la posición en la categoría', () => {
     const g = flatGame();
     const e = menuEntries(g, 'defense');
-    expect(e.map((x) => x.key)).toEqual(['1', '2', '3', '4', '5', '6', '7']);
+    expect(e.map((x) => x.key)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']);
     expect(kindForKey('defense', 1)).toBe('turret_bullet');
     expect(kindForKey('defense', 7)).toBe('wall_metal');
     expect(kindForKey('extraction', 5)).toBeUndefined();

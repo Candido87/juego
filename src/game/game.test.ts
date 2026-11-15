@@ -288,3 +288,31 @@ describe('oleadas', () => {
     expect(a.built).toBeGreaterThan(0);
   });
 });
+
+describe('puerta de muralla', () => {
+  it('la colonia la cruza y los enemigos no', async () => {
+    const { flatGame, instant } = await import('./testutil');
+    const g = flatGame();
+    const wall = instant(g, 'wall_stone', 3, 3);
+    const gate = instant(g, 'wall_gate', 4, 3);
+    expect(g.isSolid(wall)).toBe(true);
+    expect(g.isSolid(gate)).toBe(true);
+    expect(g.npcPassable(3, 3)).toBe(false);
+    expect(g.npcPassable(4, 3)).toBe(true);
+  });
+  it('al terminarse recalcula la ruta de los enemigos, como cualquier muro', async () => {
+    const { flatGame, instant } = await import('./testutil');
+    const g = flatGame();
+    const v0 = g.flowVersion;
+    instant(g, 'wall_gate', 4, 3);
+    expect(g.flowVersion).toBeGreaterThan(v0);
+  });
+  it('en construcción todavía no cierra el paso', async () => {
+    const { flatGame } = await import('./testutil');
+    const g = flatGame();
+    g.unlockedBuildings.add('wall_gate');
+    const b = g.place('wall_gate', 4, 3)!;
+    expect(b.built).toBe(false);
+    expect(g.isSolid(b)).toBe(false);
+  });
+});

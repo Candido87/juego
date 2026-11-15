@@ -3,6 +3,7 @@
  * Datos puros (sin Three): los comprueba un test contra los archivos de `public/assets/3d/`.
  */
 import type { BuildingKind, EnemyKind, TurretKind } from '../game/types';
+import { BELT_MODELS } from './pieces';
 
 /** Ruta relativa a `public/assets/3d/` sin extensión: `pack/modelo`. */
 export type ModelId = string;
@@ -52,6 +53,7 @@ export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
   wall_wood: [{ model: 'factory/structure-short', fit: 1.05, tint: 0xc98a52, sy: 1.4 }],
   wall_stone: [{ model: 'factory/structure-medium', fit: 1.05, tint: 0xb0b8c0 }],
   wall_metal: [{ model: 'factory/structure-tall', fit: 1.05, tint: 0xf0f4fa }],
+  wall_gate: [{ model: 'factory/structure-medium', fit: 1.05, tint: 0xd9a35a }],
 };
 
 /** Arma montada como cañón sobre la base de cada torreta (gira hacia el objetivo). */
@@ -97,6 +99,7 @@ export function allModels(): ModelId[] {
   s.add(TERRAIN.slope);
   s.add(TERRAIN.oreRock);
   for (const m of [...TERRAIN.trees, ...TERRAIN.rocks, ...TERRAIN.small, ...TERRAIN.camp]) s.add(m);
-  for (const m of ['factory/conveyor-corner', 'factory/pipe-large-curve', 'factory/pipe-large-junction', 'factory/pipe-large-cross', 'factory/structure-short', 'factory/box-small', 'weapons/bullet-foam', 'factory/arrow']) s.add(m);
+  for (const p of Object.values(BELT_MODELS)) s.add(p.model);
+  for (const m of ['factory/pipe-large', 'factory/structure-short', 'factory/structure-medium', 'factory/structure-tall', 'factory/box-small', 'weapons/bullet-foam', 'factory/arrow']) s.add(m);
   return [...s];
 }

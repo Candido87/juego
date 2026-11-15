@@ -58,6 +58,31 @@ function demo(game: Game, wave: boolean) {
   turrets.forEach((t, i) => put(t, cx - 4 + i * 2, cy - 4));
   for (let i = 0; i < 8; i++) put(i < 3 ? 'wall_wood' : i < 6 ? 'wall_stone' : 'wall_metal', cx - 5 + i, cy - 7);
   for (let i = 1; i < 4; i++) put('wall_stone', cx + 3, cy - 7 + i);
+  // Empalmes en T y un cruce de cintas.
+  put('belt', cx + 6, cy + 3, 1);
+  put('belt', cx + 5, cy + 5, 3);
+  put('belt', cx + 8, cy + 3, 1);
+  put('belt', cx + 8, cy + 5, 3);
+  // Muralla con esquina, T, cruz, puerta y tramos dañados.
+  put('wall_stone', cx + 3, cy - 7);
+  put('wall_stone', cx, cy - 8);
+  put('wall_stone', cx, cy - 9);
+  put('wall_stone', cx, cy - 6);
+  put('wall_gate', cx + 3, cy - 3);
+  put('wall_stone', cx + 3, cy - 2);
+  const hurt = (x: number, y: number, f: number) => {
+    const b = game.buildingAt(x, y);
+    if (b) b.hp = b.maxHp * f;
+  };
+  hurt(cx - 4, cy - 7, 0.5);
+  hurt(cx - 1, cy - 7, 0.5);
+  hurt(cx + 1, cy - 7, 0.2);
+  hurt(cx + 2, cy - 7, 0.2);
+  // Postes enlazados por cable.
+  put('pole', cx + 7, cy + 1);
+  put('pole', cx + 2, cy + 3);
+  put('pole', cx - 2, cy + 5);
+  put('pole', cx - 6, cy + 5);
   if (wave) game.callWaveNow();
 }
 

@@ -39,6 +39,7 @@ export const QUE: Record<BuildingKind, string> = {
   wall_wood: 'Muro barato que frena al enemigo.',
   wall_stone: 'Muro resistente de piedra.',
   wall_metal: 'El muro más resistente.',
+  wall_gate: 'Puerta en la muralla: tu gente pasa, el enemigo no.',
 };
 
 /** Para qué sirve (el motivo de construirlo). */
@@ -68,6 +69,7 @@ export const SIRVE: Record<BuildingKind, string> = {
   wall_wood: 'Obliga a los enemigos a rodear o a romperlo antes de seguir.',
   wall_stone: 'Aguanta bastante más que la madera.',
   wall_metal: 'Para los puntos de choque más importantes.',
+  wall_gate: 'Deja salir y entrar a la colonia sin abrir un hueco en la defensa. Aguanta menos que un muro de piedra.',
 };
 
 /** Qué es cada material o componente. */
@@ -331,7 +333,7 @@ export const CATEGORIES: Category[] = [
   { id: 'transport', name: 'Transporte', kinds: ['belt', 'belt_fast', 'pipeline', 'feeder', 'storage'] },
   { id: 'industry', name: 'Industria', kinds: ['factory', 'refinery'] },
   { id: 'energy', name: 'Energía', kinds: ['pole', 'generator', 'solar', 'turbine', 'accumulator'] },
-  { id: 'defense', name: 'Defensa', kinds: ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'wall_wood', 'wall_stone', 'wall_metal'] },
+  { id: 'defense', name: 'Defensa', kinds: ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'wall_wood', 'wall_stone', 'wall_metal', 'wall_gate'] },
   { id: 'population', name: 'Población', kinds: ['farm', 'house'] },
   { id: 'services', name: 'Servicios', kinds: ['workshop'] },
 ];

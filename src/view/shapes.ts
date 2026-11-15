@@ -415,6 +415,7 @@ export const SHAPES: Record<string, ShapeDef> = {
   wall_wood: wall(COLORS.wood, 24),
   wall_stone: wall(COLORS.stone, 30),
   wall_metal: wall(COLORS.steel, 36, topTex('wall_metal')),
+  wall_gate: wall(COLORS.wood, 34),
 };
 for (let d = 0; d < 4; d++) {
   const dir = d as Dir;

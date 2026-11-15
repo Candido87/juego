@@ -211,3 +211,75 @@ describe('paleta', () => {
     for (const tint of Object.values(GROUND_TINT)) expect(rgb(tint)[1]).toBeGreaterThan(120);
   });
 });
+
+describe('piezas por conexiones', () => {
+  it('orient encuentra el giro que hace coincidir los lados abiertos', async () => {
+    const { orient } = await import('./pieces');
+    expect(orient([0, 2], [0, 2])).toBe(0);
+    expect(orient([0, 2], [1, 3])).not.toBeNull();
+    expect(orient([1, 2], [0, 1])).not.toBeNull();
+    expect(orient([0, 2], [0, 1])).toBeNull();
+    // un giro k lleva la dirección d del modelo a d − k
+    for (let k = 0; k < 4; k++) expect(orient([1, 2], [1 - k, 2 - k])).toBe(k);
+  });
+  it('cinta: recta, curva, T y cruce según las entradas', async () => {
+    const { beltPiece, BELT_MODELS, maskOf } = await import('./pieces');
+    const open = (p: { piece: keyof typeof BELT_MODELS; k: number }) => maskOf(BELT_MODELS[p.piece].open.map((d) => d - p.k));
+    for (const dir of [0, 1, 2, 3] as const) {
+      const back = (dir + 2) % 4;
+      const left = (dir + 3) % 4;
+      const right = (dir + 1) % 4;
+      expect(beltPiece(dir, []).piece).toBe('straight');
+      expect(beltPiece(dir, [back]).piece).toBe('straight');
+      expect(beltPiece(dir, [left]).piece).toBe('corner');
+      expect(beltPiece(dir, [back, right]).piece).toBe('tee');
+      expect(beltPiece(dir, [left, right]).piece).toBe('tee');
+      expect(beltPiece(dir, [back, left, right]).piece).toBe('cross');
+      // los lados abiertos de la pieza girada son exactamente la salida más las entradas
+      expect(open(beltPiece(dir, [left]))).toBe(maskOf([dir, left]));
+      expect(open(beltPiece(dir, [back, right]))).toBe(maskOf([dir, back, right]));
+      expect(open(beltPiece(dir, [left, right]))).toBe(maskOf([dir, left, right]));
+      expect(open(beltPiece(dir, []))).toBe(maskOf([dir, back]));
+    }
+  });
+  it('tuberías y muros: tramo recto o brazos con pieza central', async () => {
+    const { armsFor, maskOf } = await import('./pieces');
+    expect(armsFor(0, 1)).toEqual({ arms: [], hub: false, straightAxis: 1 });
+    expect(armsFor(maskOf([1]))).toEqual({ arms: [], hub: false, straightAxis: 1 });
+    expect(armsFor(maskOf([0, 2]))).toEqual({ arms: [], hub: false, straightAxis: 0 });
+    expect(armsFor(maskOf([0, 1]))).toEqual({ arms: [0, 1], hub: true, straightAxis: null });
+    expect(armsFor(maskOf([0, 1, 2])).arms.length).toBe(3);
+    expect(armsFor(maskOf([0, 1, 2, 3])).arms.length).toBe(4);
+    // muros: suelto = sólo poste; extremo = un brazo y poste
+    expect(armsFor(0, 0, true)).toEqual({ arms: [], hub: true, straightAxis: null });
+    expect(armsFor(maskOf([3]), 0, true)).toEqual({ arms: [3], hub: true, straightAxis: null });
+    expect(armsFor(maskOf([1, 3]), 0, true).straightAxis).toBe(1);
+  });
+});
+
+describe('iconos de estado', () => {
+  it('fábrica sin receta, torreta sin munición, generador parado y marcado para desmontar', async () => {
+    const { flatGame, instant } = await import('../game/testutil');
+    const { statusIcon, statusKey } = await import('./status');
+    const g = flatGame();
+    const f = instant(g, 'factory', 3, 3);
+    expect(statusIcon(g, f)).toEqual({ type: 'norecipe' });
+    g.setRecipe(f.id, 'iron_plate');
+    expect(statusIcon(g, f)?.type).toBe('missing');
+    const t = instant(g, 'turret_bullet', 5, 3);
+    expect(statusIcon(g, t)).toBeNull();
+    t.inv = {};
+    t.shots = 0;
+    expect(statusIcon(g, t)).toEqual({ type: 'noammo' });
+    const gen = instant(g, 'generator', 7, 3);
+    expect(statusIcon(g, gen)).toEqual({ type: 'nofuel' });
+    gen.running = true;
+    expect(statusIcon(g, gen)).toBeNull();
+    f.markedForRemoval = true;
+    expect(statusKey(statusIcon(g, f))).toBe('remove');
+    g.unlockedBuildings.add('house');
+    const site = g.place('house', 9, 3)!;
+    expect(statusIcon(g, site)).toBeNull();
+    expect(statusKey(null)).toBe('');
+  });
+});

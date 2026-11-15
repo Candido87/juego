@@ -7,11 +7,12 @@ Rama de trabajo: `vista-3d`. Entrada 3D: `vista3d.html` + `src/view3d/`. Entrada
 
 **Vista 2D congelada:** desde hoy `src/view/` sólo recibe correcciones graves. Todo lo nuevo que se vea va a `src/view3d/`.
 
-Resumen: **47 hecho · 13 parcial · 35 pendiente · 5 no existe** (100 líneas).
+Resumen: **61 hecho · 13 parcial · 22 pendiente · 4 no existe** (100 líneas).
 
 ## Hallazgos al inventariar (cambian el plan)
 - **(Fase 1 hecha)** La interfaz es una sola para las dos vistas: `vista3d.html` usa `src/view/ui.ts`, `tooltip.ts` y `guia.ts`, que ya no importan Phaser (hay un test que lo vigila).
 - **La interfaz 2D ya es HTML/CSS**, no Phaser: `index.html` + `src/view/ui.ts` (`Hud`), `tooltip.ts`, `guia.ts`. Lo que la ata a Phaser es poco: `ui.ts` y `tooltip.ts` importan `ITEM_COLORS` de `shapes.ts` (que importa Phaser) y los iconos salen de la hoja de sprites Tiny Factory (`sprites.ts`). La Fase 1 es desacoplar y reconectar, no reescribir desde cero.
+- **Los muros no se pueden construir en una partida normal.** Sólo los desbloquea el tutorial (`tutorial.ts`); con el árbol de tecnología vacío, en la partida libre salen bloqueados, y la puerta nueva igual. Es una decisión de diseño pendiente, no un fallo de la vista.
 - **Guardado y carga de partida no existen** en la 2D. Sólo se guardan en `localStorage` el progreso de la guía de inicio y qué paneles están plegados. Hay que hacerlo nuevo (toca `src/game/`, con tests).
 - **El árbol de tecnología está vacío** (`CONFIG.tech = []`): el botón "Árbol (T)" existe pero se oculta. No hay pantalla que portar hasta que haya nodos.
 - **El tutorial** (`src/game/tutorial.ts`, `tutorialBot.ts`, `tutorialText.ts`) tiene lógica y tests pero **no está conectado a la vista** en esta rama. Lo que sí funciona es la guía de inicio (`guia.ts`).
@@ -52,8 +53,8 @@ Resumen: **47 hecho · 13 parcial · 35 pendiente · 5 no existe** (100 líneas)
 | 3.8 | Herramienta Quitar (X) con resalte rojo | hecho |  |
 | 3.9 | Fantasma verde/rojo y casilla resaltada | hecho | |
 | 3.10 | Mayús + arrastrar para pintar cintas y tuberías | hecho |  |
-| 3.11 | Alcance de la torreta al colocarla | pendiente | |
-| 3.12 | Puertos de entrada/salida al colocar | pendiente | |
+| 3.11 | Alcance de la torreta al colocarla | hecho | anillo verde/rojo al colocar |
+| 3.12 | Puertos de entrada/salida al colocar | hecho |  |
 | 3.13 | Clic derecho / Esc suelta la herramienta | hecho | |
 
 ## 4. Paneles
@@ -98,27 +99,27 @@ Resumen: **47 hecho · 13 parcial · 35 pendiente · 5 no existe** (100 líneas)
 |---|---|---|---|
 | 7.1 | Un aspecto por cada edificio (25 tipos + núcleo) | parcial | todos tienen modelo; varios son provisionales |
 | 7.2 | Obra en curso (transparente, progreso) | parcial | falta barra de progreso |
-| 7.3 | Marcado para desmontar | pendiente | |
+| 7.3 | Marcado para desmontar | hecho | icono ✕ rojo sobre el edificio |
 | 7.4 | Cintas rectas y curvas | hecho | orientación comprobada a ojo |
-| 7.5 | Cintas con cruces y empalmes | pendiente | |
+| 7.5 | Cintas con cruces y empalmes | hecho | T y cruce elegidos por las entradas; giro calculado con los lados abiertos de cada modelo (con tests) |
 | 7.6 | Objetos sobre las cintas | parcial | cubos de color, sin icono de objeto |
 | 7.7 | Cinta parada sin energía (modo manual) | pendiente | |
-| 7.8 | Tuberías con curvas, T y cruces | parcial | sin comprobar todos los casos ni el líquido |
-| 7.9 | Cables entre postes | pendiente | |
-| 7.10 | Alcance de los postes | pendiente | |
-| 7.11 | Flechas de puertos de entrada/salida (`puertos.ts`) | pendiente | |
-| 7.12 | Icono de lo que produce y aviso de estado sobre la fábrica | pendiente | |
-| 7.13 | Sin energía / sin gasolina / sin material | pendiente | |
+| 7.8 | Tuberías con curvas, T y cruces | hecho | tramo recto, o medios tramos con codo central para curva, T y cruz; el líquido no se ve |
+| 7.9 | Cables entre postes | hecho | cable con caída entre postes enlazados |
+| 7.10 | Alcance de los postes | hecho | al seleccionar un poste y al colocar postes o edificios eléctricos |
+| 7.11 | Flechas de puertos de entrada/salida (`puertos.ts`) | hecho | flecha llena = salida, tenue = entrada; amarillo sólidos, celeste líquidos; en selección, al pasar el ratón y al colocar |
+| 7.12 | Icono de lo que produce y aviso de estado sobre la fábrica | hecho | icono con el color del objeto si produce; aviso si no |
+| 7.13 | Sin energía / sin gasolina / sin material | parcial | fábrica (sin receta, falta material, salida llena, poca energía), generador sin combustible y torreta sin munición; falta el aviso general de "sin conexión a la red" |
 | 7.14 | Barras de vida de edificios dañados | pendiente | |
 | 7.15 | Desgaste y mantenimiento (condición) | pendiente | |
 
 ## 8. Murallas
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
-| 8.1 | Tres materiales (madera, piedra, metal) | parcial | un tramo recto teñido por tipo |
-| 8.2 | Conexión por vecinos: recta, esquina, T, cruz, extremo (`muros.ts`) | pendiente | la 3D sólo orienta el tramo |
-| 8.3 | Estados de daño | pendiente | |
-| 8.4 | Puertas | no existe | pedido para la 3D |
+| 8.1 | Tres materiales (madera, piedra, metal) | hecho | muros macizos de tres alturas y colores |
+| 8.2 | Conexión por vecinos: recta, esquina, T, cruz, extremo (`muros.ts`) | hecho | brazos hacia cada vecino y poste central; recta, esquina, T, cruz, extremo y suelto |
+| 8.3 | Estados de daño | hecho | dos niveles: más bajo y más oscuro |
+| 8.4 | Puertas | hecho | edificio nuevo `wall_gate` en la lógica: la colonia la cruza, los enemigos no (con tests) |
 
 ## 9. Torretas
 | # | Función en 2D | Estado | Nota |
@@ -128,8 +129,8 @@ Resumen: **47 hecho · 13 parcial · 35 pendiente · 5 no existe** (100 líneas)
 | 9.3 | Retroceso y fogonazo al disparar | parcial | hay retroceso; falta fogonazo |
 | 9.4 | Proyectil/efecto por tipo (bala, láser, fuego, hielo) | parcial | una línea de color por tipo |
 | 9.5 | Niveles visibles | pendiente | |
-| 9.6 | Estados: sin munición, sin energía, dañada (humo), lista (brillo) | pendiente | |
-| 9.7 | Alcance al seleccionar | pendiente | |
+| 9.6 | Estados: sin munición, sin energía, dañada (humo), lista (brillo) | parcial | icono de sin munición; faltan sin energía, humo de daño y brillo de lista |
+| 9.7 | Alcance al seleccionar | hecho |  |
 
 ## 10. Unidades
 | # | Función en 2D | Estado | Nota |
