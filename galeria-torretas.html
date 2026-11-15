@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galería de torretas (3D)</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #cfd8de; font: 12px system-ui, sans-serif; color: #1d2330; }
+      #v { position: fixed; inset: 0; }
+      #v canvas { display: block; }
+      #bar { position: fixed; top: 8px; left: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: rgba(20, 24, 32, 0.88); color: #e8ecf2; border-radius: 8px; padding: 6px 10px; }
+      #bar b { color: #ffd166; margin-right: 4px; }
+      #bar .grp { display: flex; gap: 3px; align-items: center; padding-right: 8px; border-right: 1px solid #39414f; }
+      #bar .grp:last-child { border: 0; }
+      button { background: #2a313d; color: #e8ecf2; border: 1px solid #46505f; border-radius: 5px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+      button:hover { border-color: #98c1d9; }
+      button.on { background: #3d5a80; border-color: #98c1d9; }
+      .lab { position: fixed; transform: translate(-50%, 0); background: rgba(255, 255, 255, 0.82); padding: 1px 6px; border-radius: 3px; pointer-events: none; white-space: nowrap; font-size: 11px; }
+      #msg { position: fixed; bottom: 8px; left: 8px; background: rgba(20, 24, 32, 0.8); color: #e8ecf2; border-radius: 6px; padding: 4px 8px; }
+    </style>
+  </head>
+  <body>
+    <div id="v"></div>
+    <div id="bar"></div>
+    <div id="msg">Arrastra para girar la cámara · rueda para el zoom · botón derecho para desplazar</div>
+    <script type="module" src="/src/view3d/galeria.ts"></script>
+  </body>
+</html>

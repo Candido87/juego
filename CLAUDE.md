@@ -25,7 +25,7 @@ Regla del proyecto: tras cada hito, **tests + tipos + build en verde**, commit y
   (`View3D`); alrededor, módulos pequeños: `catalog.ts` (qué modelo es cada cosa), `terrain.ts`, `overlay3d.ts`
   (cables, puertos, alcances, iconos de estado, ayudas de la guía), `threat3d.ts` (apariciones y ruta), `effects3d.ts`
   + `particles.ts`, `fx.ts` (contorno y transparencia), `quality.ts` (niveles de calidad y WebGL2), `status.ts`,
-  `actors.ts`, `pieces.ts`, `camera.ts`, `pick.ts`, `options.ts`, `tutorial3d.ts`, `bench.ts`.
+  `turrets3d.ts` (modelos de las torretas) + `galeria.ts`, `actors.ts`, `pieces.ts`, `camera.ts`, `pick.ts`, `options.ts`, `tutorial3d.ts`, `bench.ts`.
 - `public/assets/3d/<pack>/` — modelos de Kenney (CC0). `public/assets/ui-pack/` — estilo de la interfaz.
 - `electron/main.cjs` — ventana de escritorio (sirve `dist/` por `app://`).
 - `SPEC.md` (diseño y decisiones, por fases), `PROGRESS.md` (hoja de ruta), `PARIDAD.md` (qué hacía la 2D y cómo
@@ -45,7 +45,7 @@ Regla del proyecto: tras cada hito, **tests + tipos + build en verde**, commit y
   qué equipo y qué **no** se midió.
 
 ## Parámetros de URL útiles (`vista3d.html`)
-`?seed=N` · `?demo=1|wave` (escena de prueba con de todo) · `?galeria=1` (todos los modelos y torretas por nivel) ·
+`?seed=N` · `?demo=1|wave` (escena de prueba con de todo) · `?galeria=1` (todos los modelos y torretas por nivel) · `/galeria-torretas.html` (galería orbital de torretas; `?tipo=turret_bullet&nivel=2&limpio=1`) ·
 `?tutorial=1` · `?load=auto|manual` · `?quality=low|medium|high` · `?nowebgl=1|2` (simula el aviso) ·
 `?bench=1&map=120&objs=1500&enemies=300` · `?auto=1` (juega el bot) · `?speed=4` · `?waves=0`.
 En la consola: `__v3` (`view`, `game`, `ui`), `__perf()`, `__bench(n)`, `__benchQuality(n)`.
@@ -54,6 +54,9 @@ En la consola: `__v3` (`view`, `game`, `ui`), `__perf()`, `__bench(n)`, `__bench
 `ELECTRON_SMOKE=captura.png ELECTRON_QUERY="demo=wave&seed=7" npx electron .` (después de `npm run build`): abre el
 juego, guarda una captura, imprime una línea `SMOKE {...}` con FPS, errores de consola y GPU, y sale con código 0 si
 arrancó sin errores.
+
+## Capturas para comparar aspectos
+`tools/captura.cjs` abre una página en Electron (ventana casi transparente) y guarda PNG: `CAP_URL=http://localhost:5173/galeria-torretas.html?limpio=1 CAP_OUT=docs/x.png npx electron tools/captura.cjs`. Con `CAP_SHOTS` saca varias fotos seguidas ejecutando JavaScript antes de cada una. Los argumentos van por variables de entorno porque Electron se queda con las direcciones http de la línea de comandos.
 
 ## Pendiente conocido
 - El árbol de tecnología está vacío (`CONFIG.tech = []`): muros, puerta, láser y hielo no se desbloquean en partida libre.

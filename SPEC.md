@@ -688,3 +688,25 @@ Encargo del usuario (15-11-2026): las torretas 3D no gustan; las de la vista 2D 
 - **Misil:** la lógica no tiene torreta de misiles (ni se toca). El modelo del hito 3 se hará y se verá en la galería, pero **no se puede colocar en partida** hasta que exista el tipo en `config.ts`.
 - **Hielo:** sí existe en la lógica; entra en el hito 3 con el misil.
 - Las tres imágenes `2d-*.png` se sacaron con `tools/captura.cjs` (Electron) contra la galería 2D del tag; no se versiona ningún servidor 2D.
+
+### Hito 1: torreta de balas de referencia (hecho, pendiente de aprobación)
+Código en `src/view3d/turrets3d.ts` (`buildTurret(tipo, nivel)`, con tests); la escena y la galería usan el mismo constructor. Fotos en `docs/torretas/`: `comparacion-balas.png` (2D arriba, 3D abajo, tres niveles), `angulos-balas.png` (4 giros × 3 niveles), `3d-balas-alejado.png` (zoom alejado), `3d-balas-disparo.png` (disparo), y las sueltas `3d-balas-n<nivel>-<giro>.png`.
+
+**Cómo está hecha (≈ 40 piezas en el nivel 1):**
+- **Base fija:** placa inferior y placa superior achaflanadas, franja de color de acento entre las dos, cuatro remaches, pedestal cilíndrico, plato intermedio y aro giratorio oscuro. Cuarta parte de la altura total.
+- **Torreta giratoria (`head`):** cuerpo octogonal, franja de acento, cúpula troncocónica de acero claro con tres rendijas de refrigeración, mirilla lateral con lente cian que brilla, contrapeso trasero y cuna delantera.
+- **Arma (`gun`, lo único que retrocede):** dos cañones con tubo, camisa, dos collares, freno de boca y banda de acento. La boca queda a 0,84 casillas del eje (0,94 en niveles 2 y 3), así que asoma por delante de la casilla como en la 2D.
+- **Cajón de munición** verde oliva a un lado, con tapa de acento y cinta de balas de latón que sube hasta la recámara.
+- **Niveles:** 2 = cañones más largos, blindaje lateral y acento naranja; 3 = tercer cañón, segundo cajón de munición, cuatro refuerzos en la base, cuerpo más oscuro y acento rojo. El nivel se ve a zoom alejado por el color de la franja y por el número de cañones.
+- **Estados** (los mismos que el juego): apagada = tinte gris y cabeza caída; en obra = translúcida y más baja; dañada = humo. Disparo = retroceso del arma, fogonazo y trazadora desde la boca real del cañón.
+
+**Decisiones (si dudas, lo más simple):**
+- **No uso los blasters de Kenney para las balas.** Son pistolas de juguete de plástico de colores vivos (ver `docs/torretas/piezas-armas.png`): con ellas el resultado volvía a parecer un juguete sobre una maceta. Cañones, camisas, collares, frenos de boca y cajones se hacen con primitivas biseladas (`bevelBox`, cilindros, prismas octogonales). Los packs de Kenney se reservan para los tipos que lo pidan (depósitos, tuberías y bobinas del fuego y el láser).
+- Un único acero común (`STEEL*`, `GUNMETAL`) y un solo color de acento por tipo y nivel (latón → naranja → rojo).
+- El contorno es el pase de contorno del juego; no hay casco invertido. Las primitivas llevan material plano compartido por color, así que se siguen agrupando y se tiñen igual que el resto.
+- El alcance del nivel 3 y los números de daño no se tocan: sólo cambia el modelo.
+- Los otros tres tipos (láser, fuego, hielo) siguen con el aspecto anterior (`legacyRig`) hasta los hitos 2 y 3; en la galería llevan una ★ los ya rediseñados.
+
+**Galería** (`/galeria-torretas.html` con el servidor de desarrollo): parrilla de tipos × niveles sobre losas de 1×1 para ver la escala real; cámara orbital (arrastrar = girar, rueda = zoom, botón derecho = desplazar); botones de estado, 4 giros de cámara, zoom parrilla/alejado/cerca, **Disparar**, **Auto** (dispara una vez por segundo) y **Apuntar** (fija la dirección). Filtros por dirección: `?tipo=turret_bullet`, `?nivel=2`, `?limpio=1` (sin interfaz). Para capturas hay un puente `window.__gal` (`view`, `focus`, `state`, `fire`, `aim`, `render`) y `tools/captura.cjs` (Electron, `CAP_URL`/`CAP_SHOTS`, ver el propio archivo).
+
+**Lo que falta de este hito / sin comprobar:** no se ha visto dentro de una partida larga (sí en la galería y en la escena de demostración); la torreta de balas aún no tiene humo propio de la cinta de munición ni de casquillos; a zoom alejado se distingue por silueta y acento, pero no se ha medido con una oleada completa. Esperando tu visto bueno antes de seguir con láser y fuego.

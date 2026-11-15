@@ -527,3 +527,63 @@ describe('cierre de paridad con la 2D', () => {
     expect([itemShape('iron_ore'), itemShape('wood'), itemShape('iron_plate'), itemShape('gear'), itemShape('ammo'), itemShape('food')]).toEqual(['lump', 'log', 'slab', 'disc', 'shell', 'crate']);
   });
 });
+
+describe('torretas 3D (rediseño)', () => {
+  it('la de balas es un conjunto de piezas con jerarquía: base fija, torreta giratoria y arma que retrocede', async () => {
+    const THREE = await import('three');
+    const { buildTurret, REDESIGNED } = await import('./turrets3d');
+    expect(REDESIGNED).toContain('turret_bullet');
+    const r = buildTurret('turret_bullet', 1);
+    expect(r.root.children).toEqual([r.base, r.head]);
+    expect(r.gun.parent).toBe(r.head);
+    expect(r.head.position.y).toBeGreaterThan(0.2);
+    expect(r.gunRest).toBe(0);
+    // Nada de "un palo con un cubo": decenas de piezas en total.
+    let meshes = 0;
+    r.root.traverse((o) => (o as import('three').Mesh).isMesh && meshes++);
+    expect(meshes).toBeGreaterThanOrEqual(35);
+    // La base cabe en la casilla; el cañón asoma por delante y la boca coincide con la punta.
+    const bb = new THREE.Box3().setFromObject(r.base).getSize(new THREE.Vector3());
+    expect(Math.max(bb.x, bb.z)).toBeLessThanOrEqual(0.93);
+    const gun = new THREE.Box3().setFromObject(r.gun);
+    expect(gun.max.z).toBeCloseTo(r.muzzle.fwd, 1);
+    expect(r.muzzle.fwd).toBeGreaterThan(0.7);
+    expect(r.height).toBeGreaterThan(0.6);
+  });
+
+  it('cada nivel cambia el modelo: más cañones, más piezas, tamaño y color de acento propios', async () => {
+    const THREE = await import('three');
+    const { BULLET_ACCENT, buildTurret } = await import('./turrets3d');
+    const count = (o: import('three').Object3D) => {
+      let n = 0;
+      o.traverse((c) => (c as import('three').Mesh).isMesh && n++);
+      return n;
+    };
+    const [a, b, c] = [1, 2, 3].map((l) => buildTurret('turret_bullet', l));
+    // Cada cañón son 6 piezas: 2 cañones en niveles 1 y 2, 3 en el nivel 3.
+    expect([count(a.gun), count(b.gun), count(c.gun)]).toEqual([12, 12, 18]);
+    expect(count(a.root)).toBeLessThan(count(b.root));
+    expect(count(b.root)).toBeLessThan(count(c.root));
+    // El cañón del nivel 2 es más largo y la base del 3 tiene refuerzos.
+    expect(b.muzzle.fwd).toBeGreaterThan(a.muzzle.fwd);
+    expect(count(c.base)).toBeGreaterThan(count(a.base));
+    expect(new Set(BULLET_ACCENT).size).toBe(3);
+    // Los niveles fuera de rango se acotan.
+    expect(count(buildTurret('turret_bullet', 99).root)).toBe(count(c.root));
+    expect(count(buildTurret('turret_bullet', 0).root)).toBe(count(a.root));
+    // Las bocas no se salen mucho de la casilla.
+    for (const r of [a, b, c]) expect(new THREE.Box3().setFromObject(r.root).max.z).toBeLessThan(1.1);
+  });
+
+  it('las cajas biseladas se apoyan en el suelo y miden lo pedido', async () => {
+    const THREE = await import('three');
+    const { bevelBox } = await import('./turrets3d');
+    const g = bevelBox(0.5, 0.2, 0.3, 0.03);
+    g.computeBoundingBox();
+    const bb = g.boundingBox!;
+    const size = bb.getSize(new THREE.Vector3());
+    expect(bb.min.y).toBeCloseTo(0, 5);
+    expect([size.x, size.y, size.z].map((v) => +v.toFixed(3))).toEqual([0.5, 0.2, 0.3]);
+    expect(bevelBox(0.5, 0.2, 0.3, 0.03)).toBe(g);
+  });
+});

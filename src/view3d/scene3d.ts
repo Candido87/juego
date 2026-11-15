@@ -8,7 +8,7 @@ import { Building, Enemy, Game } from '../game/game';
 import { BUILD_KINDS, DX, DY, Dir, BuildKind, EnemyKind, ItemId, TurretKind, WallKind } from '../game/types';
 import { heightAt, heightAtPoint } from '../game/world';
 import { ROLE_LOOK, TURRET_COLOR, TurretState, carried, enemyLook, npcAnim, smokeSources, turretLook, turretState } from './actors';
-import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, TURRET_GUN, allModels } from './catalog';
+import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, allModels } from './catalog';
 import { Effects } from './effects3d';
 import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
@@ -21,6 +21,7 @@ import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
 import { ThreatMarks } from './threat3d';
 import { QUALITY, QualityPreset } from './quality';
+import { buildTurret } from './turrets3d';
 import { Terrain, buildTerrain } from './terrain';
 
 type Tile = { x: number; y: number };
@@ -89,13 +90,10 @@ function shade(hex: number, f: number, dmg: number): number {
   const b = Math.round((hex & 255) * f);
   return (r << 16) | (g << 8) | b;
 }
-/** Piezas sueltas de las torretas (anillos de nivel y accesorios de cada tipo). */
-const RING_GEO = new THREE.CylinderGeometry(0.34, 0.34, 0.07, 14);
-const RING_STEP = 0.09;
+/** Piezas simples de los edificios hechos con figuras (poste, batería...). */
 const CYL_GEO = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
-const GEM_GEO = new THREE.OctahedronGeometry(0.5, 0);
 const glowMats = new Map<number, THREE.MeshBasicMaterial>();
-/** Material que brilla solo (lentes y cristales). */
+/** Material que brilla solo (franjas y pilotos). */
 function glowMat(color: number): THREE.MeshBasicMaterial {
   let m = glowMats.get(color);
   if (!m) glowMats.set(color, (m = new THREE.MeshBasicMaterial({ color })));
@@ -132,6 +130,9 @@ interface BView {
   spin: THREE.Object3D[];
   bob: THREE.Object3D[];
   pivot?: THREE.Group;
+  /** Torreta: z de reposo del arma y boca del cañón (distancia hacia delante y altura sobre el pivote). */
+  gunRest?: number;
+  muzzle?: { fwd: number; y: number };
   gun?: THREE.Object3D;
   yaw: number;
   recoil: number;
@@ -610,6 +611,17 @@ export class View3D {
       box(dark, WALL_W + 0.16, 0.14, 1, 0, 1.37, 0);
       group.add(holder);
       top = 1.45;
+    } else if (kind in CONFIG.turrets) {
+      // Torreta: base fija y torreta giratoria con su arma (ver `turrets3d.ts`). El juego gira `pivot` hacia el objetivo y
+      // desliza `gun` para el retroceso.
+      const rig = buildTurret(kind as TurretKind, turretLook(this.game, kind as TurretKind).level);
+      group.add(rig.root);
+      view.pivot = rig.head;
+      view.gun = rig.gun;
+      view.gunRest = rig.gunRest;
+      view.muzzle = rig.muzzle;
+      view.skin = skinOf(rig.head);
+      top = rig.height;
     } else {
       parts.forEach((p) => {
         if (!p.model) {
@@ -634,41 +646,6 @@ export class View3D {
       });
     }
     view.height = top;
-    // Torreta: cañón sobre un pivote que gira hacia el objetivo. Cada nivel añade un anillo de su color y agranda el cañón;
-    // cada tipo lleva un accesorio propio (caja de munición, lente, depósito o cristal).
-    if (kind in CONFIG.turrets) {
-      const tk = kind as TurretKind;
-      const g = TURRET_GUN[tk];
-      const look = turretLook(this.game, tk);
-      const col = TURRET_COLOR[tk];
-      const neck = top * 0.85;
-      for (let i = 0; i < look.rings; i++) {
-        const ring = new THREE.Mesh(RING_GEO, wallMat(col));
-        ring.position.y = neck + 0.035 + i * RING_STEP;
-        group.add(ring);
-      }
-      const pivot = new THREE.Group();
-      pivot.rotation.order = 'YXZ';
-      pivot.position.y = neck + look.rings * RING_STEP;
-      const gun = instance(g.model, g.fit * look.gunScale);
-      gun.position.set(0, 0.05, 0.15);
-      pivot.add(gun);
-      const extra = (geo: THREE.BufferGeometry, mat: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
-        const o = new THREE.Mesh(geo, mat);
-        o.scale.set(sx, sy, sz);
-        o.position.set(x, y, z);
-        pivot.add(o);
-      };
-      if (tk === 'turret_bullet') extra(BOX_GEO, wallMat(0x5d6b3a), 0.16, 0.2, 0.28, 0.2, 0.1, -0.04);
-      else if (tk === 'turret_laser') extra(HUB_GEO, glowMat(col), 0.17, 0.17, 0.17, 0, 0.24, -0.06);
-      else if (tk === 'turret_fire') extra(CYL_GEO, wallMat(0xc0392b), 0.2, 0.3, 0.2, 0, 0.12, -0.24);
-      else extra(GEM_GEO, glowMat(0xcff6ff), 0.18, 0.3, 0.18, 0, 0.3, -0.04);
-      group.add(pivot);
-      view.pivot = pivot;
-      view.gun = gun;
-      view.skin = skinOf(pivot);
-      view.height = top + look.rings * RING_STEP + 0.25;
-    }
     group.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) m.castShadow = m.receiveShadow = true;
@@ -859,12 +836,13 @@ export class View3D {
     v.pitch += ((ready ? 0 : 0.5) - v.pitch) * (1 - Math.exp(-dt * 5));
     pivot.rotation.set(v.pitch, v.yaw, 0);
     v.recoil = Math.max(0, v.recoil - dt * 4);
-    v.gun!.position.z = 0.15 - v.recoil * 0.12;
+    v.gun!.position.z = (v.gunRest ?? 0.15) - v.recoil * 0.1;
     if (!ready) return;
     // Lista para disparar: brillo en la boca (láser y hielo) o llama piloto (fuego).
-    const mx = cx + Math.sin(v.yaw) * 0.42;
-    const mz = cy + Math.cos(v.yaw) * 0.42;
-    const my = v.group.position.y + pivot.position.y + 0.12;
+    const mu = v.muzzle ?? { fwd: 0.42, y: 0.12 };
+    const mx = cx + Math.sin(v.yaw) * mu.fwd;
+    const mz = cy + Math.cos(v.yaw) * mu.fwd;
+    const my = v.group.position.y + pivot.position.y + mu.y;
     if (kind === 'turret_laser') this.fx.glow(mx, my, mz, 0.13 + 0.04 * Math.sin(this.time * 5 + b.id), TURRET_COLOR[kind]);
     else if (kind === 'turret_frost') this.fx.glow(mx, my, mz, 0.15 + 0.04 * Math.sin(this.time * 3 + b.id), TURRET_COLOR[kind]);
     else if (kind === 'turret_fire' && Math.random() < dt * 14) this.fx.flame(mx, my - 0.03, mz, 0.07);
@@ -1134,7 +1112,8 @@ export class View3D {
         v.yaw = yaw;
       }
       // Sale de la boca del cañón y llega a media altura del objetivo (más arriba si vuela).
-      const y0 = v?.pivot ? v.group.position.y + v.pivot.position.y + 0.12 : ground(ev.fromX, ev.fromY) + 0.9;
+      const mu = v?.muzzle ?? { fwd: 0.42, y: 0.12 };
+      const y0 = v?.pivot ? v.group.position.y + v.pivot.position.y + mu.y : ground(ev.fromX, ev.fromY) + 0.9;
       let lift = 0;
       for (const en of this.game.enemies) {
         if (Math.abs(en.x - ev.toX) < 0.05 && Math.abs(en.y - ev.toY) < 0.05) {
@@ -1142,7 +1121,7 @@ export class View3D {
           break;
         }
       }
-      const from = new THREE.Vector3(ev.fromX + Math.sin(yaw) * 0.42, y0, ev.fromY + Math.cos(yaw) * 0.42);
+      const from = new THREE.Vector3(ev.fromX + Math.sin(yaw) * mu.fwd, y0, ev.fromY + Math.cos(yaw) * mu.fwd);
       const to = new THREE.Vector3(ev.toX, ground(ev.toX, ev.toY) + lift + 0.5, ev.toY);
       fx.shot(ev.kind, from, to, CONFIG.turrets[ev.kind].area);
     }
