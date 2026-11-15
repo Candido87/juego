@@ -1,15 +1,19 @@
 # SPEC — Fábrica isométrica con defensa
 
-Juego de fábrica + defensa en vista isométrica 2D. TypeScript, Phaser 3, Vite, Vitest.
-Sin backend ni assets externos.
+Juego de fábrica + defensa en vista isométrica 3D. TypeScript, Three.js, Vite, Vitest. Sin backend.
+
+> **Nota (15-11-2026):** el juego empezó en 2D con Phaser y se migró a 3D. La vista 2D está borrada. Las secciones
+> antiguas de este documento que hablan de Phaser, `shapes.ts`, `GameScene.ts`, sprites o Sketch Town describen esa
+> etapa y se conservan como historial; lo vigente para la vista está en las secciones "Migración, Fase N" del final
+> y en `CLAUDE.md`. Las reglas del juego (economía, recetas, energía, oleadas) no cambiaron con la migración.
 
 ## Arquitectura
 - `src/game/*`: lógica pura (sin Phaser ni DOM). Se puede simular sin gráficos (`npm run sim`).
   - `config.ts`: **todos** los números (costes, daños, tiempos, velocidades, árbol, oleadas).
-  - `types.ts`, `world.ts` (mapa), `iso.ts` (matemática isométrica), `path.ts` (rutas),
+  - `types.ts`, `world.ts` (mapa), `path.ts` (rutas),
     `game.ts` (estado y sistemas), `jobs.ts` (cola de trabajos), `npc.ts` (NPCs), `bot.ts` (jugador automático).
-- `src/view/*`: Phaser + DOM. Sólo lee el estado y envía comandos (`place`, `remove`, `hire`, `research`...).
-  - `shapes.ts`: único archivo con el aspecto de todo (prismas isométricos generados por código).
+- `src/view/*`: interfaz HTML/CSS compartida y reglas puras de la vista (decoración, muros, iconos). Sólo lee el estado y envía comandos (`place`, `remove`, `research`...).
+- `src/view3d/*`: vista 3D con Three.js (`scene3d.ts`, `catalog.ts`, `terrain.ts`, `overlay3d.ts`...). Ver `CLAUDE.md`.
 
 ## Vista (hecho)
 Proyección isométrica 2:1 (64x32), orden por profundidad (x+y), semitransparencia de objetos altos
@@ -425,3 +429,284 @@ Decisiones simples: la tubería reutiliza `b.inv` para su contenido y `b.craft` 
 ## Decoración y zonas de terreno (G4, sólo vista)
 - Árboles, rocas, arbustos y flores salen de `generateDecor` (semilla del mapa); **no bloquean la construcción ni se talan** (lo más simple; el bosque que da madera sigue siendo la mena `Wood`). Se excluyen menas, un radio de 5 casillas alrededor del núcleo, 3 en torno a cada aparición y 2 a cada lado de la línea aparición→núcleo; se ocultan bajo cualquier edificio.
 - Zonas de terreno: ruido de valor → teñido continuo (tierra seca, hierba, roca grisácea); las menas no se tiñen. Árboles altos pasan a opacidad 0,35 si tapan cursor, fantasma, enemigos o NPCs (misma función `occludes` que los edificios).
+
+
+---
+
+# Vista 3D (rama `vista-3d`, prototipo)
+
+Decisiones de la Fase 1 (para anotar lo que se eligió ante dudas):
+- **No se toca `src/game/`.** `vista3d.html` + `src/view3d/main3d.ts` crean el mismo `Game`, llaman a `game.update(dt)` y leen `buildings`, `npcs`, `enemies`, `world` y `drainEvents()`. Construir desde la paleta HTML usa `game.canPlace` y `game.place`.
+- **Proyección:** cámara ortográfica a 30° de elevación (losa 2:1 igual que la 2D), giro en pasos de 90° con animación, zoom con rueda y arrastre para mover (`camera.ts`, con tests). Mundo: x→x, z→y del juego, y→altura; un nivel = 0,5 unidades.
+- **Selección con relieve:** rayo avanzado contra las columnas de cada casilla (`pick.ts`, con tests).
+- **Terreno:** `ground_grass` a nivel 0, `cliff_block_rock` escalado en altura para niveles 1-2 y `cliff_blockSlope_rock` como rampa cuando una casilla de nivel 1 sólo tiene una vecina más baja. Todo instanciado (un `InstancedMesh` por malla).
+- **Agua:** el mundo del juego no tiene casillas de agua, así que no se dibuja. El Nature Kit trae ríos (`ground_river*`, `cliff_waterfall`) listos para cuando la lógica los tenga.
+- **Modelos:** un catálogo de datos (`catalog.ts`) con test que comprueba que cada modelo existe. Edificios compuestos por 1-3 piezas; torretas = base `hopper-round` + pivote con `blaster-*` que apunta al enemigo más cercano en su alcance y retrocede al disparar.
+- **Colores:** el Nature Kit usa colores de vértice (sin textura) y la hierba sale turquesa; se mantiene tal cual.
+- **Pendiente / simplificado:** puertos de entrada/salida (flechas), esquinas de muro, daño visible, partículas, interfaz HTML completa (sólo HUD, paleta y ficha de casilla). La orientación de curvas y cruces de tubería se comprobó a ojo.
+- **Demo:** `/vista3d.html?demo=wave` coloca cintas, tuberías, torretas y muros y lanza una oleada; `?auto=0` desactiva el bot; `?speed=4` acelera.
+
+## Fase 2: rendimiento de la vista 3D
+
+**Cómo se mide.** `/vista3d.html?bench=1&map=120&objs=1500&enemies=300&opt=1&auto=0&zoom=0.6`. `bench=1` crea un mapa grande con edificios ya construidos (tiras de cinta, tubería y muro, y edificios sueltos) y enemigos que se mueven; `opt=0` apaga las optimizaciones, `shadows=0` las sombras, `chunk=N` el tamaño de trozo de terreno. En la consola, `__bench(n)` ejecuta *n* frames seguidos esperando a la GPU (`gl.finish`) y devuelve ms por frame, FPS, llamadas de dibujo y triángulos. Se mide así porque con la pestaña oculta `requestAnimationFrame` se frena.
+
+**Qué se hizo.** Terreno instanciado y troceado en chunks (descarte por cámara); edificios estáticos (cintas, tuberías, muros, casas...) agrupados en `InstancedMesh` por malla, material y trozo, reconstruidos como mucho cada 0,3 s; objetos sobre las cintas en un solo `InstancedMesh`; materiales teñidos compartidos (para poder agrupar); personajes fuera de cámara no se animan; con muchos a la vista sólo los 250 más cercanos al centro llevan esqueleto y el resto se dibuja instanciado en pose base. Los modelos ya eran ligeros (de 14 a 280 KB cada uno); no hizo falta tocarlos.
+
+**Resultados** (navegador integrado de la app, GPU del equipo del usuario; ms por frame con GPU sincronizada, ventana ~800x700):
+
+| Escena | Sin optimizar (`opt=0`) | Optimizada | Mejora |
+|---|---|---|---|
+| Mapa 120x120, 1500 edificios, 300 enemigos | 21,3 ms (47 FPS), 984 llamadas, 1,37 M tris | 13,7 ms (73 FPS), 1036 llamadas, 1,10 M tris | 1,55x |
+| Igual, sin sombras | — | 10,7 ms (93 FPS), 512 llamadas, 0,55 M tris | |
+| Mapa 80x80, 300 edificios, 1500 enemigos | 64,6 ms (15 FPS), 2977 llamadas | 23,2 ms (43 FPS), 1463 llamadas | 2,8x |
+| Partida normal 40x40 (demo con oleada) | — | 2,6 ms (>300 FPS), 270 llamadas | |
+
+Con chunks de 16 casillas salió peor (17,1 ms) que con 32 (13,7 ms): más trozos = más llamadas. Se dejó 32.
+
+**Lo que queda caro.**
+- **Sombras:** cuestan ~3 ms con el mapa grande (hay un botón "Sombras").
+- **Personajes con esqueleto:** son lo más caro por unidad. A 1500 enemigos, 250 animados y 1250 instanciados en pose base (no animan; giran según su id). Una solución real para hordas enormes sería animación por texturas de vértices (no se hizo).
+- **Draw calls:** siguen altas (~1000-1500) porque cada modelo tiene 2-4 mallas por material y chunk; fusionar modelos en un atlas de geometrías las bajaría.
+- **Lógica del juego:** ~0,5 ms por frame en todas las pruebas; no es el cuello de botella.
+- **Medición:** hecha con la GPU de este equipo y una sola ventana; no se probó en equipos modestos ni en móvil.
+
+## Fase 3: comparación honesta, vista 3D frente a vista 2D
+
+Base de la comparación: la 2D son ~4.150 líneas en `src/view/` (Phaser, sprites de Sketch Town, UI Pack, formas dibujadas por código); la 3D son ~1.600 líneas en `src/view3d/` (Three.js) que ya cubren cámara, terreno, edificios, cintas, tuberías, personajes, torretas, selección y construcción básica. **Ninguna de las dos toca `src/game/`**: leen el mismo `Game`, y por eso se pueden mantener a la vez.
+
+### Aspecto
+- **3D gana en:** giro de cámara en 90° (la 2D no lo tiene), relieve real con sombras, personajes animados (andar, parar, golpear; la 2D tiene un solo fotograma por personaje y balanceo por código), torretas con cañón que apunta de verdad, coherencia entre packs (todo es Kenney 3D con una paleta compartida, mientras que en 2D se mezclan Sketch Town, Tiny Dungeon y UI Pack con estilos que no combinan).
+- **2D gana en:** legibilidad a distancia y nitidez (los sprites dibujados a mano con contorno se leen mejor que modelos "de juguete" sin contorno), control exacto del orden de dibujado, y un aspecto ya pulido (muros conectados, estados de daño, decoración con reglas, UI integrada).
+- **Dudoso:** el color. El Nature Kit usa colores de vértice y la hierba sale turquesa; hay que corregirlo con una paleta o un tinte (es una tarde de trabajo, no un bloqueo). El agua no se ve porque la lógica no tiene casillas de agua.
+- **Cosas de 3D que no existen en 2D y habría que decidir:** altura de edificios que tapan lo que hay detrás (hace falta atenuar o recortar al seleccionar), y cinta que cruza por debajo de algo alto.
+
+### Rendimiento
+Medido sólo en el equipo de desarrollo (ver Fase 2). Con mapa 120x120, 1.500 edificios y 300 enemigos, 73 FPS (13,7 ms) optimizado; con 1.500 enemigos, 43 FPS; la partida normal 40x40 va a más de 300 FPS. **No se midió la vista 2D con las mismas escenas**, así que no hay cifra honesta para compararlas; Phaser con sprites suele ser más barato por objeto, pero la 2D no tiene hoy ningún mecanismo de agrupado y también tendría que optimizarse con mapas grandes. Lo que sí es cierto: la 3D necesita **WebGL con GPU** y trabajo específico (instanciado, presupuesto de esqueletos, sombras opcionales) para aguantar hordas; la 2D sin ese trabajo ya es fluida con los 40x40 actuales. En equipos modestos las sombras serán lo primero que haya que apagar.
+
+### Peso y empaquetado
+- Modelos copiados: ~10 MB en `public/assets/3d/` (se podría recortar a ~6 MB quitando el Nature Kit sin usar). Los sprites 2D actuales pesan ~3,5 MB.
+- Three.js añade ~660 KB (minificado) en un paquete aparte `vista3d`; la 2D (Phaser) sigue en `main` (1,5 MB). Si se mantienen las dos vistas, el paquete de Electron crece unos 10 MB.
+
+### Trabajo que queda para igualar a la 2D
+Estimación gruesa, ordenada por tamaño:
+1. **Interfaz:** reutilizar el HTML/UI Pack de la 2D (paneles, tooltips, guía, tutorial, menú de recetas). La 3D sólo tiene HUD, paleta y ficha de casilla. Es lo más grande, pero es trabajo compartido: la UI de `src/view/ui.ts` está acoplada a Phaser y habría que desacoplarla.
+2. **Murallas y esquinas:** conexiones por vecinos, esquinas, puertas y estados de daño.
+3. **Puertos de entrada/salida** con flechas (`puertos.ts`), indicadores de energía/tubería y cables.
+4. **Retroalimentación visual:** barras de vida, explosiones y humo (partículas), daño visible, ruedas de progreso, iconos sobre edificios.
+5. **Cintas:** cruces, empalmes en T y cinta rápida con animación de textura; hoy sólo rectas y esquinas, orientación de piezas comprobada a ojo.
+6. **Editor de pruebas y tutorial:** el tutorial señala casillas con la cámara 2D; hay que llevarlo a 3D.
+7. **Selección con edificios altos** (atenuar los que tapan) y accesibilidad (zoom mínimo, contraste).
+8. **Agua y ríos:** si se quiere, la lógica debe aportar casillas de agua; los modelos ya están.
+
+### Qué se reaprovecha de lo hecho
+- Toda la lógica y los tests (`src/game/`): cero cambios, 258 tests en verde.
+- `catalog.ts` (tabla de qué modelo es cada cosa, con test de existencia), `camera.ts`, `pick.ts` (ambas puras y con test) y el banco de pruebas (`bench.ts`) valen para cualquier iteración 3D.
+- El proyecto 2D sigue intacto: se puede volver atrás sin coste.
+- Los modelos 3D pueden servir **también en 2D** renderizados a sprites (turntable de 4 giros), como ya se hace con Sketch Town; sería un camino intermedio.
+
+### Riesgos
+- **Alcance:** igualar la 2D en 3D es semanas, no días, sobre todo por la interfaz.
+- **Compatibilidad:** WebGL2 con buena GPU; portátiles integrados y navegadores antiguos fallarán antes que con Phaser (que puede caer a Canvas).
+- **Legibilidad en juego:** sin contornos, los modelos de pequeños objetos se funden con el terreno; hará falta resaltado (outline) o una paleta con más contraste.
+- **Mantener dos vistas** duplica el trabajo de cada función nueva visible (nuevo edificio = sprite + modelo).
+- **Licencia/créditos:** todo CC0 de Kenney; sin riesgo, pero ya hay licencias duplicadas en `assets-juego/` (dos packs pisados) que conviene limpiar.
+- **Animación a escala:** el truco de instanciar en pose base a distancia no anima; para hordas grandes habría que usar animación en texturas de vértices.
+
+### Recomendación
+No sustituir la 2D de golpe. Opciones, de menor a mayor riesgo: (a) quedarse con la 2D y usar los modelos 3D como sprites pre-renderizados (reaprovecha el arte, cero cambio de motor); (b) mantener la 3D como modo opcional "vista 3D" y llevarla a paridad por fases, empezando por la interfaz compartida; (c) migrar del todo, sólo si el giro de cámara y los personajes animados son prioridad de diseño. Mi lectura: el salto de aspecto es real y barato de conseguir (esta rama lo muestra en pocas horas), pero el coste está en la interfaz y el pulido, no en el motor.
+
+---
+
+# Migración a 3D (decisión del 15-11-2026)
+
+El juego pasa a 3D con Three.js; la vista 2D de Phaser se retira cuando `PARIDAD.md` esté completo. Plan por fases en `PROGRESS.md`.
+- **Vista 2D congelada:** `src/view/` e `index.html` sólo reciben correcciones graves hasta el final de la migración.
+- **Estados de PARIDAD.md:** además de pendiente/hecho se usan `parcial` (existe pero incompleto) y `no existe` (la 2D tampoco lo tiene), para no dar por hecho lo que está a medias.
+- **Hallazgos que cambian el plan:** la interfaz 2D ya es HTML/CSS (la Fase 1 es desacoplarla de `shapes.ts`/`sprites.ts`, no reescribirla); no hay guardado de partida, ni menú principal, ni opciones, ni sonido; el árbol de tecnología está vacío (`CONFIG.tech = []`); el tutorial tiene lógica y tests pero no vista en esta rama.
+- **No hay `CLAUDE.md`** en el repositorio: se creará en la Fase 7.
+
+## Migración, Fase 1: interfaz
+- **Una sola interfaz.** No se reescribió: `vista3d.html` copia el DOM y el CSS de `index.html` y usa el mismo `Hud` (`src/view/ui.ts`), `TooltipManager` y `GuiaView`. Para quitarles Phaser bastó mover `ITEM_COLORS` de `shapes.ts` a `src/view/itemColors.ts` (lo reexporta `shapes.ts`, así la 2D no cambia). Un test recorre los imports desde `main3d.ts` y falla si aparece `phaser`, `GameScene` o `shapes`.
+- **Teclas.** Q/E siguen cambiando de categoría (como dice la ayuda); **la cámara gira con Z/C** y con los botones ⟲ ⟳. O abre las opciones. El resto igual que en 2D (R, X, P, H, Esc, 1–9, Mayús + arrastrar).
+- **Opciones** (nuevo, `options.ts` con test): sombras, velocidad x1/x2/x4, mostrar rendimiento y reiniciar la guía. Se guardan en `localStorage`. La calidad gráfica llegó en la Fase 6 (ver más abajo); volumen no hay porque el juego no tiene sonido.
+- **Pausa:** aviso central con Reanudar, Opciones, Ayuda y Nueva partida; se aparta si hay un panel flotante abierto.
+- **Nueva partida:** recarga la página con otra semilla (lo más simple; no hay estado que conservar hasta que exista el guardado).
+- **Sin solapamientos:** los paneles flotantes (recetas, ayuda, opciones, avisos) se colocan debajo del alto real del HUD (`--hudh`) y entre las dos columnas. Comprobado por script con todos abiertos a 967×853 y 1024×640.
+- **Iconos del menú:** siguen siendo los de la hoja 2D Tiny Factory. Las miniaturas de los modelos 3D quedan anotadas en PARIDAD 3.4.
+- **El bot ya no arranca solo:** `?auto=1` lo activa (antes era el modo por defecto del prototipo).
+
+## Migración, Fase 2: aspecto y legibilidad
+- **Paleta** (`palette.ts`, con test): el Nature Kit no trae textura, así que al cargar se sustituye el color de cada material por nombre (hierba y hojas verdes, tierra, madera, piedra, agua). Todos los materiales pasan a mate (metalness 0, roughness 1) para que los cinco packs reaccionen igual a la luz.
+- **Zonas:** la cara de hierba de cada casilla se tiñe según su recurso (hierro, cobre, carbón, piedra, bosque, petróleo, azufre) con una variación suave por casilla. Arena y roca como zonas propias quedan pendientes: la lógica no las define.
+- **Contorno:** se eligió un **pase de bordes por profundidad** en vez del casco invertido, porque vale igual para mallas instanciadas y con esqueleto y cuesta una sola pasada a pantalla completa (~0,4 ms). Usa el laplaciano de la profundidad, que es cero en planos inclinados y alto en siluetas y escalones; por eso también marca los desniveles del terreno. Umbral ajustado a ojo (0,13–0,36 unidades) para que no dibuje las juntas entre casillas. Interruptor en Opciones.
+- **Lo que tapa:** en vez de volver semitransparente cada objeto (imposible por instancia), los materiales descartan 3 de cada 4 píxeles dentro de un círculo de 1,7 casillas cuando el fragmento queda por delante del punto de interés. Hay dos puntos: la casilla bajo el cursor (sólo al construir o quitar, o si no se apunta a ningún edificio) y el edificio seleccionado. El suelo nunca se trama. Margen de 1,25 unidades para no tramar lo que está en la propia casilla.
+- **Seleccionar:** sin herramienta, un clic elige el edificio de la casilla o, si está vacía, el edificio cuyo cuerpo se ve bajo el cursor (`pickBox`, con test). Con herramienta, siempre manda la casilla, así que se puede construir detrás de algo alto.
+- **Personajes tapados:** un disco de color con la prueba de profundidad invertida; sólo se ve si algo oculta al personaje.
+- **Cámara:** planos de recorte 1–320 (antes −200–400) para dar más precisión a la profundidad del contorno.
+
+## Migración, Fase 3: construcción y logística
+- **Piezas por conexiones** (`pieces.ts`, con tests): cada modelo declara qué lados tiene abiertos (medidos en los vértices del .glb: un borde alto = lado cerrado) y `orient` busca el giro que los hace coincidir con las conexiones. Sustituye a las tablas ajustadas a ojo de la Fase 1.
+- **Cintas:** recta (sin entradas o sólo por detrás), curva (una entrada lateral), **T** (detrás + un lado, o los dos lados) y **cruce** (las tres). La cinta rápida usa el modelo rayado en recta y un tinte azulado en el resto.
+- **Tuberías:** los codos y cruces del pack están en un plano vertical y no sirven tumbados, así que se componen: tramo recto, o medios tramos hacia cada vecino con un codo esférico. Grosor al 70 % para que no llenen la casilla.
+- **Murallas:** los modelos del Factory Kit resultaron ser barandillas, así que son **cajas macizas** con albardilla: medios tramos hacia cada vecino más un poste central (esquina, T, cruz, extremo, suelto). Tres alturas y colores (madera, piedra, metal). El daño (`wallDamage` de la 2D) las baja y oscurece en dos niveles.
+- **Puerta — único cambio en `src/game/`:** edificio nuevo `wall_gate` ("Puerta", 2 bastidores + 1 engranaje, 220 de vida). Es sólido para los enemigos, pero `Game.npcPassable` la deja cruzar a la colonia. Va en la categoría Defensa y se desbloquea junto al muro de madera en el tutorial. Tests nuevos en `game.test.ts`. La 2D congelada recibió lo mínimo para no romperse (un aspecto y un icono).
+- **Energía:** cables con caída entre postes enlazados (`grid.wires`); el alcance de suministro de cada poste se ve al seleccionarlo y al colocar postes o edificios eléctricos.
+- **Torretas:** anillo de alcance al seleccionarlas y al colocarlas (verde si se puede, rojo si no).
+- **Puertos** (`puertos.ts`): flecha llena = salida, tenue = entrada; amarillo = sólidos, celeste = líquidos. Se ven en el edificio seleccionado, en el que está bajo el cursor y al colocar.
+- **Iconos de estado** (`status.ts`, con tests): marcado para desmontar; fábrica sin receta, falta material, salida llena, poca energía o produciendo (color del objeto); generador sin combustible; torreta sin munición.
+- **Transparencia ajustada:** el círculo pasa a 0,95 casillas y se centra a media altura, porque con 1,7 tramaba cintas y objetos bajos que no tapaban nada.
+- **Hallazgo:** en la partida normal los muros (y la puerta) están siempre bloqueados: sólo los desbloquea el tutorial. Anotado en PARIDAD.md.
+- **Sin hacer:** la cinta parada sin energía no se distingue; el líquido dentro de las tuberías no se ve; falta el aviso general de "sin conexión a la red".
+
+## Migración, Fase 4: unidades y efectos
+- **Efectos en pocas mallas** (`effects3d.ts`): humo, fuego, chispas, anillos, proyectiles y barras de vida van en seis mallas instanciadas (una llamada de dibujo cada una). Sin transparencias que ordenar: el humo son poliedros opacos que se encogen al morir (y así reciben contorno, como el resto) y el fuego es aditivo.
+- **Partículas puras** (`particles.ts`, con tests): la simulación no depende de Three; tope de 2.400 partículas, las que no caben se descartan y se cuentan.
+- **Decisiones de aspecto puras** (`actors.ts`, con tests): animación de NPC y enemigo, modelo por rol, aspecto por nivel y estado de torreta, y fuentes de humo de cada edificio.
+- **NPCs:** un modelo por rol con tinte (constructor = obrero con casco, transportista, operaria, mecánico = soldado). Andan, esperan y, si llevan un rato quietos con tarea, trabajan. Lo que llevan se ve como una caja del color del objeto.
+- **Enemigos:** la lógica no rellena `Enemy.attacking`, así que **atacan cuando llevan 0,25 s parados**. Ralentizado = tinte azul, paso lento y escarcha; ardiendo = llamas y humo. Al morir caen (animación `die`) y se encogen; máximo 60 caídas a la vez. Los enemigos lejanos instanciados no cambian de pose ni de tinte, pero sí llevan barra, llamas y escarcha.
+- **Torretas:** cada tipo tiene color y accesorio propios. **Nivel** = un anillo de color por nivel y cañón un 14 % mayor por nivel. **Estados:** sin munición o sin energía = cabezal gris y caído, más icono; dañada = humo; lista = brillo en la boca (láser, hielo) o llama piloto (fuego).
+- **Disparos:** bala trazadora con fogonazo y chispa; láser = haz que se afina con núcleo blanco; fuego = chorro de llamas que se abre y prende el área; hielo = haz pálido, anillo del radio del área y esquirlas. Salen de la boca del cañón y llegan a media altura del blanco (más arriba si vuela).
+- **Humo:** fábrica y refinería mientras fabrican, generador en marcha y núcleo siempre; edificios bajo el 50 % de vida humo negro, bajo el 25 % chispas. Los muros no humean (ya tienen estados de daño).
+- **Barras de vida:** enemigos y NPCs heridos (verde, amarilla, roja) y edificios dañados (naranja). Los muros no llevan barra.
+- **Pausa:** con la partida en pausa, personajes y partículas se congelan.
+- **Medición** (mapa 120×120, 1.500 objetos, 250 enemigos con barras, llamas y escarcha, 150 edificios humeando, sombras y contorno): 16,4 ms por fotograma, 1.126 llamadas. La optimización es la Fase 6.
+- **Hallazgo:** las torretas de energía (láser, hielo) nunca disparan en la lógica actual (`turretPower` devuelve 0). Sus efectos están hechos y probados lanzándolos a mano.
+- **Sin hacer:** los enemigos voladores no tienen animación propia de vuelo; las llamas aditivas se ven pálidas sobre hierba clara.
+
+## Migración, Fase 5: guía, tutorial, guardado y Electron
+- **Guardado** (`game/savegame.ts`, con tests): una partida es JSON con la semilla y el tamaño del mapa (el mundo no cambia y se regenera) más `Game.exportState()`. **Cambio en la lógica:** `Game.exportState/importState` y `JobBoard.exportState/importState`. Un test juega 4 minutos con el bot, guarda, restaura y comprueba que las dos partidas siguen idénticas 200 s más (edificios, NPCs, enemigos, cola de trabajos, oleadas).
+- **Ranuras:** manual (botón Guardar de las opciones) y autoguardado (cada 60 s reales sin pausa, al ocultar la pestaña y al cerrarla; no se guarda si la partida ha acabado). Cargar recarga la página con `?load=manual|auto` en vez de cambiar la partida en caliente: así no hay estado a medias en la vista.
+- **Arranque:** abrir sin parámetros con una partida viva pregunta Continuar o Nueva partida. Nueva partida (y el botón del final) quitan `load` y usan una semilla nueva. En pruebas (`bench`, `demo`, tutorial) no se guarda.
+- **Guía de inicio:** el panel y la detección son los de la 2D. Nuevo en 3D: `GuideAids` en `overlay3d.ts` dibuja la flecha que rebota y el marco de la casilla recomendada, los puertos y el alcance de postes de cada paso, la ruta de ejemplo con flechas (celeste si es tubería) y la casilla del problema en rojo. El progreso de la guía va dentro del guardado.
+- **Tutorial** (`view3d/tutorial3d.ts`): `?tutorial=1` o botón en las opciones. Panel propio con "Paso N de M", saltar paso o tutorial y resalte azul de la herramienta o panel. Gestos que anota la vista: mover la cámara (> 0,5 casillas), zoom y elegir herramienta. La guía de inicio se apaga mientras dura. Decisión simple: el tutorial siempre empieza desde cero y no se guarda (su partida no es persistente).
+- **Electron:** `electron/main.cjs` abre `vista3d.html` por defecto (`ELECTRON_PAGE=index.html` para la 2D) y activa `ignore-gpu-blocklist` para WebGL2 en gráficas antiguas. `localStorage` persiste porque se sirve por `app://` (ya estaba). **No lo he podido probar en una ventana de Electron en esta sesión.**
+- **Sin hacer:** menú principal con pantalla propia; las casillas de ruta y del problema se tapan detrás de árboles altos (sólo las flechas y la flecha rebotando se ven siempre).
+
+## Migración, Fase 6: rendimiento y compatibilidad
+
+**Niveles de calidad** (`src/view3d/quality.ts`, puro y con tests). En Opciones: Auto, Baja, Media o Alta. Se aplican en caliente con `View3D.setQuality`, sin recargar.
+
+| | Baja | Media | Alta |
+|---|---|---|---|
+| Tope de píxeles por píxel de pantalla | 1 | 1,5 | 2 |
+| Suavizado de bordes (muestras) | 0 | 2 | 4 |
+| Sombras | no | sí, mapa de 1024 | sí, mapa de 2048 |
+| Contorno de objetos | no | sí | sí |
+| Partículas que se crean | 40 % | 70 % | 100 % |
+| Personajes con esqueleto animado | 80 | 150 | 250 |
+
+- Elegir un nivel pone sus sombras y su contorno; después se pueden cambiar sueltos (p. ej. Baja con contorno).
+- **Auto** (por defecto) empieza en Alta y **sólo baja**: si la media de FPS reales se queda por debajo de 30 durante 5 s seguidos baja un nivel y avisa con un mensaje. Espera 3 s tras arrancar y tras cada bajada; no mide con la pestaña oculta, en pausa, a velocidad x2/x4 ni en el banco de pruebas. El nivel alcanzado se guarda, así que no se repite la prueba en cada arranque; volver a pulsar Auto empieza otra vez desde Alta.
+- Si el navegador dibuja por software (SwiftShader, llvmpipe, "Basic Render Driver"), Auto arranca directamente en Baja.
+- El suavizado ya no lo pone el lienzo sino la textura intermedia del pase de contorno (así se cambia sin recrear el contexto). Sin contorno y sin suavizado se dibuja directo a pantalla, que es lo más barato.
+- Los anillos de efecto (hielo, explosiones) no se recortan con la densidad de partículas porque marcan zonas de juego.
+- Se quitó `PCFSoftShadowMap`: three 0.187 ya no lo tiene y avisaba en consola en cada arranque; las sombras son PCF en todos los niveles.
+- `?quality=low|medium|high` fuerza un nivel sin guardarlo. Con "Mostrar rendimiento" el HUD enseña FPS, ms por fotograma, llamadas, triángulos, tamaño del búfer y nivel.
+
+**Compatibilidad.** Antes de crear la escena, `detectGl` prueba a abrir WebGL2. Si no se puede, en lugar de quedarse en "Cargando modelos…" sale un aviso a pantalla completa que distingue "no hay WebGL" de "sólo hay WebGL1", con tres pasos (actualizar navegador, activar aceleración por hardware, actualizar controlador) y un botón para reintentar. El mismo aviso cubre un fallo al crear el renderizador y la pérdida del contexto gráfico a mitad de partida (pausa el juego y pide recargar; el autoguardado es de cada minuto). `?nowebgl=1` y `?nowebgl=2` simulan los dos primeros casos.
+
+**Mediciones** (`__benchQuality(n)` en la consola: `n` fotogramas por nivel con la GPU sincronizada). Equipo del usuario, Radeon RX 570, navegador integrado, búfer de 1280×800:
+
+| Escena | Baja | Media | Alta |
+|---|---|---|---|
+| Mapa 120x120, 1500 edificios, 300 enemigos | 9,8 ms (102 FPS), 595 llamadas, 0,57 M tris | 12,3 ms (81 FPS), 1187 llamadas, 1,07 M tris | 13,6 ms (74 FPS), 1187 llamadas, 1,07 M tris |
+| Mapa 80x80, 300 edificios, 1500 enemigos | 12,2 ms (82 FPS), 478 llamadas | 14,3 ms (70 FPS), 1242 llamadas | 17,1 ms (58 FPS), 1642 llamadas |
+| Partida normal 40x40 (demo con oleada) | 2,5 ms (405 FPS), 166 llamadas | 3,9 ms (259 FPS), 336 llamadas | 3,7 ms (272 FPS), 336 llamadas |
+
+Alta coincide con la cifra de la Fase 2 (13,7 ms), así que mover el suavizado al pase de contorno no ha costado nada. Baja es entre 1,4x y 1,5x más rápida que Alta; casi todo viene de quitar las sombras (la mitad de llamadas y de triángulos). En la partida normal Media y Alta empatan: la diferencia está dentro del ruido.
+
+**Lo que estas cifras no dicen.**
+- La pantalla de la prueba tiene 1 píxel real por píxel, así que **el tope de resolución no ha actuado**: en un portátil de pantalla densa la diferencia entre niveles será mayor que la de la tabla, pero no está medida.
+- Sólo hay un equipo, con gráfica dedicada. **No se ha probado en gráfica integrada, ni en Electron, ni en otro navegador.**
+- La bajada automática está cubierta por tests, pero no se ha visto actuar en el juego porque este equipo nunca baja de 30 FPS. Tampoco se ha provocado una pérdida real de contexto gráfico.
+- La calidad Baja pierde el contorno, que ayuda a leer el mapa; se puede volver a activar suelto.
+
+## Migración, Fase 7: cierre de paridad y retirada de la 2D
+
+**Decisión del usuario:** antes de borrar la 2D, llevar a "hecho" las 15 líneas de `PARIDAD.md` que estaban en parcial o pendiente. Cómo quedó cada una:
+
+- **Zonas de terreno.** Las casillas sin recurso se tiñen por zona con el mismo ruido y umbrales que la 2D (`zoneWeights` en `decor.ts`): arena o tierra seca, hierba y roca, con transición continua. En 3D el tinte es un multiplicador en color lineal que puede pasar de 1 (`zoneMultiplier`), porque multiplicar el verde de la hierba por un color normal nunca da arena.
+- **Decoración.** Ya no hay regla propia de la 3D: sale de `generateDecor` (determinista por semilla; nunca sobre menas, a 5 casillas del núcleo, a 3 de las apariciones ni a 2 del pasillo recto hasta el núcleo). Cada tipo de `decor.ts` tiene su modelo. Sigue sin bloquear: se esconde al construir encima, ahora en toda la huella del edificio. No reaparece al desmontar (igual de simple que antes).
+- **Apariciones y ruta** (`threat3d.ts`). Bandera roja con disco en cada punto de aparición y un punto rojo por casilla de la ruta prevista; sólo se rehace cuando cambia `game.flowVersion`.
+- **Cintas paradas.** La cinta sin energía se oscurece y lleva un piloto rojo intermitente en el borde; el texto de la casilla lo dice. No lleva icono flotante: al principio todas las cintas están paradas y habría uno por casilla.
+- **Sin conexión a la red** (`offGrid`). Aviso rojo en consumidores sin poste. Regla para no llenar el mapa de avisos: mientras no exista ninguna red sólo avisa lo que no hace nada sin energía.
+- **Desgaste.** Engranaje amarillo por debajo del 50 % (rinde la mitad) y rojo a 0 (averiado). El porcentaje sigue en la ficha.
+- **Obra.** Barra azul de progreso sobre el edificio a medio levantar.
+- **Temblor de cámara** al golpear el núcleo: 0,14 s, en el plano de la pantalla.
+- **Objetos en cintas.** Forma por familia (terrón, tronco, losa, disco, cilindro, caja) con el color del objeto; una malla instanciada por forma.
+- **Iconos del menú.** Miniaturas de los propios modelos, dibujadas al arrancar a una textura (`View3D.thumbnails`). Los iconos del pack quedan de respaldo.
+- **Modelos provisionales.** Poste (antes una chimenea) y batería (antes un depósito igual que la bomba) se hacen con cajas y cilindros (`prim` en `catalog.ts`); el alimentador se distingue de la base de las torretas (tinte y caja encima) y la casa del generador (tinte claro).
+- **Galería.** `?galeria=1` enseña todos los edificios y las torretas en sus 3 niveles con el mismo código del juego.
+- **Opciones.** El volumen sale de la línea de opciones y se anota aparte como "no existe": no hay sonido.
+- **Electron.** Prueba de humo (`ELECTRON_SMOKE`): abre el build por `app://`, guarda captura y resumen. Resultado: arranca, 144 FPS, sin errores de consola.
+
+**Qué se borró.** Phaser (dependencia), `src/main.ts`, `GameScene.ts`, `shapes.ts`, `solids.ts`, `turretModels.ts`, `decorView.ts`, `gallery.ts`, `terrenoPrueba.ts`, `sketch.ts`, `iso.ts`, sus tests, `galeria-torretas.html`, `terreno-prueba.html` y los sprites de Sketch Town y Tiny Dungeon de `public/assets`. `muros.ts`, `decor.ts` y `sprites.ts` se quedan sólo con lo que usa la 3D. `index.html` redirige a `vista3d.html` conservando los parámetros. Los tests bajan de 289 a 260 porque se van los de la 2D.
+
+**Lo que no se ha hecho o no se ha comprobado.**
+- El instalador (`npm run dist`) no se ha regenerado ni probado; sólo el build abierto con Electron.
+- El aviso de "sin conexión a la red" y el de desgaste están cubiertos por tests y el desgaste se vio en pantalla forzando el valor; no se han visto aparecer en una partida larga.
+- Las carpetas de packs descargados de la raíz (`assets-juego/`, `Tiles/`, `Map/`, `Tilemap/`) no se han tocado: el juego no las carga, pero borrarlas es decisión aparte.
+- Siguen pendientes de lógica (no de vista): árbol de tecnología vacío, torretas de energía que no disparan, sonido y menú principal.
+
+## Rediseño de las torretas 3D
+
+Encargo del usuario (15-11-2026): las torretas 3D no gustan; las de la vista 2D tenían mucho más carácter. Se rediseñan por hitos, **sólo capa visual** (ni lógica ni números). La referencia 2D está en el tag `v-2d-final` (último commit con la 2D, `b0077c6`): `git show v-2d-final:src/view/turretModels.ts` y `solids.ts`. Capturas lado a lado en `docs/torretas/` (`2d-*.png` son las 2D por tipo, nivel y 4 rumbos; `3d-antes-galeria.png` son las 3D de partida).
+
+### Qué hacía buenas a las torretas 2D
+- **Base con volumen y detalle:** plataforma hexagonal achaflanada en dos escalones, franja de color del tipo en el borde (más ancha con el nivel), remaches en las esquinas, pedestal cilíndrico y un aro giratorio oscuro. En nivel 3 salen refuerzos en los cuatro lados.
+- **Una cabeza que gira, separada de la base:** el cuerpo es una pirámide truncada (caras inclinadas) en dos pisos, con rendijas de refrigeración y mirilla con lente.
+- **Armas con varios tramos:** culata/cuna, camisa, tubo y freno de boca (en las de balas), no un único prisma. Siempre se ve hacia dónde apunta.
+- **Una silueta distinta por tipo**, reconocible incluso en negro:
+  - balas: cañones dobles o triples, cajón de munición verde oliva con cinta de balas de latón;
+  - láser: cristal alto y puntiagudo en magenta, aletas disipadoras detrás, bobinas de cobre a lo largo del cañón;
+  - fuego: dos o tres depósitos cilíndricos altos y rojizos, tuberías, boquilla abocinada con brasa y pilotos rojos;
+  - hielo: racimo de cristales azules, tubos de refrigerante y boca ancha escarchada.
+- **Los niveles cambian el modelo:** más cañones (2 → 3), cañón más largo, placas laterales de blindaje (nivel 2) y cajón de munición doble (nivel 3), cristal o depósitos extra, franja de base más ancha, color de acento que sube de latón a naranja y a rojo.
+- **Paleta común:** acero gris azulado para todo lo estructural y **un solo color de acento por tipo**; contorno oscuro en todas las caras y sombreado por cara.
+- **Animación y estados** (ya replicados en 3D): cabeza con 16 rumbos, retroceso, fogonazo, brillo propio de cristales y lentes, tinte gris apagado, humo dañada y translúcida en obra.
+
+### Qué falla en las 3D actuales (ver `3d-antes-galeria.png`)
+1. **Todas son la misma maceta.** La base es un cono facetado invertido (embudo) que ocupa más de la mitad de la altura y no tiene ni placa, ni pedestal, ni remaches: parece un macetero, no una base de artillería.
+2. **El arma es pequeña y suelta.** Un único blaster de Kenney apoyado en el borde, sin culata, sin soporte, sin camisa: "un palo con un cubo". Las proporciones están al revés (base enorme, arma diminuta).
+3. **Sin silueta propia por tipo.** Las cuatro son embudo + arma; sólo cambian el color del embudo y un accesorio de pocos píxeles. A zoom alejado se distinguen por el tono, no por la forma.
+4. **Faltan los rasgos que definían a cada tipo en 2D:** cañones múltiples y cinta de munición (balas), cristal y bobinas (láser), depósitos y tuberías altos (fuego), racimo de cristales y tubos (hielo).
+5. **Los niveles apenas se notan:** un anillo de color más y un 14 % de escala en el cañón; el modelo no cambia.
+6. **Sin jerarquía de piezas:** no hay cuerpo giratorio con paneles y chaflanes entre la base y el arma; todo gira como un único bloque pequeño.
+7. **Paleta sin acento coherente:** el embudo azul de láser y hielo es casi igual; el de balas es violeta (no gris) y no se parece al resto de metal del juego.
+
+### Reglas de diseño que seguimos
+1. **Varias piezas con jerarquía:** base (placa + pedestal + aro) → torreta giratoria (cuerpo con chaflanes y paneles) → arma de varios tramos (culata, camisa, tubo, boca) → accesorios (cajón, depósitos, radiadores, antena, luces). Nada de un arma suelta sobre un cuerpo liso.
+2. **Proporciones de la 2D:** base baja y ancha (≈ 30 % de la altura), torreta y arma ocupan el resto; el arma sobresale claramente de la casilla por delante.
+3. **Materiales y piezas:** piezas del pack de armas de Kenney (cañones, culatas, miras, cargadores, silenciadores), del kit de fábrica y del industrial (tuberías, depósitos, engranajes, pistones, soportes) y, para lo que falte, primitivas (`prim`) con chaflán o biselado. Se reutiliza el sistema de partes de `catalog.ts`.
+4. **Silueta y color por tipo:** un color de acento por tipo sobre acero común; la silueta debe leerse en negro. Balas: cañones múltiples + cajón; láser: cristal + bobinas + aletas; fuego: depósitos altos + boquilla ancha; misil: rack de tubos inclinados; hielo: cristales + tubos.
+5. **El nivel cambia el modelo:** más cañones, blindaje, tamaño y detalles nuevos en cada nivel; el color de acento sube con el nivel.
+6. **Contorno y sombreado:** se usa el pase de contorno ya existente; las piezas de color (cristales, lentes, brasas) llevan material propio que brilla.
+7. **Se lee a zoom alejado:** cada hito se revisa también a zoom 0,5 y desde los 4 giros de cámara.
+8. **Animación:** sólo gira la torreta (no la base); retroceso del arma; fogonazo; brillo de cristales según carga; llama piloto; humo si está dañada. Estados: apagada (luces rojas, tinte gris), en obra (translúcida), dañada (humo).
+
+### Decisiones (si dudas, lo más simple)
+- **Misil:** la lógica no tiene torreta de misiles (ni se toca). El modelo del hito 3 se hará y se verá en la galería, pero **no se puede colocar en partida** hasta que exista el tipo en `config.ts`.
+- **Hielo:** sí existe en la lógica; entra en el hito 3 con el misil.
+- Las tres imágenes `2d-*.png` se sacaron con `tools/captura.cjs` (Electron) contra la galería 2D del tag; no se versiona ningún servidor 2D.
+
+### Hito 1: torreta de balas de referencia (hecho, pendiente de aprobación)
+Código en `src/view3d/turrets3d.ts` (`buildTurret(tipo, nivel)`, con tests); la escena y la galería usan el mismo constructor. Fotos en `docs/torretas/`: `comparacion-balas.png` (2D arriba, 3D abajo, tres niveles), `angulos-balas.png` (4 giros × 3 niveles), `3d-balas-alejado.png` (zoom alejado), `3d-balas-disparo.png` (disparo), y las sueltas `3d-balas-n<nivel>-<giro>.png`.
+
+**Cómo está hecha (≈ 40 piezas en el nivel 1):**
+- **Base fija:** placa inferior y placa superior achaflanadas, franja de color de acento entre las dos, cuatro remaches, pedestal cilíndrico, plato intermedio y aro giratorio oscuro. Cuarta parte de la altura total.
+- **Torreta giratoria (`head`):** cuerpo octogonal, franja de acento, cúpula troncocónica de acero claro con tres rendijas de refrigeración, mirilla lateral con lente cian que brilla, contrapeso trasero y cuna delantera.
+- **Arma (`gun`, lo único que retrocede):** dos cañones con tubo, camisa, dos collares, freno de boca y banda de acento. La boca queda a 0,84 casillas del eje (0,94 en niveles 2 y 3), así que asoma por delante de la casilla como en la 2D.
+- **Cajón de munición** verde oliva a un lado, con tapa de acento y cinta de balas de latón que sube hasta la recámara.
+- **Niveles:** 2 = cañones más largos, blindaje lateral y acento naranja; 3 = tercer cañón, segundo cajón de munición, cuatro refuerzos en la base, cuerpo más oscuro y acento rojo. El nivel se ve a zoom alejado por el color de la franja y por el número de cañones.
+- **Estados** (los mismos que el juego): apagada = tinte gris y cabeza caída; en obra = translúcida y más baja; dañada = humo. Disparo = retroceso del arma, fogonazo y trazadora desde la boca real del cañón.
+
+**Decisiones (si dudas, lo más simple):**
+- **No uso los blasters de Kenney para las balas.** Son pistolas de juguete de plástico de colores vivos (ver `docs/torretas/piezas-armas.png`): con ellas el resultado volvía a parecer un juguete sobre una maceta. Cañones, camisas, collares, frenos de boca y cajones se hacen con primitivas biseladas (`bevelBox`, cilindros, prismas octogonales). Los packs de Kenney se reservan para los tipos que lo pidan (depósitos, tuberías y bobinas del fuego y el láser).
+- Un único acero común (`STEEL*`, `GUNMETAL`) y un solo color de acento por tipo y nivel (latón → naranja → rojo).
+- El contorno es el pase de contorno del juego; no hay casco invertido. Las primitivas llevan material plano compartido por color, así que se siguen agrupando y se tiñen igual que el resto.
+- El alcance del nivel 3 y los números de daño no se tocan: sólo cambia el modelo.
+- Los otros tres tipos (láser, fuego, hielo) siguen con el aspecto anterior (`legacyRig`) hasta los hitos 2 y 3; en la galería llevan una ★ los ya rediseñados.
+
+**Galería** (`/galeria-torretas.html` con el servidor de desarrollo): parrilla de tipos × niveles sobre losas de 1×1 para ver la escala real; cámara orbital (arrastrar = girar, rueda = zoom, botón derecho = desplazar); botones de estado, 4 giros de cámara, zoom parrilla/alejado/cerca, **Disparar**, **Auto** (dispara una vez por segundo) y **Apuntar** (fija la dirección). Filtros por dirección: `?tipo=turret_bullet`, `?nivel=2`, `?limpio=1` (sin interfaz). Para capturas hay un puente `window.__gal` (`view`, `focus`, `state`, `fire`, `aim`, `render`) y `tools/captura.cjs` (Electron, `CAP_URL`/`CAP_SHOTS`, ver el propio archivo).
+
+**Lo que falta de este hito / sin comprobar:** no se ha visto dentro de una partida larga (sí en la galería y en la escena de demostración); la torreta de balas aún no tiene humo propio de la cinta de munición ni de casquillos; a zoom alejado se distingue por silueta y acento, pero no se ha medido con una oleada completa. Esperando tu visto bueno antes de seguir con láser y fuego.

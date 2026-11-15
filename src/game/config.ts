@@ -178,6 +178,8 @@ export const CONFIG = {
     wall_wood: { name: 'Muro de madera', cost: { frame: 1, wood: 3 }, buildTime: 1.5, hp: 120, solid: true, size: [1, 1] },
     wall_stone: { name: 'Muro de piedra', cost: { frame: 1, brick: 3 }, buildTime: 2.5, hp: 320, solid: true, size: [1, 1] },
     wall_metal: { name: 'Muro de metal', cost: { wall_plate: 2, frame: 1 }, buildTime: 3.5, hp: 750, solid: true, size: [1, 1] },
+    /** Puerta: cierra el paso a los enemigos como un muro, pero la colonia la cruza (ver `Game.npcPassable`). */
+    wall_gate: { name: 'Puerta', cost: { frame: 2, gear: 1 }, buildTime: 2.5, hp: 220, solid: true, size: [1, 1] },
   } as Record<BuildKind, BuildingDef>,
   coreDef: { name: 'Núcleo', cost: {}, buildTime: 0, hp: 300, solid: true, size: [2, 2], storage: true } as BuildingDef,
 

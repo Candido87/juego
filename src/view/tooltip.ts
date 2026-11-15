@@ -10,7 +10,7 @@ import type { Game } from '../game/game';
 import { recipeTip } from '../game/recetas';
 import { HUD_KEYS, HudKey, buildTip, hudTip, itemTip } from '../game/tooltips';
 import { BUILD_KINDS, BuildKind, ITEM_IDS, ItemId } from '../game/types';
-import { ITEM_COLORS } from './shapes';
+import { ITEM_COLORS } from './itemColors';
 import { Rect, TipMode, placeTip } from './tipPlacement';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

@@ -175,3 +175,59 @@ Misma situación que antes: el encargo hablaba de `public/assets/[CARPETA…]` s
 **Encajan con la proyección 64×32:** Sketch Town y su expansión (rombo exacto 2:1; reescala ×0,276). **No encajan:** Tiny Factory, Tiny Dungeon y Tiny Town (16 px cenitales; sólo como figuras de pie), Kenney Tanks (perfil), Space Shooter (cenital) y el humo (sin vista) — ver las secciones anteriores.
 
 Medidas reescaladas (×0,276): bloque de terreno ≈ 64×60 px (grosor 28), muro/torre 64×65, árbol 36×49, pino 36×65, roca 35×30, casa 64×60, tejado 64×42.
+
+
+---
+
+# Packs 3D (rama `vista-3d`)
+
+Origen: ZIPs originales de Kenney (CC0) de la carpeta Descargas del usuario. **No se usa `assets-juego/Models/`**: ahí hay una mezcla
+(licencia de Factory Kit pero 465 modelos de otros packs) y está sin subir a git. Copias seleccionadas en `public/assets/3d/<pack>/`
+(cada una con su `License.txt` y su `Textures/colormap.png`). Todos vienen ya en **.glb** (también FBX y OBJ): no hace falta convertir nada.
+
+| Pack | Versión | Modelos (en zip) | Copiados | Tamaño GLB (zip → copiado) | Carpeta |
+|---|---|---|---|---|---|
+| City Kit Industrial | 2.0 | 37 | 21 | 3,0 MB → ~1,4 MB | `public/assets/3d/industrial/` |
+| Factory Kit | 3.0 | 143 | 51 | 2,9 MB → ~1,1 MB | `public/assets/3d/factory/` |
+| Mini Characters | 2.0 | 43 | 13 | 5,3 MB → ~2,3 MB | `public/assets/3d/characters/` |
+| Blaster Kit | 2.1 | 40 | 26 | 1,2 MB → ~1,0 MB | `public/assets/3d/weapons/` |
+| Mini Forest (naturaleza + campamento) | 1.0 | 22 | 22 (todos) | 0,8 MB | `public/assets/3d/forest/` |
+| **Total copiado** | | | **133 .glb** | **~6,7 MB** | |
+
+- **Texturas:** todos usan **una paleta compartida** `Textures/colormap.png`, referenciada por ruta relativa (no embebida). Cada carpeta lleva su copia: hay que mantener `Textures/` junto a los `.glb`.
+- **Animaciones:** sólo los personajes (Mini Characters y `character-archer` de Mini Forest) traen 32 clips con el mismo esqueleto: `static, idle, walk, sprint, jump, fall, crouch, sit, drive, die, pick-up, emote-yes, emote-no, holding-right, holding-left, holding-both, holding-right-shoot, holding-left-shoot, holding-both-shoot, attack-melee-right, attack-melee-left, attack-kick-right, attack-kick-left, interact-right, interact-left, wheelchair-*`. El resto (edificios, cintas, tuberías, armas, árboles) son mallas estáticas.
+- **Escala:** 1 unidad = 1 casilla en los kits de bloque (conveyor 1×0,4×1; pipe-large 1×1×1; machine 1,2×1,3×1,5; platform 1×0,47×1; rocks-ramp 1×0,5×1; tree 0,9×1,7; tree-high 0,9×2,3; edificios industriales 0,9–2,1 de lado y 1,4–2,3 de alto; blaster 0,16×0,3×0,6).
+
+## Packs 3D no copiados (no encajan o sobran)
+- **Coaster Kit** (183 modelos, 20 MB): montaña rusa/parque; fuera. Como mucho `tree-large`, `grass`, `flowers`, `bench` de relleno.
+- Del Factory Kit se dejan ~92 piezas (cintas largas con vallas, pantallas, puertas, estructuras, indicadores...); del Mini Characters, 30 (sillas de ruedas, ayudas médicas, equipaje); del Blaster Kit, 14; del City Kit, 16. Se copian cuando se usen.
+- **Packs 2D (fuera de la vista 3D):** Sketch Town + Expansion, UI Pack (se mantiene para la interfaz HTML), Tanks, Space Shooter, Smoke Particles, Tiny Dungeon/Town/Factory.
+- **No hay pack de "campamento" ni de "naturaleza" separados** en la carpeta: Mini Forest cubre ambos (`tent`, `flag`, `fence`, `ladder`, `bridge`, `building-*`, `platform`, `rocks-ramp`, `patch-grass/dirt`, `rocks-*`, `tree`, `tree-high`, `plant`).
+
+## Propuesta de mapa de uso (3D)
+
+**Terreno** (Mini Forest): losa de nivel = `platform` (1×0,47×1, se apila para niveles), rampa = `rocks-ramp`, suelo plano = `patch-grass` / `patch-dirt`, rocas = `rocks-high`/`rocks-low`/`stones`, árboles = `tree` y `tree-high`, matas = `plant`. Agua: plano con color propio (no hay modelo). Se tiñe con `material.color` según la zona.
+
+| Edificio / objeto | Modelo | Nota |
+|---|---|---|
+| Taladro | `factory/machine-connection-hole` + `factory/piston-round` encima | el pistón sube/baja al trabajar |
+| Fábrica (taller/componentes) | `factory/machine` + `robot-arm-a` encima | |
+| Refinería | `industrial/detail-tank-large` + `factory/pipe-large` + `industrial/chimney-medium` | grupo de 2-3 piezas |
+| Generador | `industrial/building-d` o `windmill`; `factory/cog-a` girando | engranaje animado |
+| Casa | `industrial/building-a` (o `forest/building-structure` + `building-roof`) | |
+| Almacén | `industrial/shipping-container-a/b/c` o `factory/box-large` | |
+| Laboratorio | `factory/machine-window` | |
+| Poste de energía | `industrial/chimney-small` o `factory/lever-single` | se decide con prueba visual en fase 1 |
+| Cinta | `factory/conveyor`, `conveyor-corner`, `conveyor-junction-t`, `conveyor-cross`; `stripe` para animar | rotación en pasos de 90° |
+| Tubería | `factory/pipe-large`, `-curve`, `-junction`, `-cross`, `-bend`, `-valve` | |
+| Puertos entrada/salida | `factory/arrow` (color verde/rojo) sobre la casilla | |
+| Muros | `factory/structure-wall`, `-corner-outer/inner`; torre `structure-tall`; mejorado `structure-yellow-*` | conexión por vecinos como en 2D |
+| Decoración | `forest/tent`, `fence`, `flag`, `rocks-*`, `industrial/solar-panel-*`, `water-tower` | |
+
+**Personas** (Mini Characters, un rig con 32 animaciones y una sola textura):
+- NPC obrero: `character-worker`, clips `idle` / `walk` / `pick-up` / `interact-right`.
+- Enemigos (variedad por modelo, mismo código): `character-zombie` (básico), `character-raider` (rápido), `character-robot` (blindado), `character-alien` (especial), `character-knight` (jefe). Clips `walk`/`sprint`, `die`, `attack-melee-right`.
+
+**Torretas:** base = `factory/hopper-round` (cuerpo fijo) + `factory/cog-b` (anillo). El cañón es un `Object3D` pivote (`yaw`) hijo de la base, con el arma `weapons/blaster-*` como hijo del pivote orientado a +Z local. Reparto: ametralladora = `blaster-a`, escopeta = `blaster-h`, francotirador = `blaster-m` + `scope-large-a`, mortero = `detail-tank` + `blaster-e`; mejoras visibles con `scope-*`/`silencer-*`. Balas = `bullet-foam` escaladas. Cada torreta calcula `atan2(dx,dz)` hacia el objetivo y rota el pivote con suavizado; el retroceso es un desplazamiento corto del arma en su eje local.
+
+**Riesgos de arte:** estilo "juguete" plano; las armas miden ~0,6 frente a una casilla de 1: se escalan ×0,6 sobre la base.

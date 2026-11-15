@@ -114,7 +114,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'walls',
     highlight: { tool: 'wall_wood' },
     ensure: { frame: 2, wood: 6 },
-    unlock: ['wall_wood'],
+    unlock: ['wall_wood', 'wall_gate'],
     done: (g) => exists(g, (b) => b.kind.startsWith('wall_')),
   },
   {

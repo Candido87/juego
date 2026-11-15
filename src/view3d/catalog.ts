@@ -1,0 +1,130 @@
+/**
+ * Catálogo de modelos 3D: qué pieza de Kenney representa cada edificio, enemigo, torreta y decoración.
+ * Datos puros (sin Three): los comprueba un test contra los archivos de `public/assets/3d/`.
+ */
+import type { BuildingKind, EnemyKind, TurretKind } from '../game/types';
+import { ROLE_LOOK } from './actors';
+import { BELT_MODELS } from './pieces';
+
+/** Ruta relativa a `public/assets/3d/` sin extensión: `pack/modelo`. */
+export type ModelId = string;
+
+export interface Part {
+  /** Modelo de Kenney; si falta, la parte es una figura simple (`prim`). */
+  model?: ModelId;
+  /** Figura simple hecha por código: caja o cilindro de `size` [ancho, alto, fondo] y color `color`. */
+  prim?: 'box' | 'cyl';
+  size?: [number, number, number];
+  color?: number;
+  /** Brilla sola (pilotos, franjas de carga). */
+  glow?: boolean;
+  /** Altura de su base sobre el suelo (si no, 0 o encima de la parte anterior con `stack`). */
+  y?: number;
+  /** Lado máximo (en casillas) al que se ajusta el modelo. */
+  fit?: number;
+  /** Se apila sobre la parte anterior. */
+  stack?: boolean;
+  /** Desplazamiento horizontal en casillas. */
+  dx?: number;
+  dz?: number;
+  /** Color multiplicado sobre la paleta del modelo. */
+  tint?: number;
+  /** Estiramiento vertical. */
+  sy?: number;
+  /** Gira continuamente (engranajes). */
+  spin?: boolean;
+  /** Se mueve arriba/abajo (pistones). */
+  bob?: boolean;
+}
+
+export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
+  core: [{ model: 'industrial/building-h', fit: 1.8 }, { model: 'industrial/chimney-large', fit: 0.5, dx: 0.55, dz: -0.55 }],
+  drill: [{ model: 'factory/machine-connection-hole', fit: 0.85 }, { model: 'factory/piston-round', fit: 0.4, stack: true, bob: true }],
+  belt: [{ model: 'factory/conveyor', fit: 1 }],
+  belt_fast: [{ model: 'factory/conveyor-stripe', fit: 1 }],
+  pipeline: [{ model: 'factory/pipe-large', fit: 1 }],
+  storage: [{ model: 'industrial/shipping-container-a', fit: 0.95 }],
+  factory: [{ model: 'factory/machine', fit: 0.9 }, { model: 'factory/robot-arm-a', fit: 0.5, stack: true }],
+  farm: [{ model: 'factory/hopper-square', fit: 0.8 }, { model: 'forest/plant', fit: 0.5, stack: true }],
+  pump: [{ model: 'industrial/detail-tank', fit: 0.8 }, { model: 'factory/pipe-large-valve', fit: 0.5, stack: true }],
+  refinery: [{ model: 'industrial/detail-tank-large', fit: 0.9 }, { model: 'industrial/chimney-medium', fit: 0.4, dx: 0.3, dz: -0.3 }],
+  workshop: [{ model: 'industrial/building-c', fit: 0.95 }],
+  house: [{ model: 'industrial/building-a', fit: 0.95, tint: 0xf4c9a0 }, { model: 'industrial/chimney-small', fit: 0.16, dx: 0.26, dz: -0.26 }],
+  // Poste eléctrico: mástil de madera con cruceta y dos aisladores (el pack no trae ninguno).
+  pole: [
+    { prim: 'box', size: [0.26, 0.1, 0.26], color: 0x8d949c },
+    { prim: 'cyl', size: [0.11, 1.45, 0.11], color: 0x8a5a3a },
+    { prim: 'box', size: [0.74, 0.07, 0.09], color: 0x6c442c, y: 1.22 },
+    { prim: 'cyl', size: [0.08, 0.13, 0.08], color: 0xdfe6ee, y: 1.29, dx: -0.3 },
+    { prim: 'cyl', size: [0.08, 0.13, 0.08], color: 0xdfe6ee, y: 1.29, dx: 0.3 },
+  ],
+  generator: [{ model: 'industrial/building-d', fit: 0.8 }, { model: 'factory/cog-a', fit: 0.5, stack: true, spin: true }],
+  solar: [{ model: 'industrial/solar-panel-flat', fit: 0.95 }],
+  turbine: [{ model: 'industrial/windmill', fit: 0.9 }],
+  // Batería: caja con franja de carga encendida y dos bornes.
+  accumulator: [
+    { prim: 'box', size: [0.78, 0.5, 0.56], color: 0x3b4a5c },
+    { prim: 'box', size: [0.8, 0.12, 0.58], color: 0x9be564, glow: true, y: 0.2 },
+    { prim: 'box', size: [0.82, 0.06, 0.6], color: 0x26313f, y: 0.5 },
+    { prim: 'cyl', size: [0.13, 0.13, 0.13], color: 0xd9483b, y: 0.56, dx: -0.2 },
+    { prim: 'cyl', size: [0.13, 0.13, 0.13], color: 0x4a7bd9, y: 0.56, dx: 0.2 },
+  ],
+  feeder: [{ model: 'factory/hopper-round', fit: 0.62, tint: 0xffdc8a }, { model: 'factory/box-small', fit: 0.3, stack: true }],
+  turret_bullet: [{ model: 'factory/hopper-round', fit: 0.85 }],
+  turret_laser: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xa8d8ff }],
+  turret_fire: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xffb080 }],
+  turret_frost: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xc8f0ff }],
+  wall_wood: [{ model: 'factory/structure-short', fit: 1.05, tint: 0xc98a52, sy: 1.4 }],
+  wall_stone: [{ model: 'factory/structure-medium', fit: 1.05, tint: 0xb0b8c0 }],
+  wall_metal: [{ model: 'factory/structure-tall', fit: 1.05, tint: 0xf0f4fa }],
+  wall_gate: [{ model: 'factory/structure-medium', fit: 1.05, tint: 0xd9a35a }],
+};
+
+/** Arma montada como cañón sobre la base de cada torreta (gira hacia el objetivo). */
+export const TURRET_GUN: Record<TurretKind, { model: ModelId; fit: number; y: number }> = {
+  turret_bullet: { model: 'weapons/blaster-a', fit: 0.7, y: 0.75 },
+  turret_laser: { model: 'weapons/blaster-m', fit: 0.7, y: 0.75 },
+  turret_fire: { model: 'weapons/blaster-h', fit: 0.65, y: 0.75 },
+  turret_frost: { model: 'weapons/blaster-e', fit: 0.65, y: 0.75 },
+};
+
+export const NPC_MODEL: ModelId = 'characters/character-worker';
+export const CHAR_SCALE = 1.3;
+
+export const ENEMY_MODEL: Record<EnemyKind, { model: ModelId; scale: number; lift: number }> = {
+  grunt: { model: 'characters/character-zombie', scale: 1, lift: 0 },
+  runner: { model: 'characters/character-raider', scale: 0.95, lift: 0 },
+  armored: { model: 'characters/character-robot', scale: 1.15, lift: 0 },
+  flyer: { model: 'characters/character-alien', scale: 0.9, lift: 1.1 },
+  tank: { model: 'characters/character-knight', scale: 1.5, lift: 0 },
+};
+
+/** Terreno y decoración (Nature Kit y Mini Forest). */
+export const TERRAIN = {
+  flat: 'nature/ground_grass',
+  block: 'nature/cliff_block_rock',
+  slope: 'nature/cliff_blockSlope_rock',
+  trees: ['nature/tree_default', 'nature/tree_oak', 'nature/tree_pineTallA', 'nature/tree_fat', 'nature/tree_cone'],
+  rocks: ['nature/rock_largeA', 'nature/rock_largeB', 'nature/stone_largeA', 'nature/rock_tallA'],
+  small: ['nature/plant_bush', 'nature/flower_redA', 'nature/flower_yellowA', 'nature/flower_purpleA', 'nature/mushroom_redGroup'],
+  oreRock: 'nature/stone_smallA',
+  camp: ['nature/tent_smallOpen', 'nature/campfire_logs', 'nature/log_stack'],
+} as const;
+
+/** Todos los modelos que hay que precargar. */
+export function allModels(): ModelId[] {
+  const s = new Set<ModelId>();
+  for (const parts of Object.values(BUILDING_PARTS)) for (const p of parts) if (p.model) s.add(p.model);
+  for (const g of Object.values(TURRET_GUN)) s.add(g.model);
+  s.add(NPC_MODEL);
+  for (const r of Object.values(ROLE_LOOK)) s.add(r.model);
+  for (const e of Object.values(ENEMY_MODEL)) s.add(e.model);
+  s.add(TERRAIN.flat);
+  s.add(TERRAIN.block);
+  s.add(TERRAIN.slope);
+  s.add(TERRAIN.oreRock);
+  for (const m of [...TERRAIN.trees, ...TERRAIN.rocks, ...TERRAIN.small, ...TERRAIN.camp]) s.add(m);
+  for (const p of Object.values(BELT_MODELS)) s.add(p.model);
+  for (const m of ['factory/pipe-large', 'factory/structure-short', 'factory/structure-medium', 'factory/structure-tall', 'factory/box-small', 'weapons/bullet-foam', 'factory/arrow']) s.add(m);
+  return [...s];
+}

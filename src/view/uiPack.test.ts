@@ -11,7 +11,7 @@ describe('UI Pack', () => {
     expect(urls.length).toBeGreaterThan(8);
     for (const u of urls) expect(existsSync(resolve(dir, u)), u).toBe(true);
   });
-  it('index.html enlaza la hoja de estilos', () => {
-    expect(readFileSync(resolve(__dirname, '../../index.html'), 'utf8')).toContain('assets/ui-pack/ui-pack.css');
+  it('la página del juego enlaza la hoja de estilos', () => {
+    expect(readFileSync(resolve(__dirname, '../../vista3d.html'), 'utf8')).toContain('assets/ui-pack/ui-pack.css');
   });
 });

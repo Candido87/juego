@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Game } from '../game/game';
 import { Ore } from '../game/types';
-import { DECOR, DECOR_SPRITES, decorFree, generateDecor, terrainTint, tintNoise } from './decor';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { DECOR, decorFree, generateDecor, terrainTint, tintNoise } from './decor';
 
 describe('decoración procedural', () => {
   const g = new Game({ seed: 7 });
@@ -38,10 +36,5 @@ describe('decoración procedural', () => {
     const set = new Set<number>();
     for (let i = 0; i < 400; i += 3) set.add(terrainTint(n, i, i * 0.7));
     expect(set.size).toBeGreaterThan(5);
-  });
-
-  it('las imágenes de los árboles y rocas existen en los 4 giros', () => {
-    for (const [pack, name] of Object.values(DECOR_SPRITES))
-      for (const r of 'NESW') expect(existsSync(resolve(__dirname, `../../public/assets/${pack === 'base' ? 'sketch-town' : 'sketch-town-expansion'}/Tiles/${name}_${r}.png`)), name).toBe(true);
   });
 });

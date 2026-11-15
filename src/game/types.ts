@@ -82,6 +82,7 @@ export const BUILD_KINDS = [
   'wall_wood',
   'wall_stone',
   'wall_metal',
+  'wall_gate',
 ] as const;
 export type BuildKind = (typeof BUILD_KINDS)[number];
 export type BuildingKind = 'core' | BuildKind;

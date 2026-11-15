@@ -130,6 +130,33 @@ interface QueuedSpawn {
   spawn: Tile;
 }
 
+/** Estado guardable de una partida (ver `Game.exportState`). */
+export interface GameState {
+  time: number;
+  wave: number;
+  nextWaveIn: number;
+  gameOver: boolean;
+  coreHp: number;
+  storage: Bag;
+  stats: Game['stats'];
+  foodDebt: number;
+  hungry: boolean;
+  hungerTime: number;
+  growthRole: NpcRole | null;
+  growthTimer: number;
+  unlockedBuildings: BuildKind[];
+  unlockedRecipes: string[];
+  bonus: Game['bonus'];
+  turretLevel: Game['turretLevel'];
+  nextId: number;
+  acc: number;
+  queue: QueuedSpawn[];
+  buildings: Building[];
+  npcs: Npc[];
+  enemies: Enemy[];
+  jobs: ReturnType<JobBoard['exportState']>;
+}
+
 export class Game {
   readonly world: World;
   readonly spawns: Tile[];
@@ -231,7 +258,8 @@ export class Game {
   npcPassable(x: number, y: number): boolean {
     if (!inBounds(this.world, x, y)) return false;
     const b = this.buildingAt(x, y);
-    return !b || !this.isSolid(b);
+    // La puerta es sólida para los enemigos (la rodean o la rompen) pero la colonia la cruza.
+    return !b || !this.isSolid(b) || b.kind === 'wall_gate';
   }
 
   /** ¿Está la casilla pegada (4 vecinos) a la huella del edificio, o dentro si no es sólido? */
@@ -646,6 +674,80 @@ export class Game {
       this.gameOver = true;
       this.emit({ type: 'gameOver' });
     }
+  }
+
+  // ---------------------------------------------------------------- guardado
+
+  /** Todo lo que cambia durante la partida (el mundo no: sale de la semilla). Es JSON puro; ver `savegame.ts`. */
+  exportState(): GameState {
+    const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+    return copy({
+      time: this.time,
+      wave: this.wave,
+      nextWaveIn: this.nextWaveIn,
+      gameOver: this.gameOver,
+      coreHp: this.coreHp,
+      storage: this.storage,
+      stats: this.stats,
+      foodDebt: this.foodDebt,
+      hungry: this.hungry,
+      hungerTime: this.hungerTime,
+      growthRole: this.growthRole,
+      growthTimer: this.growthTimer,
+      unlockedBuildings: [...this.unlockedBuildings],
+      unlockedRecipes: [...this.unlockedRecipes],
+      bonus: this.bonus,
+      turretLevel: this.turretLevel,
+      nextId: this.nextId,
+      acc: this.acc,
+      queue: this.queue,
+      buildings: [...this.buildings.values()],
+      npcs: this.npcs,
+      enemies: this.enemies,
+      jobs: this.jobs.exportState(),
+    });
+  }
+
+  /** Restaura un estado guardado sobre una partida recién creada con el mismo mundo. */
+  importState(s: GameState): void {
+    const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+    const st = copy(s);
+    this.time = st.time;
+    this.wave = st.wave;
+    this.nextWaveIn = st.nextWaveIn;
+    this.gameOver = st.gameOver;
+    this.coreHp = st.coreHp;
+    for (const k of Object.keys(this.storage)) delete (this.storage as Record<string, number>)[k];
+    Object.assign(this.storage, st.storage);
+    Object.assign(this.stats, st.stats);
+    this.foodDebt = st.foodDebt;
+    this.hungry = st.hungry;
+    this.hungerTime = st.hungerTime;
+    this.growthRole = st.growthRole;
+    this.growthTimer = st.growthTimer;
+    this.unlockedBuildings.clear();
+    st.unlockedBuildings.forEach((k) => this.unlockedBuildings.add(k));
+    this.unlockedRecipes.clear();
+    st.unlockedRecipes.forEach((k) => this.unlockedRecipes.add(k));
+    Object.assign(this.bonus, st.bonus);
+    Object.assign(this.turretLevel, st.turretLevel);
+    this.nextId = st.nextId;
+    this.acc = st.acc;
+    this.queue = st.queue;
+    this.buildings.clear();
+    this.owner.fill(-1);
+    for (const b of st.buildings) {
+      // El núcleo es un objeto fijo de la partida: se sobrescribe en lugar de sustituirlo.
+      const target = b.kind === 'core' ? Object.assign(this.core, b) : b;
+      this.buildings.set(target.id, target);
+      for (let dy = 0; dy < target.d; dy++) for (let dx = 0; dx < target.w; dx++) this.owner[(target.y + dy) * this.world.w + target.x + dx] = target.id;
+    }
+    this.npcs = st.npcs;
+    this.enemies = st.enemies;
+    this.jobs.importState(st.jobs);
+    this.events = [];
+    this.gridDirty = true;
+    this.recomputeFlow();
   }
 
   // ---------------------------------------------------------------- interno

@@ -113,3 +113,28 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [ ] H5. Cadena completa a defensa, orden/tiempos con `npm run sim` (el bot usa cintas, energía y tuberías).
 - Gráficos (murallas/interfaz/terreno) van en su propia sesión.
 - H5 parcial: `npm run sim` usa el bot de la guía (cintas, postes, bomba y tuberías) junto al bot sencillo, pero ahora **pierde en las oleadas 7-8** (antes sobrevivía 10 min). Pendiente: equilibrar la economía tras la guía (bastidores/engranajes). No verificado en pantalla: flechas de puertos, ruta de ejemplo y alcance de postes.
+
+
+## Vista 3D (rama `vista-3d`, prototipo, no se mezcla con `main`)
+- [x] 3D-0. Inventario de packs 3D, copia a `public/assets/3d/`, `ASSETS.md`/`CREDITS.md` y propuesta de mapa de uso. **Parado a la espera del visto bueno.**
+- [x] 3D-1. Three.js (`vista3d.html`, `src/view3d/`): cámara isométrica con giro de 90°, zoom y arrastre; terreno con bloques/rampas/rocas/árboles (Nature Kit); edificios, cintas y tuberías con conexión por vecinos; NPC y enemigos animados; torretas con cañón que apunta. Lee el mismo `Game`.
+- [x] 3D-2. Rendimiento: terreno por chunks, edificios estáticos y objetos de cinta instanciados, descarte y presupuesto de personajes animados; mediciones en SPEC.md (1500 edificios + 300 enemigos: 47 → 73 FPS; 1500 enemigos: 15 → 43 FPS).
+- [x] 3D-3. Comparación honesta con la vista 2D en `SPEC.md` (aspecto, rendimiento, trabajo que queda, qué se reaprovecha y riesgos).
+
+## Migración a 3D (rama `vista-3d`; terminada: la 2D se retiró al llegar a paridad, ver `PARIDAD.md`)
+- [x] M3D-0. `PARIDAD.md` con todo lo que hace la 2D y su estado en 3D; vista 2D congelada. **Parado para enseñar PARIDAD.md.**
+- [x] M3D-1. Interfaz HTML/CSS compartida y sin Phaser conectada a la 3D: HUD, menú por categorías con tooltips, almacén, NPCs, trabajos, ficha, recetas, ayuda, opciones, pausa, fin de partida, quitar, pintar cintas, zoom al cursor. Sin solapamientos.
+- [x] M3D-2. Aspecto y legibilidad: paleta corregida (hierba verde, zonas por recurso), contorno de objetos, transparencia de lo que tapa el cursor o la selección, marca de personajes tapados, clic en el cuerpo del edificio.
+- [x] M3D-3. Construcción y logística: murallas con esquinas, T, cruces, daño y puerta (edificio nuevo `wall_gate`); cintas con T y cruce; tuberías con codos; cables y alcance de postes; alcance de torretas; flechas de puertos; iconos de estado.
+- [x] M3D-4. Unidades y efectos: NPCs por rol que andan, esperan, trabajan y enseñan su carga; enemigos que atacan, se ralentizan, arden y caen al morir; torretas con niveles, estados y accesorio propio; un proyectil por tipo; humo de chimeneas y de daño, explosiones y barras de vida.
+- [x] M3D-5. Guía y tutorial en 3D con ayudas sobre el mapa, guardado/carga y autoguardado, Electron abre la vista 3D.
+- [x] M3D-6. Rendimiento y compatibilidad: calidad auto/baja/media/alta en las opciones (`quality.ts`, se aplica en caliente; la automática baja sola con FPS bajos), aviso si no hay WebGL2 o se pierde el contexto gráfico, mediciones por nivel en SPEC.md (`__benchQuality`). Sin probar en gráfica integrada ni en Electron.
+- [x] M3D-7. Cierre. (a) Paridad completa: las 15 líneas que quedaban en parcial o pendiente pasan a hecho (zonas y decoración con las reglas de `decor.ts`, apariciones y ruta de enemigos, desgaste, falta de red, cintas paradas, barra de obra, temblor de cámara, formas de objetos en cintas, miniaturas de modelos en el menú, galería `?galeria=1`, modelos propios para poste, batería, alimentador y casa, prueba en Electron). (b) Borrados Phaser, `src/main.ts`, la escena 2D y sus galerías, `iso.ts` y los sprites de Sketch Town y Tiny Dungeon. (c) `CLAUDE.md`, README, SPEC y pull request.
+
+## Rediseño de las torretas 3D (rama `vista-3d`; sólo capa visual)
+- [x] TR0. Referencia 2D (tag `v-2d-final`), capturas en `docs/torretas/`, qué falla y reglas de diseño en SPEC.md.
+- [x] TR1. Torreta de balas de referencia (`turrets3d.ts`, galería `/galeria-torretas.html`, capturas comparadas en `docs/torretas/`). **Parado: esperando visto bueno antes de seguir con TR2.**
+- [ ] TR2. Láser y fuego.
+- [ ] TR3. Misil (sólo galería: la lógica no lo tiene) y hielo.
+- [ ] TR4. Niveles, estados y animaciones.
+- [ ] TR5. Efectos de disparo por tipo y pulido a zoom alejado.
