@@ -48,7 +48,17 @@ export function iconHtml(frame: number | undefined, size = 20): string {
 
 /** Icono de un edificio: casilla del pack o, si no hay, uno generado por código. */
 const genCache = new Map<string, string>();
+const modelIcons = new Map<BuildKind, string>();
+/** Miniaturas de los modelos 3D (data URL por edificio): si existen, sustituyen a los iconos del pack en el menú. */
+export function setToolIcons(icons: Partial<Record<BuildKind, string>>): void {
+  for (const [k, url] of Object.entries(icons)) if (url) modelIcons.set(k as BuildKind, url);
+}
 export function toolIcon(kind: BuildKind, size = 20): string {
+  const model = modelIcons.get(kind);
+  if (model) {
+    const s = Math.round(size * 1.4);
+    return `<img src="${model}" width="${s}" height="${s}" style="vertical-align:middle;margin:-4px 3px -4px -2px">`;
+  }
   if (TOOL_ICONS[kind] !== undefined) return iconHtml(TOOL_ICONS[kind], size);
   const spec = GENERATED_ICONS[kind];
   if (!spec) return '';

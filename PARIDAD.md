@@ -7,7 +7,7 @@ Rama de trabajo: `vista-3d`. Entrada 3D: `vista3d.html` + `src/view3d/`. Entrada
 
 **Vista 2D congelada:** desde hoy `src/view/` sólo recibe correcciones graves. Todo lo nuevo que se vea va a `src/view3d/`.
 
-Resumen: **83 hecho · 10 parcial · 5 pendiente · 2 no existe** (100 líneas).
+Resumen: **98 hecho · 0 parcial · 0 pendiente · 3 no existe** (101 líneas). Paridad alcanzada: la vista 2D se retira en la Fase 7.
 
 ## Hallazgos al inventariar (cambian el plan)
 - **(Fase 1 hecha)** La interfaz es una sola para las dos vistas: `vista3d.html` usa `src/view/ui.ts`, `tooltip.ts` y `guia.ts`, que ya no importan Phaser (hay un test que lo vigila).
@@ -28,8 +28,9 @@ Resumen: **83 hecho · 10 parcial · 5 pendiente · 2 no existe** (100 líneas).
 | 1.3 | Pantalla "El núcleo ha caído" + Nueva partida | hecho | recarga con semilla nueva |
 | 1.4 | Adelantar oleada (con aviso si no hay torretas) | hecho |  |
 | 1.5 | Menú principal | no existe | |
-| 1.6 | Opciones (calidad, sombras, volumen) | parcial | panel de opciones 3D: calidad gráfica (auto, baja, media, alta), sombras, contorno, velocidad y rendimiento, guardadas; falta volumen (el juego no tiene sonido) |
+| 1.6 | Opciones (calidad, sombras) | hecho | calidad gráfica (auto, baja, media, alta), sombras, contorno, velocidad y rendimiento, guardadas. El volumen pasa a la línea 1.8: el juego no tiene sonido |
 | 1.7 | Guardado/carga y autoguardado | hecho | guardado manual y autoguardado (cada minuto y al cerrar); desde las opciones o con `?load=auto|manual`; al abrir con una partida viva se pregunta Continuar o Nueva; la guía viaja con el guardado |
+| 1.8 | Sonido y volumen | no existe | ni la 2D ni la 3D tienen sonido; cuando lo haya, el volumen va en Opciones |
 
 ## 2. HUD
 | # | Función en 2D | Estado | Nota |
@@ -48,7 +49,7 @@ Resumen: **83 hecho · 10 parcial · 5 pendiente · 2 no existe** (100 líneas).
 | 3.1 | Categorías con pestañas (`menu.ts`, `descripciones.ts`) | hecho |  |
 | 3.2 | Cambiar de categoría con Q/E y con la rueda sobre el menú | hecho | Q/E siguen siendo categorías; la cámara gira con Z/C |
 | 3.3 | Teclas 1–9 para elegir edificio | hecho |  |
-| 3.4 | Iconos por edificio | parcial | se reutilizan los iconos 2D de Tiny Factory; faltan miniaturas de los modelos |
+| 3.4 | Iconos por edificio | hecho | miniaturas de los propios modelos 3D, dibujadas al arrancar (`View3D.thumbnails`); roles y trabajos siguen con los iconos del pack |
 | 3.5 | Tooltips de edificio (coste, descripción, requisitos) | hecho |  |
 | 3.6 | Edificios bloqueados/no asequibles marcados | hecho |  |
 | 3.7 | Girar pieza (R) con flecha de dirección | hecho |  |
@@ -80,7 +81,7 @@ Resumen: **83 hecho · 10 parcial · 5 pendiente · 2 no existe** (100 líneas).
 | 5.3 | Selección de casilla con relieve | hecho | `pick.ts` |
 | 5.4 | Seleccionar edificio con contorno | hecho | marca la huella entera |
 | 5.5 | Semitransparencia de lo que tapa | hecho | trama de transparencia en un círculo alrededor del cursor (al construir) y del edificio seleccionado; vale también para árboles |
-| 5.6 | Temblor de cámara al golpear el núcleo | pendiente | |
+| 5.6 | Temblor de cámara al golpear el núcleo | hecho | sacudida corta (0,14 s) que se apaga sola |
 | 5.7 | Giro de cámara en pasos de 90° | hecho | nuevo en 3D |
 | 5.8 | Contorno oscuro de objetos y escalones | hecho | nuevo en 3D; pase de bordes por profundidad, con interruptor en Opciones |
 | 5.9 | Personajes visibles cuando algo los tapa | hecho | disco de color (azul NPC, rojo enemigo) que sólo aparece si están ocultos |
@@ -90,30 +91,30 @@ Resumen: **83 hecho · 10 parcial · 5 pendiente · 2 no existe** (100 líneas).
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
 | 6.1 | Relieve por niveles con laterales | hecho | |
-| 6.2 | Zonas de terreno (hierba, tierra, roca, arena) | parcial | hierba verde con tinte de suelo por recurso y variación por casilla; faltan arena y roca como zonas propias |
+| 6.2 | Zonas de terreno (hierba, tierra, roca, arena) | hecho | arena o tierra seca, hierba y roca con transición continua (mismo ruido y umbrales que `decor.ts`); los yacimientos conservan su color |
 | 6.3 | Yacimientos marcados por tipo | hecho | suelo teñido por recurso más piedras de color |
-| 6.4 | Árboles y decoración procedural con semilla y regla de bloqueo | parcial | hay árboles y rocas; sin las reglas de `decor.ts` |
-| 6.5 | Puntos de aparición de enemigos marcados | pendiente | |
-| 6.6 | Ruta prevista de los enemigos | pendiente | |
+| 6.4 | Árboles y decoración procedural con semilla y regla de bloqueo | hecho | sale de `generateDecor` (`decor.ts`): por semilla, nunca sobre menas, junto al núcleo, en las apariciones ni en el pasillo hasta el núcleo; se esconde bajo toda la huella del edificio |
+| 6.5 | Puntos de aparición de enemigos marcados | hecho | bandera roja y disco en el suelo (`threat3d.ts`) |
+| 6.6 | Ruta prevista de los enemigos | hecho | un punto rojo por casilla desde cada aparición; se rehace cuando la lógica recalcula los caminos |
 
 ## 7. Edificios y logística
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
-| 7.1 | Un aspecto por cada edificio (25 tipos + núcleo) | parcial | todos tienen modelo; varios son provisionales |
-| 7.2 | Obra en curso (transparente, progreso) | parcial | falta barra de progreso |
+| 7.1 | Un aspecto por cada edificio (25 tipos + núcleo) | hecho | poste, batería, alimentador y casa ya no comparten modelo con otros (poste y batería hechos con figuras simples); se revisan todos en `?galeria=1` |
+| 7.2 | Obra en curso (transparente, progreso) | hecho | transparente, crece con la obra y lleva barra azul de progreso |
 | 7.3 | Marcado para desmontar | hecho | icono ✕ rojo sobre el edificio |
 | 7.4 | Cintas rectas y curvas | hecho | orientación comprobada a ojo |
 | 7.5 | Cintas con cruces y empalmes | hecho | T y cruce elegidos por las entradas; giro calculado con los lados abiertos de cada modelo (con tests) |
-| 7.6 | Objetos sobre las cintas | parcial | cubos de color, sin icono de objeto |
-| 7.7 | Cinta parada sin energía (modo manual) | pendiente | |
+| 7.6 | Objetos sobre las cintas | hecho | forma por familia (terrón, tronco, losa, disco, cilindro, caja) y color del objeto, como en la 2D |
+| 7.7 | Cinta parada sin energía (modo manual) | hecho | cinta apagada con piloto rojo intermitente y aviso en el texto de la casilla |
 | 7.8 | Tuberías con curvas, T y cruces | hecho | tramo recto, o medios tramos con codo central para curva, T y cruz; el líquido no se ve |
 | 7.9 | Cables entre postes | hecho | cable con caída entre postes enlazados |
 | 7.10 | Alcance de los postes | hecho | al seleccionar un poste y al colocar postes o edificios eléctricos |
 | 7.11 | Flechas de puertos de entrada/salida (`puertos.ts`) | hecho | flecha llena = salida, tenue = entrada; amarillo sólidos, celeste líquidos; en selección, al pasar el ratón y al colocar |
 | 7.12 | Icono de lo que produce y aviso de estado sobre la fábrica | hecho | icono con el color del objeto si produce; aviso si no |
-| 7.13 | Sin energía / sin gasolina / sin material | parcial | fábrica (sin receta, falta material, salida llena, poca energía), generador sin combustible y torreta sin munición; falta el aviso general de "sin conexión a la red" |
+| 7.13 | Sin energía / sin gasolina / sin material | hecho | se añade el aviso de "sin conexión a la red" (cuando ya existe alguna red o el edificio no hace nada sin energía); el texto del aviso sale al pasar el ratón |
 | 7.14 | Barras de vida de edificios dañados | hecho | barra naranja sobre el edificio; los muros no la llevan (ya tienen estados de daño) |
-| 7.15 | Desgaste y mantenimiento (condición) | pendiente | |
+| 7.15 | Desgaste y mantenimiento (condición) | hecho | icono de engranaje: amarillo desgastado (rinde la mitad), rojo averiado; el porcentaje sigue en la ficha |
 
 ## 8. Murallas
 | # | Función en 2D | Estado | Nota |
@@ -165,9 +166,9 @@ Resumen: **83 hecho · 10 parcial · 5 pendiente · 2 no existe** (100 líneas).
 ## 13. Plataforma
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
-| 13.1 | Electron: ventana, F11, empaquetado e instalador | parcial | `electron/main.cjs` abre `vista3d.html` (variable `ELECTRON_PAGE` para volver a la 2D); F11 y empaquetado sin cambios; no probado en una ventana de Electron |
+| 13.1 | Electron: ventana, F11, empaquetado e instalador | hecho | probado con `ELECTRON_SMOKE` (abre el build por `app://`, captura y resumen: arranca, 144 FPS, sin errores); el instalador `npm run dist` no se ha regenerado en esta fase |
 | 13.2 | Build de Vite con varias páginas | hecho | `vista3d` ya es una entrada |
-| 13.3 | Galerías de pruebas (`galeria-torretas.html`, `terreno-prueba.html`, `tools/`) | parcial | existe `tools/galeria3d.html` |
+| 13.3 | Galerías de pruebas | hecho | `vista3d.html?galeria=1` (todos los edificios y las torretas por nivel, con el código del juego), `?demo=wave` y `tools/galeria3d.html` (modelos sueltos de los packs) |
 | 13.4 | Aviso si no hay WebGL2 | hecho | aviso a pantalla completa con qué hacer (sin WebGL, sólo WebGL1, fallo al arrancar o contexto perdido); `?nowebgl=1` lo simula; sin aceleración por hardware se arranca en calidad baja |
 | 13.5 | Niveles de calidad (bajo, medio, alto) | hecho | `quality.ts`: resolución, suavizado, sombras, contorno, partículas y personajes animados; se cambia en caliente; el modo automático baja un nivel si los FPS se quedan por debajo de 30 durante 5 s |
 | 13.6 | Bot y simulación sin gráficos (`npm run sim`) | hecho | no depende de la vista |

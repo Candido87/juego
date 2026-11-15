@@ -8,14 +8,16 @@ import { Game } from '../game/game';
 import type { GuiaState } from '../game/guia-inicio';
 import { AutoSaver, SaveFile, SaveSlot, gameFromSave, latestSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
 import { createTutorialGame } from '../game/tutorial';
-import { BuildKind, Ore, Tile, dirBetween } from '../game/types';
+import { BUILD_KINDS, BuildKind, Ore, Tile, TurretKind, dirBetween } from '../game/types';
+import { CONFIG } from '../game/config';
 import { generateWorld, heightAt, oreAt } from '../game/world';
-import { getHud, itemName, ui } from '../view/ui';
+import { getHud, itemName, setToolIcons, ui } from '../view/ui';
 import { setupBench, wiggle } from './bench';
 import { Options, loadOptions, saveOptions } from './options';
 import type { GuideAids } from './overlay3d';
 import { QUALITY, QUALITY_LEVELS, QUALITY_NAME, QualityChoice, QualityGovernor, QualityLevel, detectGl, effectiveLevel, glNotice, lowerLevel } from './quality';
 import { OPT_OFF, OPT_ON, View3D } from './scene3d';
+import { STATUS_STYLE, beltStopped, statusIcon } from './status';
 import { TutorialView } from './tutorial3d';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -90,6 +92,31 @@ function demo(game: Game, wave: boolean) {
   put('pole', cx - 2, cy + 5);
   put('pole', cx - 6, cy + 5);
   if (wave) game.callWaveNow();
+}
+
+/**
+ * Galería de modelos (`?galeria=1`): todos los edificios y las torretas en cada nivel, dibujados con el mismo código
+ * que el juego. Sustituye a las galerías de la vista 2D para revisar el aspecto de un vistazo.
+ */
+function showGallery(view: View3D, game: Game): void {
+  const el = document.createElement('div');
+  el.id = 'gallery';
+  const cell = (url: string | undefined, name: string) => `<figure><img src="${url ?? ''}" width="150" height="150" alt=""><figcaption>${name}</figcaption></figure>`;
+  const all = view.thumbnails(300);
+  let html = '<h2>Galería de modelos <button id="galclose">Cerrar</button></h2><h3>Edificios</h3><div class="gal">';
+  for (const k of BUILD_KINDS) html += cell(all[k], game.def(k).name);
+  html += '</div><h3>Torretas por nivel</h3><div class="gal">';
+  const turrets = Object.keys(CONFIG.turrets) as TurretKind[];
+  const before = { ...game.turretLevel };
+  for (let level = 1; level <= CONFIG.turretLevels.maxLevel; level++) {
+    for (const t of turrets) game.turretLevel[t] = level;
+    const imgs = view.thumbnails(300, turrets);
+    for (const t of turrets) html += cell(imgs[t], `${game.def(t).name} · nivel ${level}`);
+  }
+  Object.assign(game.turretLevel, before);
+  el.innerHTML = html + '</div>';
+  document.body.appendChild(el);
+  document.getElementById('galclose')!.onclick = () => el.remove();
 }
 
 /** Pregunta si se continúa la partida guardada o se empieza otra. */
@@ -170,6 +197,7 @@ async function start() {
   const opts = q.get('opt') === '0' ? { ...OPT_OFF } : { ...OPT_ON };
   opts.shadows = q.get('shadows') === '0' ? false : options.shadows;
   if (q.get('chunk')) opts.chunk = Number(q.get('chunk'));
+  opts.seed = seed;
   opts.outline = q.get('outline') === '0' || q.get('opt') === '0' ? false : options.outline;
   let view: View3D;
   try {
@@ -183,11 +211,14 @@ async function start() {
     showGlNotice('lost');
   });
   await view.init((d, t) => ($('load').textContent = `Cargando modelos… ${d}/${t}`));
+  // Iconos del menú de construcción: miniaturas de los propios modelos.
+  setToolIcons(view.thumbnails());
   $('load').remove();
   (window as unknown as { __v3: unknown }).__v3 = { view, game, ui };
   if (bench) setupBench(game, { objects: Number(q.get('objs') ?? 1500), enemies: Number(q.get('enemies') ?? 300) });
   if (bench) view.rig.zoom = Number(q.get('zoom') ?? 0.6);
   if (q.get('demo')) demo(game, q.get('demo') === 'wave');
+  if (q.get('galeria')) showGallery(view, game);
 
   // ---------- interfaz compartida ----------
   const hud = getHud();
@@ -414,7 +445,11 @@ async function start() {
     if (ore !== Ore.None) parts.push(`Recurso: ${ORE_NAMES[ore]}`);
     const b = game.buildingAt(t.x, t.y);
     if (b) parts.push(`${game.def(b.kind).name}${b.built ? '' : ' (obra)'}`);
-    if (b?.kind === 'belt' && b.item) parts.push(itemName(b.item));
+    if ((b?.kind === 'belt' || b?.kind === 'belt_fast') && b.item) parts.push(itemName(b.item));
+    // El aviso que lleva encima el edificio, con palabras.
+    if (b && beltStopped(b)) parts.push('⚠ Cinta parada: sin energía');
+    const st = b ? statusIcon(game, b) : null;
+    if (st && st.type !== 'producing') parts.push(`⚠ ${STATUS_STYLE[st.type].title}`);
     if (ui.tool && ui.tool !== 'remove') {
       const c = game.canPlace(ui.tool, t.x, t.y);
       if (!c.ok) parts.push(`✗ ${c.reason}`);

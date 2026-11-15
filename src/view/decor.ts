@@ -102,6 +102,13 @@ export function terrainTint(noise: (x: number, y: number) => number, x: number, 
   return ZONES[ZONES.length - 1][1];
 }
 
+/** Peso (0..1) de la zona seca/arenosa y de la zona de roca para un valor de ruido; entre ambas, hierba. Mismos umbrales que `ZONES`. */
+export function zoneWeights(n: number): { dry: number; rock: number } {
+  const dry = n < ZONES[1][0] ? 1 - n / ZONES[1][0] : 0;
+  const rock = n > ZONES[2][0] ? Math.min(1, (n - ZONES[2][0]) / (ZONES[3][0] - ZONES[2][0])) : 0;
+  return { dry: Math.max(0, dry), rock: Math.max(0, rock) };
+}
+
 export const tintNoise = (seed: number) => valueNoise(mulberry32((seed ^ 0x7177) >>> 0));
 
 /** Imágenes de Sketch Town que usa la decoración: [paquete, nombre]. Cada una en sus 4 giros. */

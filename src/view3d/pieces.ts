@@ -77,3 +77,18 @@ export function armsFor(mask: number, fallbackAxis: 0 | 1 = 0, hubOnEnds = false
   if (dirs.length === 2 && norm(dirs[0] + 2) === dirs[1]) return { arms: [], hub: false, straightAxis: (dirs[0] % 2) as 0 | 1 };
   return { arms: dirs, hub: true, straightAxis: null };
 }
+
+/** Forma con la que se dibuja cada objeto sobre una cinta (el color lo da el objeto). */
+export type ItemShape = 'lump' | 'log' | 'slab' | 'disc' | 'shell' | 'crate';
+export const ITEM_SHAPES: ItemShape[] = ['lump', 'log', 'slab', 'disc', 'shell', 'crate'];
+const SHAPE_OF: Record<string, ItemShape> = {
+  iron_ore: 'lump', copper_ore: 'lump', coal: 'lump', stone: 'lump', sulfur: 'lump',
+  wood: 'log', pipe: 'log',
+  iron_plate: 'slab', copper_plate: 'slab', brick: 'slab', wall_plate: 'slab', circuit: 'slab', frame: 'slab',
+  gear: 'disc', wire: 'disc',
+  ammo: 'shell', battery: 'shell', gun_part: 'shell', science_1: 'shell', science_2: 'shell',
+};
+/** Menas en terrón, madera en tronco, placas en losa, engranajes en disco, munición y pilas en cilindro; el resto en caja. */
+export function itemShape(item: string): ItemShape {
+  return SHAPE_OF[item] ?? 'crate';
+}

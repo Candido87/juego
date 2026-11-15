@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../game/config';
 import { Building, Enemy, Game } from '../game/game';
-import { DX, DY, Dir, BuildKind, EnemyKind, ItemId, TurretKind, WallKind } from '../game/types';
+import { BUILD_KINDS, DX, DY, Dir, BuildKind, EnemyKind, ItemId, TurretKind, WallKind } from '../game/types';
 import { heightAt, heightAtPoint } from '../game/world';
 import { ROLE_LOOK, TURRET_COLOR, TurretState, carried, enemyLook, npcAnim, smokeSources, turretLook, turretState } from './actors';
 import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, TURRET_GUN, allModels } from './catalog';
@@ -16,7 +16,10 @@ import { animations, instance, preload, tint } from './loader';
 import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
 import { GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
-import { armsFor, beltPiece, maskOf, quarterYaw, yawToDir } from './pieces';
+import { ITEM_SHAPES, ItemShape, armsFor, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
+import { ITEM_COLORS } from '../view/itemColors';
+import { beltStopped } from './status';
+import { ThreatMarks } from './threat3d';
 import { QUALITY, QualityPreset } from './quality';
 import { Terrain, buildTerrain } from './terrain';
 
@@ -33,12 +36,27 @@ export interface ViewOptions {
   shadows: boolean;
   /** Contorno oscuro en siluetas y escalones. */
   outline: boolean;
+  /** Semilla del mapa: de ella salen las zonas de terreno y la decoración (por defecto 7). */
+  seed?: number;
 }
 export const OPT_ON: ViewOptions = { batch: true, cull: true, chunk: 32, shadows: true, outline: true };
 export const OPT_OFF: ViewOptions = { batch: false, cull: false, chunk: 0, shadows: true, outline: false };
 /** Grosor de las tuberías respecto al modelo (1 = ocupa la casilla entera). */
 const PIPE_T = 0.7;
 const FAST_TINT = 0xbfe0ff;
+/** Cinta parada por falta de energía: se ve apagada. */
+const BELT_OFF_TINT = 0x6f7480;
+/** Segundos de temblor de cámara cuando golpean el núcleo. */
+const SHAKE_TIME = 0.14;
+/** Geometría de cada forma de objeto sobre las cintas y altura de su centro sobre la cinta. */
+const ITEM_GEO: Record<ItemShape, { geo: THREE.BufferGeometry; y: number }> = {
+  lump: { geo: new THREE.DodecahedronGeometry(0.13, 0), y: 0.47 },
+  log: { geo: new THREE.CylinderGeometry(0.065, 0.065, 0.28, 8).rotateZ(Math.PI / 2), y: 0.425 },
+  slab: { geo: new THREE.BoxGeometry(0.28, 0.07, 0.2), y: 0.395 },
+  disc: { geo: new THREE.CylinderGeometry(0.12, 0.12, 0.07, 12), y: 0.395 },
+  shell: { geo: new THREE.CylinderGeometry(0.06, 0.06, 0.2, 8), y: 0.46 },
+  crate: { geo: new THREE.BoxGeometry(0.22, 0.18, 0.22), y: 0.45 },
+};
 const HUB_GEO = new THREE.SphereGeometry(0.5, 8, 6);
 const HUB_MAT = new THREE.MeshStandardMaterial({ color: 0x5f5d78, flatShading: true, roughness: 1, metalness: 0 });
 patchMaterial(HUB_MAT);
@@ -226,7 +244,11 @@ export class View3D {
   private batchDirty = false;
   private batchAge = 0;
   private belts: Building[] = [];
-  private itemMesh: THREE.InstancedMesh | null = null;
+  private itemMeshes = new Map<ItemShape, THREE.InstancedMesh>();
+  private threat: ThreatMarks;
+  /** Piloto rojo en el borde de cada cinta parada por falta de energía. */
+  private beltLamps: THREE.InstancedMesh;
+  private shake = 0;
   private frustum = new THREE.Frustum();
   readonly outline: OutlinePass;
   readonly overlay: Overlay;
@@ -283,11 +305,23 @@ export class View3D {
     this.selMesh.visible = false;
     this.scene.add(this.hoverMesh, this.selMesh);
 
-    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), new THREE.MeshStandardMaterial({ color: 0xffffff }), MAX_ITEMS);
-    im.count = 0;
-    im.frustumCulled = false;
-    this.itemMesh = im;
-    this.scene.add(im);
+    // Objetos sobre las cintas: una malla instanciada por forma (terrón, tronco, losa, disco, cilindro, caja).
+    const itemMat = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true, roughness: 0.9, metalness: 0 });
+    for (const shape of ITEM_SHAPES) {
+      const im = new THREE.InstancedMesh(ITEM_GEO[shape].geo, itemMat, MAX_ITEMS);
+      im.count = 0;
+      im.frustumCulled = false;
+      im.castShadow = true;
+      im.setColorAt(0, new THREE.Color(0xffffff));
+      this.itemMeshes.set(shape, im);
+      this.scene.add(im);
+    }
+    this.beltLamps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.13, 0.07, 0.13), new THREE.MeshBasicMaterial({ color: 0xff3b30 }), MAX_ITEMS);
+    this.beltLamps.count = 0;
+    this.beltLamps.frustumCulled = false;
+    this.scene.add(this.beltLamps);
+    this.threat = new ThreatMarks(game);
+    this.scene.add(this.threat.group);
 
     this.overlay = new Overlay(game, (b) => this.levelTop(b), (b) => this.buildings.get(b.id)?.height ?? 1);
     this.scene.add(this.overlay.group);
@@ -302,12 +336,84 @@ export class View3D {
 
   async init(onProgress?: (d: number, t: number) => void): Promise<void> {
     await preload(allModels(), onProgress);
-    this.terrain = buildTerrain(this.game.world, this.game.core, 7, this.opts.chunk);
+    this.terrain = buildTerrain(this.game.world, this.game.core, this.opts.seed ?? 7, this.opts.chunk, this.game.spawns);
     this.terrain.group.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) m.receiveShadow = true;
     });
     this.scene.add(this.terrain.group);
+  }
+
+  /**
+   * Miniaturas de los modelos para el menú de construcción: dibuja cada edificio aparte, en la misma perspectiva del
+   * juego y con fondo transparente, y devuelve una imagen (data URL) por tipo. Llamar después de `init`.
+   */
+  thumbnails(size = 72, kinds: readonly BuildKind[] = BUILD_KINDS): Partial<Record<BuildKind, string>> {
+    const out: Partial<Record<BuildKind, string>> = {};
+    const r = this.renderer;
+    const rt = new THREE.WebGLRenderTarget(size, size, { samples: 4 });
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x7a8a9a, 1.9));
+    const sun = new THREE.DirectionalLight(0xfff2d8, 2.2);
+    sun.position.set(3, 6, 2);
+    scene.add(sun);
+    const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 60);
+    const buf = new Uint8Array(size * size * 4);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return out;
+    const img = ctx.createImageData(size, size);
+    // La textura guarda color lineal: se pasa a sRGB (y se deshace el premultiplicado de los bordes suavizados).
+    const srgb = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) {
+      const c = i / 255;
+      srgb[i] = Math.round((c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055) * 255);
+    }
+    const prevColor = r.getClearColor(new THREE.Color());
+    const prevAlpha = r.getClearAlpha();
+    const shadows = r.shadowMap.enabled;
+    r.shadowMap.enabled = false;
+    r.setClearColor(0x000000, 0);
+    HOLES.a.value.set(0, 0, 0, 0);
+    HOLES.b.value.set(0, 0, 0, 0);
+    const box = new THREE.Box3();
+    const center = new THREE.Vector3();
+    const dir = new THREE.Vector3(1, 0.82, 1).normalize();
+    for (const kind of kinds) {
+      const fake = { id: -1, kind, x: 0, y: 0, w: 1, d: 1, dir: 0, built: true, hp: 1, maxHp: 1 } as unknown as Building;
+      const v = this.makeBuilding(fake, `${kind}|0|1|----`);
+      scene.add(v.group);
+      box.setFromObject(v.group).getCenter(center);
+      const half = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 0.3) * 0.92;
+      cam.left = cam.bottom = -half;
+      cam.right = cam.top = half;
+      cam.position.copy(center).addScaledVector(dir, 20);
+      cam.lookAt(center);
+      cam.updateProjectionMatrix();
+      r.setRenderTarget(rt);
+      r.clear();
+      r.render(scene, cam);
+      r.readRenderTargetPixels(rt, 0, 0, size, size, buf);
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const s = ((size - 1 - y) * size + x) * 4;
+          const d = (y * size + x) * 4;
+          const a = buf[s + 3];
+          const k = a > 0 ? 255 / a : 0;
+          for (let c = 0; c < 3; c++) img.data[d + c] = srgb[Math.min(255, Math.round(buf[s + c] * k))];
+          img.data[d + 3] = a;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      out[kind] = canvas.toDataURL();
+      scene.remove(v.group);
+    }
+    r.setRenderTarget(null);
+    r.setClearColor(prevColor, prevAlpha);
+    r.shadowMap.enabled = shadows;
+    rt.dispose();
+    return out;
   }
 
   // ---------- entrada ----------
@@ -396,6 +502,7 @@ export class View3D {
     if (isWallKind(b.kind)) s += `|d${wallDamage(b.hp, b.maxHp)}`;
     if (b.kind in CONFIG.turrets) s += `|L${this.game.turretLevel[b.kind as TurretKind]}`;
     if (b.kind === 'belt' || b.kind === 'belt_fast') {
+      if (beltStopped(b)) s += '|off';
       for (let d = 0; d < 4; d++) {
         const n = this.isKind(b.x + DX[d], b.y + DY[d], ['belt', 'belt_fast']);
         s += n && n.dir === (d + 2) % 4 ? 'i' : '-';
@@ -425,8 +532,9 @@ export class View3D {
     if (kind === 'belt' || kind === 'belt_fast') {
       // Cinta: recta, curva, empalme en T o cruce según por dónde le entran otras cintas.
       const pc = beltPiece(b.dir, on('i'));
-      const o = instance(pc.piece === 'straight' ? parts[0].model : pc.model, 1);
-      if (kind === 'belt_fast' && pc.piece !== 'straight') tint(o, FAST_TINT);
+      const o = instance(pc.piece === 'straight' ? parts[0].model! : pc.model, 1);
+      if (sig.includes('|off')) tint(o, BELT_OFF_TINT);
+      else if (kind === 'belt_fast' && pc.piece !== 'straight') tint(o, FAST_TINT);
       o.rotation.y = quarterYaw(pc.k);
       group.add(o);
       top = 0.4;
@@ -504,6 +612,17 @@ export class View3D {
       top = 1.45;
     } else {
       parts.forEach((p) => {
+        if (!p.model) {
+          // Figura simple: caja o cilindro del tamaño y color indicados.
+          const [sx, sy, sz] = p.size ?? [0.5, 0.5, 0.5];
+          const mesh = new THREE.Mesh(p.prim === 'cyl' ? CYL_GEO : BOX_GEO, p.glow ? glowMat(p.color ?? 0xffffff) : wallMat(p.color ?? 0xffffff));
+          const y0 = p.y ?? (p.stack ? top : 0);
+          mesh.scale.set(sx, sy, sz);
+          mesh.position.set(p.dx ?? 0, y0 + sy / 2, p.dz ?? 0);
+          top = Math.max(top, y0 + sy);
+          group.add(mesh);
+          return;
+        }
         const o = instance(p.model, p.fit);
         if (p.tint) tint(o, p.tint);
         if (p.sy) o.scale.y = p.sy;
@@ -587,7 +706,7 @@ export class View3D {
         if (v) {
           this.scene.remove(v.group);
           if (v.statics) this.batchDirty = true;
-        } else this.terrain.hideDecor(b.x, b.y);
+        } else for (let yy = 0; yy < b.d; yy++) for (let xx = 0; xx < b.w; xx++) this.terrain.hideDecor(b.x + xx, b.y + yy);
         const old = v;
         v = this.makeBuilding(b, sig);
         if (old) v.yaw = old.yaw;
@@ -674,21 +793,36 @@ export class View3D {
 
   /** Objetos sobre las cintas: un solo InstancedMesh con color por instancia. */
   private syncItems(): void {
-    const im = this.itemMesh!;
     const m = new THREE.Matrix4();
     const c = new THREE.Color();
-    let n = 0;
+    for (const im of this.itemMeshes.values()) im.count = 0;
+    let lamps = 0;
     for (const b of this.belts) {
-      if (!b.item || n >= MAX_ITEMS) continue;
+      if (beltStopped(b) && lamps < MAX_ITEMS) {
+        // El piloto va en el borde derecho de la cinta según su sentido.
+        m.makeTranslation(b.x + 0.5 - DY[b.dir] * 0.4, this.levelTop(b) + 0.42, b.y + 0.5 + DX[b.dir] * 0.4);
+        this.beltLamps.setMatrixAt(lamps++, m);
+      }
+      if (!b.item) continue;
+      const shape = itemShape(b.item);
+      const im = this.itemMeshes.get(shape)!;
+      const n = im.count;
+      if (n >= MAX_ITEMS) continue;
       const t = Math.min(1, Math.max(0, b.beltProgress)) - 0.5;
-      m.makeTranslation(b.x + 0.5 + DX[b.dir] * t, this.levelTop(b) + 0.45, b.y + 0.5 + DY[b.dir] * t);
+      // Troncos y losas van a lo largo de la cinta.
+      m.makeRotationY(b.dir % 2 === 0 ? 0 : Math.PI / 2).setPosition(b.x + 0.5 + DX[b.dir] * t, this.levelTop(b) + ITEM_GEO[shape].y, b.y + 0.5 + DY[b.dir] * t);
       im.setMatrixAt(n, m);
-      im.setColorAt(n, c.setHex(ITEM_COLOR[b.item] ?? 0xffffff));
-      n++;
+      im.setColorAt(n, c.setHex(ITEM_COLOR[b.item] ?? ITEM_COLORS[b.item] ?? 0xffffff));
+      im.count = n + 1;
     }
-    im.count = n;
-    im.instanceMatrix.needsUpdate = true;
-    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    this.beltLamps.count = lamps;
+    this.beltLamps.instanceMatrix.needsUpdate = true;
+    // Parpadeo lento para que se vea que es un aviso.
+    (this.beltLamps.material as THREE.MeshBasicMaterial).color.setHex(Math.sin(this.time * 4) > -0.3 ? 0xff3b30 : 0x7a1a16);
+    for (const im of this.itemMeshes.values()) {
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    }
   }
 
   private aimTurret(b: Building, v: BView, dt: number): void {
@@ -990,6 +1124,7 @@ export class View3D {
         const c = this.game.core;
         const h = this.buildings.get(c.id)?.height ?? 1.5;
         fx.pop(c.x + c.w / 2, this.levelTop(c) + h * 0.6, c.y + c.d / 2, 0xff4040, 1.1);
+        this.shake = SHAKE_TIME;
       }
       if (ev.type !== 'shot') continue;
       const v = this.buildings.get(ev.towerId);
@@ -1016,7 +1151,12 @@ export class View3D {
   /** Humo de chimeneas y de edificios dañados, y barras de vida de los edificios tocados. */
   private syncBuildingFx(dt: number): void {
     for (const b of this.game.buildings.values()) {
-      if (!b.built) continue;
+      if (!b.built) {
+        // Obra en curso: barra azul de progreso sobre el edificio a medio levantar.
+        this.sphere.center.set(b.x + b.w / 2, this.levelTop(b) + 1, b.y + b.d / 2);
+        if (this.frustum.intersectsSphere(this.sphere)) this.fx.bar(b.x + b.w / 2, this.levelTop(b) + (this.buildings.get(b.id)?.height ?? 1) + 0.45, b.y + b.d / 2, b.progress, 0.5 + 0.2 * b.w, 0x6fd3ff);
+        continue;
+      }
       const hurt = b.hp < b.maxHp && !isWallKind(b.kind);
       const src = smokeSources(b);
       if (!hurt && !src.length) continue;
@@ -1189,6 +1329,13 @@ export class View3D {
     const p = this.rig.position(100);
     this.camera.position.set(p.x, p.y, p.z);
     this.camera.lookAt(this.rig.x, 0, this.rig.z);
+    // Temblor al golpear el núcleo: sacudida corta en el plano de la pantalla, que se apaga sola.
+    if (this.shake > 0) {
+      this.shake = Math.max(0, this.shake - dt);
+      const a = hh * 0.014 * (this.shake / SHAKE_TIME);
+      this.camera.translateX((Math.random() * 2 - 1) * a);
+      this.camera.translateY((Math.random() * 2 - 1) * a);
+    }
     this.camera.updateMatrixWorld();
     this.sun.position.set(this.rig.x + 25, 50, this.rig.z + 15);
     this.sun.target.position.set(this.rig.x, 0, this.rig.z);
@@ -1209,6 +1356,7 @@ export class View3D {
     this.syncChars(sdt);
     this.syncBuildingFx(sdt);
     this.updateHighlights();
+    this.threat.update();
     this.overlay.update({ guide: this.guide, selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
     this.fx.update(sdt, this.camera);
     this.updateHoles();

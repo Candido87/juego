@@ -10,7 +10,16 @@ import { BELT_MODELS } from './pieces';
 export type ModelId = string;
 
 export interface Part {
-  model: ModelId;
+  /** Modelo de Kenney; si falta, la parte es una figura simple (`prim`). */
+  model?: ModelId;
+  /** Figura simple hecha por código: caja o cilindro de `size` [ancho, alto, fondo] y color `color`. */
+  prim?: 'box' | 'cyl';
+  size?: [number, number, number];
+  color?: number;
+  /** Brilla sola (pilotos, franjas de carga). */
+  glow?: boolean;
+  /** Altura de su base sobre el suelo (si no, 0 o encima de la parte anterior con `stack`). */
+  y?: number;
   /** Lado máximo (en casillas) al que se ajusta el modelo. */
   fit?: number;
   /** Se apila sobre la parte anterior. */
@@ -40,13 +49,27 @@ export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
   pump: [{ model: 'industrial/detail-tank', fit: 0.8 }, { model: 'factory/pipe-large-valve', fit: 0.5, stack: true }],
   refinery: [{ model: 'industrial/detail-tank-large', fit: 0.9 }, { model: 'industrial/chimney-medium', fit: 0.4, dx: 0.3, dz: -0.3 }],
   workshop: [{ model: 'industrial/building-c', fit: 0.95 }],
-  house: [{ model: 'industrial/building-a', fit: 0.95 }],
-  pole: [{ model: 'industrial/chimney-small', fit: 0.3 }],
+  house: [{ model: 'industrial/building-a', fit: 0.95, tint: 0xf4c9a0 }, { model: 'industrial/chimney-small', fit: 0.16, dx: 0.26, dz: -0.26 }],
+  // Poste eléctrico: mástil de madera con cruceta y dos aisladores (el pack no trae ninguno).
+  pole: [
+    { prim: 'box', size: [0.26, 0.1, 0.26], color: 0x8d949c },
+    { prim: 'cyl', size: [0.11, 1.45, 0.11], color: 0x8a5a3a },
+    { prim: 'box', size: [0.74, 0.07, 0.09], color: 0x6c442c, y: 1.22 },
+    { prim: 'cyl', size: [0.08, 0.13, 0.08], color: 0xdfe6ee, y: 1.29, dx: -0.3 },
+    { prim: 'cyl', size: [0.08, 0.13, 0.08], color: 0xdfe6ee, y: 1.29, dx: 0.3 },
+  ],
   generator: [{ model: 'industrial/building-d', fit: 0.8 }, { model: 'factory/cog-a', fit: 0.5, stack: true, spin: true }],
   solar: [{ model: 'industrial/solar-panel-flat', fit: 0.95 }],
   turbine: [{ model: 'industrial/windmill', fit: 0.9 }],
-  accumulator: [{ model: 'industrial/detail-tank', fit: 0.7 }, { model: 'factory/cog-b', fit: 0.3, stack: true }],
-  feeder: [{ model: 'factory/hopper-round', fit: 0.6 }],
+  // Batería: caja con franja de carga encendida y dos bornes.
+  accumulator: [
+    { prim: 'box', size: [0.78, 0.5, 0.56], color: 0x3b4a5c },
+    { prim: 'box', size: [0.8, 0.12, 0.58], color: 0x9be564, glow: true, y: 0.2 },
+    { prim: 'box', size: [0.82, 0.06, 0.6], color: 0x26313f, y: 0.5 },
+    { prim: 'cyl', size: [0.13, 0.13, 0.13], color: 0xd9483b, y: 0.56, dx: -0.2 },
+    { prim: 'cyl', size: [0.13, 0.13, 0.13], color: 0x4a7bd9, y: 0.56, dx: 0.2 },
+  ],
+  feeder: [{ model: 'factory/hopper-round', fit: 0.62, tint: 0xffdc8a }, { model: 'factory/box-small', fit: 0.3, stack: true }],
   turret_bullet: [{ model: 'factory/hopper-round', fit: 0.85 }],
   turret_laser: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xa8d8ff }],
   turret_fire: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xffb080 }],
@@ -91,7 +114,7 @@ export const TERRAIN = {
 /** Todos los modelos que hay que precargar. */
 export function allModels(): ModelId[] {
   const s = new Set<ModelId>();
-  for (const parts of Object.values(BUILDING_PARTS)) for (const p of parts) s.add(p.model);
+  for (const parts of Object.values(BUILDING_PARTS)) for (const p of parts) if (p.model) s.add(p.model);
   for (const g of Object.values(TURRET_GUN)) s.add(g.model);
   s.add(NPC_MODEL);
   for (const r of Object.values(ROLE_LOOK)) s.add(r.model);

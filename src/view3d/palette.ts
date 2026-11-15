@@ -51,3 +51,24 @@ export const ORE_COLOR: Record<number, number> = {
 export const OUTLINE_COLOR = 0x1a2030;
 
 export const rgb = (hex: number): [number, number, number] => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+
+/** Color del suelo de las zonas sin hierba: arena o tierra seca, y roca. */
+export const ZONE_COLOR = { dry: 0xd9c27e, rock: 0x9aa1a8 };
+
+const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const linear = (hex: number): [number, number, number] => rgb(hex).map((v) => toLinear(v / 255)) as [number, number, number];
+
+/**
+ * Multiplicador (en lineal, puede pasar de 1) que convierte el verde de la hierba en el color de la zona:
+ * `dry` y `rock` son pesos 0..1. Con ambos a 0 devuelve [1, 1, 1].
+ */
+export function zoneMultiplier(dry: number, rock: number): [number, number, number] {
+  const g = linear(NATURE_PALETTE.grass);
+  const d = linear(ZONE_COLOR.dry);
+  const r = linear(ZONE_COLOR.rock);
+  return [0, 1, 2].map((i) => {
+    let c = g[i] + (d[i] - g[i]) * dry;
+    c += (r[i] - c) * rock;
+    return c / g[i];
+  }) as [number, number, number];
+}

@@ -1,10 +1,11 @@
 /** Terreno 3D: losas, bloques y rampas del Nature Kit, árboles, rocas y menas, instanciado y troceado en chunks. */
 import * as THREE from 'three';
-import { Ore } from '../game/types';
+import { Ore, Tile } from '../game/types';
+import { DecorKind, generateDecor, tintNoise, zoneWeights } from '../view/decor';
 import { World, heightAt, inBounds } from '../game/world';
 import { TERRAIN } from './catalog';
 import { instanced } from './loader';
-import { GROUND_TINT, ORE_COLOR } from './palette';
+import { GROUND_TINT, ORE_COLOR, zoneMultiplier } from './palette';
 import { LEVEL_H } from './pick';
 
 /** Giro (rad, eje Y) de la rampa para que baje hacia cada dirección 0:+x 1:+z 2:-x 3:-z. El modelo baja hacia -z con giro 0 (comprobado en sus vértices). */
@@ -41,7 +42,25 @@ interface Chunk {
  * `chunk` = lado (en casillas) de cada trozo. Cada trozo es un conjunto de InstancedMesh con su propia
  * esfera de visión, así que Three descarta los que quedan fuera de la cámara. 0 = un solo trozo.
  */
-export function buildTerrain(world: World, coreTile: { x: number; y: number }, seed = 1, chunk = 16): Terrain {
+/** Modelos 3D de cada tipo de decoración de `decor.ts` (se elige uno por casilla) y su escala. */
+const DECOR_MODELS: Record<DecorKind, { models: readonly string[]; scale: number; jitter: number }> = {
+  tree: { models: [TERRAIN.trees[0], TERRAIN.trees[1]], scale: 1, jitter: 0.3 },
+  trees: { models: [TERRAIN.trees[3]], scale: 1.15, jitter: 0.2 },
+  pine: { models: [TERRAIN.trees[2]], scale: 0.95, jitter: 0.3 },
+  pineLarge: { models: [TERRAIN.trees[4]], scale: 1.25, jitter: 0.2 },
+  rock: { models: [TERRAIN.rocks[0], TERRAIN.rocks[1]], scale: 0.8, jitter: 0.3 },
+  rockDirt: { models: [TERRAIN.rocks[2], TERRAIN.rocks[3]], scale: 0.75, jitter: 0.3 },
+  bush: { models: [TERRAIN.small[0]], scale: 1.2, jitter: 0.4 },
+  flower: { models: TERRAIN.small.slice(1), scale: 1.2, jitter: 0.4 },
+};
+
+/**
+ * `spawns` = casillas de aparición de enemigos: ni ellas ni el pasillo hasta el núcleo llevan decoración (reglas de `decor.ts`).
+ */
+export function buildTerrain(world: World, coreTile: { x: number; y: number }, seed = 1, chunk = 16, spawns: Tile[] = []): Terrain {
+  const zone = tintNoise(seed);
+  const decor = new Map<number, { kind: DecorKind; rot: number }>();
+  for (const d of generateDecor(world, seed, coreTile, spawns)) decor.set(d.y * world.w + d.x, d);
   const size = chunk > 0 ? chunk : Math.max(world.w, world.h);
   const chunks = new Map<number, Chunk>();
   const chunkAt = (x: number, y: number): Chunk => {
@@ -66,8 +85,16 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
       const h = heightAt(world, x, y);
       const cx = x + 0.5;
       const cz = y + 0.5;
-      // Tinte del suelo: zona según el recurso y una variación suave por casilla para que no sea un plano liso.
-      const tint = new THREE.Color(GROUND_TINT[world.ore[y * world.w + x]] ?? 0xffffff).multiplyScalar(0.93 + hash2(x, y, seed + 90) * 0.07);
+      // Tinte del suelo: con recurso, el color de su yacimiento; sin él, la zona (hierba, arena o tierra seca, roca) con
+      // transición continua. Una variación suave por casilla evita el plano liso.
+      const oreHere = world.ore[y * world.w + x];
+      const tint = new THREE.Color(GROUND_TINT[oreHere] ?? 0xffffff);
+      if (oreHere === Ore.None) {
+        const zw = zoneWeights(zone(x * 0.07, y * 0.07));
+        const [mr, mg, mb] = zoneMultiplier(zw.dry, zw.rock);
+        tint.setRGB(mr, mg, mb);
+      }
+      tint.multiplyScalar(0.93 + hash2(x, y, seed + 90) * 0.07);
       if (h <= 0) (c.flat.push(place(cx, 0, cz)), c.flatC.push(tint));
       else {
         // Rampa: una sola vecina más baja y las demás iguales o más altas.
@@ -100,10 +127,16 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
           const s = 0.7 + hash2(x, y, 10 + k) * 0.5;
           add(TERRAIN.oreRock, key, place(cx + (hash2(x, y, 20 + k) - 0.5) * 0.7, top, cz + (hash2(x, y, 30 + k) - 0.5) * 0.7, hash2(x, y, 40 + k) * 6.28, s, s, s), ORE_COLOR[o]);
         }
-      } else if (Math.hypot(x - coreTile.x, y - coreTile.y) > 5) {
-        const r = hash2(x, y, seed + 50);
-        if (r < 0.06) add(TERRAIN.small[Math.floor(hash2(x, y, 3) * TERRAIN.small.length)], key, place(cx, top, cz, hash2(x, y, 4) * 6.28, 1.2, 1.2, 1.2));
-        else if (r < 0.085) add(TERRAIN.rocks[Math.floor(hash2(x, y, 8) * TERRAIN.rocks.length)], key, place(cx, top, cz, hash2(x, y, 9) * 6.28, 0.8, 0.8, 0.8));
+      } else {
+        // Decoración con las reglas de la 2D: determinista por semilla, nunca sobre menas, junto al núcleo, en las
+        // apariciones ni en el pasillo aparición → núcleo. No bloquea: se esconde al construir encima.
+        const d = decor.get(y * world.w + x);
+        if (d) {
+          const spec = DECOR_MODELS[d.kind];
+          const model = spec.models[Math.floor(hash2(x, y, seed + 3) * spec.models.length)];
+          const s = spec.scale * (0.85 + hash2(y, x, seed + 4) * 0.3);
+          add(model, key, place(cx + (hash2(x, y, 5) - 0.5) * spec.jitter, top, cz + (hash2(x, y, 6) - 0.5) * spec.jitter, d.rot * (Math.PI / 2) + hash2(x, y, 7) * 0.6, s, s, s));
+        }
       }
     }
   }

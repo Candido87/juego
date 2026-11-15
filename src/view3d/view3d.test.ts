@@ -473,3 +473,57 @@ describe('calidad gráfica y compatibilidad', () => {
     expect(pool.dropped).toBe(0);
   });
 });
+
+describe('cierre de paridad con la 2D', () => {
+  it('desgaste, avería, cinta parada y falta de red tienen aviso', async () => {
+    const { flatGame, instant } = await import('../game/testutil');
+    const { STATUS_STYLE, beltStopped, offGrid, statusIcon } = await import('./status');
+    const { CONFIG } = await import('../game/config');
+    const g = flatGame();
+    // Torreta desgastada y luego averiada.
+    const t = instant(g, 'turret_bullet', 5, 3);
+    expect(statusIcon(g, t)).toBeNull();
+    t.condition = CONFIG.wear.lowThreshold - 0.1;
+    expect(statusIcon(g, t)).toEqual({ type: 'worn' });
+    t.condition = 0;
+    expect(statusIcon(g, t)).toEqual({ type: 'broken' });
+    // Cinta sin energía: parada (se dibuja apagada), sin icono propio.
+    const belt = instant(g, 'belt', 3, 6);
+    belt.power = 0;
+    expect(beltStopped(belt)).toBe(true);
+    expect(statusIcon(g, belt)).toBeNull();
+    belt.power = 1;
+    expect(beltStopped(belt)).toBe(false);
+    // Taladro sin poste: no avisa mientras no haya ninguna red (todo va a mano); avisa en cuanto existe una.
+    const drill = { ...belt, id: 9999, kind: 'drill' as const, built: true };
+    expect(offGrid(g, drill as never)).toBe(false);
+    const nets = g.grid.nets;
+    g.grid.nets = [{ id: 0, poles: [], members: [], production: 0, demand: 0, stored: 0, capacity: 0, sCritical: 1, sNormal: 1 }];
+    expect(offGrid(g, drill as never)).toBe(true);
+    expect(offGrid(g, belt)).toBe(false);
+    g.grid.nets = nets;
+    for (const k of ['nonet', 'worn', 'broken'] as const) expect(STATUS_STYLE[k].title.length).toBeGreaterThan(10);
+  });
+
+  it('las zonas de terreno van de arena a hierba y a roca, y la hierba no se tiñe', async () => {
+    const { zoneWeights } = await import('../view/decor');
+    const { zoneMultiplier } = await import('./palette');
+    expect(zoneWeights(0)).toEqual({ dry: 1, rock: 0 });
+    expect(zoneWeights(0.5)).toEqual({ dry: 0, rock: 0 });
+    expect(zoneWeights(0.95)).toEqual({ dry: 0, rock: 1 });
+    expect(zoneWeights(0.16).dry).toBeCloseTo(0.5, 5);
+    expect(zoneMultiplier(0, 0)).toEqual([1, 1, 1]);
+    const sand = zoneMultiplier(1, 0);
+    const rock = zoneMultiplier(0, 1);
+    // La arena es más roja que la hierba; la roca, más azul.
+    expect(sand[0]).toBeGreaterThan(1.5);
+    expect(rock[2]).toBeGreaterThan(sand[2]);
+  });
+
+  it('cada objeto tiene una forma sobre la cinta', async () => {
+    const { ITEM_SHAPES, itemShape } = await import('./pieces');
+    const { ITEM_IDS } = await import('../game/types');
+    for (const i of ITEM_IDS) expect(ITEM_SHAPES, i).toContain(itemShape(i));
+    expect([itemShape('iron_ore'), itemShape('wood'), itemShape('iron_plate'), itemShape('gear'), itemShape('ammo'), itemShape('food')]).toEqual(['lump', 'log', 'slab', 'disc', 'shell', 'crate']);
+  });
+});
