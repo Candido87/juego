@@ -60,16 +60,50 @@
       #info { display: inline-block; width: 150px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #msg { top: 120px; left: 50%; transform: translateX(-50%); display: none; color: #ffd166; font-size: 15px; }
       #over { inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: rgba(10, 12, 18, 0.7); border: 0; border-radius: 0; font-size: 22px; }
-      #tech { inset: 40px; display: none; overflow: auto; padding: 14px 18px; }
-      #tech .branch { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
-      #tech .bname { width: 100px; color: #98c1d9; font-weight: 600; }
-      #tech .node { width: 150px; min-height: 46px; border-radius: 8px; padding: 6px 8px; border: 2px solid #46505f; background: #232a35; cursor: default; font-size: 12px; }
-      #tech .node.done { border-color: #7dff8a; background: #1f3326; }
-      #tech .node.avail { border-color: #ffd166; cursor: pointer; }
-      #tech .node.avail:hover { background: #3a3424; }
-      #tech .node.locked { opacity: 0.45; }
-      #tech .node.current { border-color: #6fd3ff; }
-      #tech .arrow { color: #46505f; }
+      /* Pantalla de investigación: encima del mapa, sin tapar el menú de construcción ni el HUD de arriba. */
+      #tech { top: calc(var(--hudh, 130px) + 16px); bottom: calc(var(--tbh, 100px) + 16px); left: 16px; right: 16px; display: none; flex-direction: column; padding: 10px 12px; z-index: 8; background: rgba(20, 24, 32, 0.96); }
+      #tech .th { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+      #tech .th h3 { margin: 0 8px 0 0; }
+      #tech .th input[type="search"] { background: #11151c; color: #e8ecf2; border: 1px solid #46505f; border-radius: 5px; padding: 3px 8px; font-size: 12px; width: 230px; }
+      #tech .th select { background: #11151c; color: #e8ecf2; border: 1px solid #46505f; border-radius: 5px; padding: 3px 6px; font-size: 12px; }
+      #tech .th label { font-size: 12px; }
+      #tech .tpts { color: #8b95a5; margin-right: auto; }
+      #tech .thint { color: #ffd166; font-size: 12px; margin-bottom: 4px; display: none; }
+      #tech .tview { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: 6px; background: #151a22; cursor: grab; touch-action: none; }
+      #tech .tcanvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+      #tech .tlane { position: absolute; left: 0; background: rgba(255, 255, 255, 0.035); border-top: 1px solid #2b3340; }
+      #tech .tlane span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 112px; color: #98c1d9; font-weight: 600; font-size: 13px; line-height: 1.2; }
+      #tech .tlane.dim, #tech .tnode.dim { opacity: 0.18; }
+      #tech .tlines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+      #tech .tlines path { fill: none; stroke: #46505f; stroke-width: 2; }
+      #tech .tlines path.on { stroke: #7dff8a; }
+      #tech .tlines path.dim { opacity: 0.15; }
+      #tech .tnode { position: absolute; box-sizing: border-box; border-radius: 8px; padding: 5px 8px; border: 2px solid #46505f; background: #232a35; font-size: 12px; line-height: 1.25; cursor: default; display: grid; grid-template-columns: 26px 1fr; grid-template-rows: auto auto; column-gap: 6px; align-content: center; overflow: hidden; user-select: none; }
+      #tech .tnode .ticon { grid-row: 1 / 3; align-self: center; text-align: center; }
+      #tech .tnode .tname { font-weight: 600; color: #e8ecf2; }
+      #tech .tnode .tcost { color: #8b95a5; }
+      #tech .tnode .tcost b { color: #ffd166; }
+      #tech .tnode .tbar { position: absolute; left: 0; bottom: 0; height: 3px; background: #6fd3ff; width: 0; }
+      #tech .tnode .tstar { display: none; position: absolute; right: 5px; top: 2px; color: #ffd166; font-style: normal; }
+      #tech .tnode.rec .tstar { display: block; }
+      #tech .tnode.rec { outline: 2px dashed #ffd166; outline-offset: 2px; }
+      #tech .tnode.s-done { border-color: #7dff8a; background: #1f3326; }
+      #tech .tnode.s-done .tcost { color: #7dff8a; }
+      #tech .tnode.s-available { border-color: #ffd166; background: #3a3424; cursor: pointer; box-shadow: 0 0 10px rgba(255, 209, 102, 0.35); }
+      #tech .tnode.s-available:hover { background: #4b4128; }
+      #tech .tnode.s-nopoints { border-color: #4a7ba8; }
+      #tech .tnode.s-locked { opacity: 0.45; filter: grayscale(0.7); }
+      #tech .tnode.bought { animation: tbuy 1s ease-out; }
+      @keyframes tbuy { 0% { box-shadow: 0 0 0 0 rgba(125, 255, 138, 0.9); transform: scale(1.12); } 100% { box-shadow: 0 0 0 26px rgba(125, 255, 138, 0); transform: scale(1); } }
+      #tech .ttip { position: absolute; display: none; pointer-events: none; z-index: 3; width: 290px; background: rgba(20, 24, 32, 0.98); border: 1px solid #98c1d9; border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.4; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
+      #tech .ttip .tt-title { font-size: 14px; font-weight: 600; color: #98c1d9; }
+      #tech .ttip .tt-title em { color: #ffd166; font-style: normal; font-size: 11px; }
+      #tech .ttip .tt-sec { margin-top: 5px; }
+      #tech .ttip ul { margin: 2px 0 0; padding-left: 18px; }
+      #tech .ttip .tt-state { margin-top: 6px; padding-top: 5px; border-top: 1px solid #39414f; }
+      #tech .ttip .s-available { color: #ffd166; }
+      #tech .ttip .s-done { color: #7dff8a; }
+      #tech .ttip .s-locked, #tech .ttip .s-nopoints { color: #ff9f7b; }
       #help { top: 84px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100% - 32px)); max-height: calc(100% - var(--tbh, 100px) - 110px); overflow: auto; display: none; z-index: 8; box-sizing: border-box; padding: 12px 16px; }
       #help h3 { display: flex; justify-content: space-between; align-items: center; }
       #help table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
@@ -153,7 +187,7 @@
         <div class="row">
           <button id="callWave">Adelantar oleada</button>
           <button id="pause">Pausa</button>
-          <button id="techBtn">Árbol (T)</button>
+          <button id="techBtn" title="Árbol de tecnología (T)">Investigación (T)</button>
           <button id="helpBtn" title="Ayuda y controles (H)">? Ayuda (H)</button>
           <button id="optBtn" title="Opciones (O)">Opciones (O)</button>
           <button id="rl" title="Girar la cámara a la izquierda (Z)">⟲ Z</button>

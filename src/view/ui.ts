@@ -15,6 +15,7 @@ import { Bag, BuildKind, Dir, FREE_ROLES, ItemId, NPC_ROLES, NpcRole, rotateCW }
 import { demandOf, isElectric } from '../game/power';
 import { ITEM_COLORS } from './itemColors';
 import { TooltipManager } from './tooltip';
+import { TechView } from './arbolView';
 import { GENERATED_ICONS, JOB_ICONS, ROLE_ICONS, TILESHEET, TOOL_ICONS, frameRect } from './sprites';
 
 // ------------------------------------------------------------------ iconos del pack
@@ -224,6 +225,7 @@ export class Hud {
       this.last.clear();
     });
     $('techBtn').style.display = CONFIG.tech.length ? '' : 'none';
+    $('techBtn').addEventListener('click', () => this.toggleTech());
     this.setTool(ui.tool);
   }
 
@@ -233,9 +235,25 @@ export class Hud {
   /** Guía de inicio (avisos y resaltes). */
   readonly guia = new GuiaView();
 
+  /** Pantalla del árbol de tecnología. */
+  readonly tech = new TechView({
+    flash: (m) => this.flash(m),
+    setPaused: (p) => {
+      if (ui.paused !== p) this.togglePause();
+    },
+    icon: (k) => toolIcon(k, 22),
+  });
+
+  /** Abre o cierra la pantalla de investigación (tecla T), sin pausar la partida. */
+  toggleTech(open = !this.tech.isOpen): void {
+    this.tech.toggle(open);
+    $('techBtn').classList.toggle('active', this.tech.isOpen);
+  }
+
   bind(sim: Game) {
     this.sim = sim;
     this.guia.bind(sim);
+    this.tech.bind(sim);
     this.toolsKey = '';
     this.panelTimer = 0;
     ui.selected = null;
@@ -342,6 +360,10 @@ export class Hud {
     this.set('wave', String(sim.wave));
     this.set('next', formatClock(sim.nextWaveIn));
     this.guia.update(sim, dt);
+    this.tech.update(dt);
+    // El botón avisa cuando hay algo que comprar.
+    const buy = sim.recommendedTech();
+    this.set('techBtn', buy && sim.techState(buy) === 'available' ? 'Investigación (T) ★' : 'Investigación (T)');
     this.set('dir', DIR_ARROWS[ui.dir]);
     this.set('info', info);
     $('info').style.visibility = info ? 'visible' : 'hidden';

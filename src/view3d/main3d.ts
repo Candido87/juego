@@ -30,6 +30,7 @@ const HELP_3D: [string, string][] = [
   ['W A S D / flechas', 'Mover la cámara'],
   ...HELP_CONTROLS.slice(3),
   ['O', 'Opciones (calidad gráfica, sombras, velocidad, guardar y cargar, tutorial)'],
+  ['T', 'Investigación: árbol de tecnología (no pausa la partida)'],
 ];
 
 /** Escenario de pruebas visuales: cintas con curva, tuberías, torretas de cada tipo, muros y (opcional) una oleada. */
@@ -401,11 +402,13 @@ async function start() {
     else if (k === 'h') (toggleOptions(false), hud.toggleHelp());
     else if (k === 'o') toggleOptions();
     else if (k === 'escape') {
+      if (hud.tech.isOpen) return hud.toggleTech(false);
       if (optionsOpen()) return toggleOptions(false);
       if (hud.closeHelp()) return;
       hud.setTool(null);
       ui.selected = null;
     } else if (k === 'x') hud.setTool('remove');
+    else if (k === 't') hud.toggleTech();
     else if (k === 'p') hud.togglePause();
     else if (k === 'q') hud.cycleCategory(-1);
     else if (k === 'e') hud.cycleCategory(1);

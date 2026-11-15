@@ -21,6 +21,7 @@ import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
 import { ThreatMarks } from './threat3d';
 import { QUALITY, QualityPreset } from './quality';
+import { techNode } from '../game/tecnologia';
 import { TurretRig, animateRig, buildTurret, scaffold, turretDamage } from './turrets3d';
 import { Terrain, buildTerrain } from './terrain';
 
@@ -1100,7 +1101,7 @@ export class View3D {
       } else if (ev.type === 'npcArrived') this.onMessage('Ha llegado una persona nueva a la colonia');
       else if (ev.type === 'npcLeft') this.onMessage('Alguien se ha marchado por el hambre');
       else if (ev.type === 'wave') this.onMessage(`¡Oleada ${ev.wave}!`);
-      else if (ev.type === 'researched') this.onMessage('Investigación completada');
+      else if (ev.type === 'researched') this.onMessage(`Investigado: ${techNode(ev.id).name}`);
       else if (ev.type === 'kill') fx.pop(ev.x, ground(ev.x, ev.y) + 0.6, ev.y, 0xffd166, 0.6);
       else if (ev.type === 'destroyed') fx.explosion(ev.x + 0.5, ground(ev.x + 0.5, ev.y + 0.5), ev.y + 0.5, 1);
       else if (ev.type === 'coreHit') {
