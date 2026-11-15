@@ -46,7 +46,10 @@ export interface ViewOptions {
 export const OPT_ON: ViewOptions = { batch: true, cull: true, chunk: 32, shadows: true, outline: true };
 export const OPT_OFF: ViewOptions = { batch: false, cull: false, chunk: 0, shadows: true, outline: false };
 /** Grosor de las tuberías respecto al modelo (1 = ocupa la casilla entera). */
-const PIPE_T = 0.7;
+/** Grosor de la tubería (la cinta ocupa casi toda la casilla; la tubería es más fina y lleva bridas en las juntas). */
+const PIPE_T = 0.5;
+/** Tinte de la tubería según el líquido que lleva (sin líquido: sin tinte). */
+const PIPE_LIQUID_TINT: Record<string, number> = { oil: 0x6b4a2a, gasoline: 0xe3cf3a };
 const FAST_TINT = 0xbfe0ff;
 /** Altura de la cara superior de una cinta sobre su casilla (donde va la textura de dirección). */
 const BELT_TOP = 0.4;
@@ -66,6 +69,16 @@ const ITEM_GEO: Record<ItemShape, { geo: THREE.BufferGeometry; y: number }> = {
 const HUB_GEO = new THREE.SphereGeometry(0.5, 8, 6);
 const HUB_MAT = new THREE.MeshStandardMaterial({ color: 0x5f5d78, flatShading: true, roughness: 1, metalness: 0 });
 patchMaterial(HUB_MAT);
+const FLANGE_GEO = new THREE.CylinderGeometry(0.5, 0.5, 0.07, 10).rotateZ(Math.PI / 2);
+const FLANGE_MAT = new THREE.MeshStandardMaterial({ color: 0xaeb0c8, flatShading: true, roughness: 0.8, metalness: 0.1 });
+patchMaterial(FLANGE_MAT);
+/** Las bridas toman el color del líquido (petróleo marrón, gasolina amarilla): se ve de un vistazo qué lleva cada tubería. */
+const FLANGE_BY_LIQUID: Record<string, THREE.Material> = {};
+for (const [k, c] of Object.entries({ oil: 0x9a6330, gasoline: 0xf2e040 })) {
+  const m = new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.7, metalness: 0.1 });
+  patchMaterial(m);
+  FLANGE_BY_LIQUID[k] = m;
+}
 /** Aspecto de cada muro: alto, color del cuerpo y de la albardilla. Son cajas macizas (los modelos del pack eran barandillas). */
 const WALL_STYLE: Record<WallKind, { h: number; color: number; cap: number }> = {
   wall_wood: { h: 0.7, color: 0xa8713f, cap: 0x7d4f2a },
@@ -520,6 +533,7 @@ export class View3D {
         s += n && n.dir === (d + 2) % 4 ? 'i' : '-';
       }
     } else if (b.kind === 'pipeline') {
+      s += `|q${Object.keys(b.inv).find((k) => (b.inv[k as ItemId] ?? 0) > 0) ?? ''}`;
       for (let d = 0; d < 4; d++) s += this.pipeLinked(b.x + DX[d], b.y + DY[d]) ? 'p' : '-';
     } else if (isWallKind(b.kind)) {
       for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], WALL_LINK) ? 'w' : '-';
@@ -559,7 +573,16 @@ export class View3D {
         const o = instance('factory/pipe-large', 1);
         o.scale.set(half ? 0.5 : 1, PIPE_T, PIPE_T);
         o.position.x = half ? 0.25 : 0;
+        const liquid = /\|q(\w*)/.exec(sig)?.[1] ?? '';
+        if (PIPE_LIQUID_TINT[liquid]) tint(o, PIPE_LIQUID_TINT[liquid]);
         holder.add(o);
+        // Bridas en las juntas con la casilla vecina (en el extremo exterior del tramo).
+        for (const sx of half ? [0.47] : [0.47, -0.47]) {
+          const f = new THREE.Mesh(FLANGE_GEO, FLANGE_BY_LIQUID[liquid] ?? FLANGE_MAT);
+          f.position.set(sx, PIPE_T * 0.5, 0);
+          f.scale.set(1, PIPE_T * 1.3, PIPE_T * 1.3);
+          holder.add(f);
+        }
         group.add(holder);
       };
       if (a.straightAxis !== null) seg(a.straightAxis, false);

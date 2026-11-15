@@ -846,3 +846,9 @@ Va **después** de cintas, aéreos y mejoras de edificios (parte C). Reutiliza h
 ### B2 hecho: encaje y previsualización
 - `conectar.ts` (lógica pura): `snapDir` da la orientación de la pieza junto a un puerto compatible (la vista la aplica al pasar el ratón por la casilla; R sigue sirviendo), `previewLine` comprueba el extremo **delantero** y el **trasero** (ok / error con motivo / abierto): entrada o salida en la cara correcta, tipo de flujo (cinta ↔ tubería, sólido ↔ líquido), sentido contrario de otra línea, "entrada con entrada", "salida con salida" y **puerto ya ocupado**. Una salida que da a la casilla de lado también alimenta (curva).
 - Vista: dos luces en los extremos de la previsualización, texto con el motivo en la barra sobre el menú (`#info`, ahora una etiqueta flotante), y flechas parpadeantes en los puertos libres del mismo medio.
+
+### B3 hecho: tuberías
+- **Aspecto:** grosor 0,5 de casilla (antes 0,7; la cinta ocupa casi toda), bridas en el extremo de cada tramo, el tubo y las bridas toman el color del líquido (petróleo marrón, gasolina amarilla). Rectas, codos, T y cruces siguen saliendo del auto-tile por vecinos. Captura `docs/ui/tuberias.png`.
+- **Un líquido por red** (`tuberias.ts`): una red es un conjunto de tuberías unidas (una vierte en la siguiente) más los puertos que tocan; su líquido sale de esos puertos y de lo que lleva dentro. `pipeJoinConflict(x,y,dir)` dice si una tubería nueva uniría dos líquidos: la herramienta la **rechaza con el motivo** ("uniría petróleo y gasolina: una red transporta un solo líquido") y en la previsualización se ven los dos extremos en rojo. Las redes ya mezcladas (guardados, o contenidos cruzados) se marcan en rojo latiendo.
+- Capacidad y caudal por tramo siguen en `CONFIG.pipe` (`cap`, `rate`); las tuberías no consumen energía.
+- **Sin hacer (decisión):** subidas y bajadas por desnivel y nivel de llenado: dependen de rampas y ascensores (CIN3/CIN4, aún sin construir).

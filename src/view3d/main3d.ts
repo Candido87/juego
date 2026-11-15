@@ -5,6 +5,7 @@
 import { botTick } from '../game/bot';
 import { HELP_CONTROLS } from '../game/ayuda';
 import { isLineTool, previewLine, snapDir } from '../game/conectar';
+import { pipeJoinConflict } from '../game/tuberias';
 import { Game } from '../game/game';
 import type { GuiaState } from '../game/guia-inicio';
 import { AutoSaver, SaveFile, SaveSlot, gameFromSave, latestSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
@@ -259,6 +260,8 @@ async function start() {
     if (!ui.tool) return;
     const check = game.canPlace(ui.tool, t.x, t.y);
     if (!check.ok) return hud.flash(check.reason ?? 'No se puede construir');
+    const mix = ui.tool === 'pipeline' ? pipeJoinConflict(game, t.x, t.y, ui.dir) : null;
+    if (mix) return hud.flash(mix);
     const b = game.place(ui.tool, t.x, t.y, ui.dir);
     // Al colocar una fábrica se abre el panel para elegir su receta.
     if (b && b.kind === 'factory') {
@@ -463,6 +466,8 @@ async function start() {
       const pv = previewLine(game, ui.tool, t.x, t.y, ui.dir);
       const mark = { ok: '✓', error: '✗', open: '○' };
       if (pv.occupied) parts.push(`✗ ${pv.occupied}`);
+      const mix = ui.tool === 'pipeline' ? pipeJoinConflict(game, t.x, t.y, ui.dir) : null;
+      if (mix) parts.push(`✗ ${mix}`);
       for (const [label, e] of [['Salida', pv.head], ['Entrada', pv.tail]] as const) parts.push(`${mark[e.state]} ${label}${e.reason ? `: ${e.reason}` : ' correcta'}`);
     }
     return parts.join(' · ');

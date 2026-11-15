@@ -7,6 +7,7 @@ import { CONFIG } from '../game/config';
 import type { Building, Game } from '../game/game';
 import { isElectric } from '../game/power';
 import { isLineTool, previewLine, EndState } from '../game/conectar';
+import { pipeConflicts, pipeJoinConflict } from '../game/tuberias';
 import { Port, PortFlow, PortState, hasPorts, ports, portsWithStatus } from '../game/puertos';
 import type { BuildKind, BuildingKind, Dir, TurretKind } from '../game/types';
 import { heightAt, inBounds } from '../game/world';
@@ -113,6 +114,8 @@ export class Overlay {
   private arrowGeo = arrowGeometry();
   private lamps: THREE.Mesh[] = [];
   private lampN = 0;
+  private mixAt = -1;
+  private mixTiles: { x: number; y: number }[] = [];
   private lampGeo = new THREE.CircleGeometry(0.1, 14).rotateX(-Math.PI / 2);
   private rangeGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   /** Flecha que rebota sobre la casilla que recomienda la guía (cono apuntando hacia abajo). */
@@ -383,10 +386,17 @@ export class Overlay {
       this.compatiblePorts(s.tool === 'pipeline' ? 'liquid' : 'solid', pulse);
       if (s.hover) {
         const pv = previewLine(g, s.tool, s.hover.x, s.hover.y, s.dir);
-        this.endMark(s.hover.x, s.hover.y, s.dir, true, pv.head.state, pulse);
-        this.endMark(s.hover.x, s.hover.y, s.dir, false, pv.tail.state, pulse);
+        const mix = s.tool === 'pipeline' && pipeJoinConflict(g, s.hover.x, s.hover.y, s.dir);
+        this.endMark(s.hover.x, s.hover.y, s.dir, true, mix ? 'error' : pv.head.state, pulse);
+        this.endMark(s.hover.x, s.hover.y, s.dir, false, mix ? 'error' : pv.tail.state, pulse);
       }
     }
+    // Redes de tuberías que mezclan líquidos: sus tramos late en rojo (se recalcula unas veces por segundo).
+    if (s.time - this.mixAt > 0.5) {
+      this.mixAt = s.time;
+      this.mixTiles = pipeConflicts(g).flatMap((c) => c.net.pipes.map((p) => ({ x: p.x, y: p.y })));
+    }
+    for (const t of this.mixTiles) this.range(t.x + 0.5, t.y + 0.5, this.ground(t.x, t.y), 0.96, 0xff3b3b, 0.25 + 0.3 * pulse);
     this.guideAids(s, pulse);
     for (let i = this.arrowN; i < this.arrows.length; i++) this.arrows[i].visible = false;
     for (let i = this.lampN; i < this.lamps.length; i++) this.lamps[i].visible = false;
