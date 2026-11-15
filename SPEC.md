@@ -647,3 +647,44 @@ Alta coincide con la cifra de la Fase 2 (13,7 ms), así que mover el suavizado a
 - El aviso de "sin conexión a la red" y el de desgaste están cubiertos por tests y el desgaste se vio en pantalla forzando el valor; no se han visto aparecer en una partida larga.
 - Las carpetas de packs descargados de la raíz (`assets-juego/`, `Tiles/`, `Map/`, `Tilemap/`) no se han tocado: el juego no las carga, pero borrarlas es decisión aparte.
 - Siguen pendientes de lógica (no de vista): árbol de tecnología vacío, torretas de energía que no disparan, sonido y menú principal.
+
+## Rediseño de las torretas 3D
+
+Encargo del usuario (15-11-2026): las torretas 3D no gustan; las de la vista 2D tenían mucho más carácter. Se rediseñan por hitos, **sólo capa visual** (ni lógica ni números). La referencia 2D está en el tag `v-2d-final` (último commit con la 2D, `b0077c6`): `git show v-2d-final:src/view/turretModels.ts` y `solids.ts`. Capturas lado a lado en `docs/torretas/` (`2d-*.png` son las 2D por tipo, nivel y 4 rumbos; `3d-antes-galeria.png` son las 3D de partida).
+
+### Qué hacía buenas a las torretas 2D
+- **Base con volumen y detalle:** plataforma hexagonal achaflanada en dos escalones, franja de color del tipo en el borde (más ancha con el nivel), remaches en las esquinas, pedestal cilíndrico y un aro giratorio oscuro. En nivel 3 salen refuerzos en los cuatro lados.
+- **Una cabeza que gira, separada de la base:** el cuerpo es una pirámide truncada (caras inclinadas) en dos pisos, con rendijas de refrigeración y mirilla con lente.
+- **Armas con varios tramos:** culata/cuna, camisa, tubo y freno de boca (en las de balas), no un único prisma. Siempre se ve hacia dónde apunta.
+- **Una silueta distinta por tipo**, reconocible incluso en negro:
+  - balas: cañones dobles o triples, cajón de munición verde oliva con cinta de balas de latón;
+  - láser: cristal alto y puntiagudo en magenta, aletas disipadoras detrás, bobinas de cobre a lo largo del cañón;
+  - fuego: dos o tres depósitos cilíndricos altos y rojizos, tuberías, boquilla abocinada con brasa y pilotos rojos;
+  - hielo: racimo de cristales azules, tubos de refrigerante y boca ancha escarchada.
+- **Los niveles cambian el modelo:** más cañones (2 → 3), cañón más largo, placas laterales de blindaje (nivel 2) y cajón de munición doble (nivel 3), cristal o depósitos extra, franja de base más ancha, color de acento que sube de latón a naranja y a rojo.
+- **Paleta común:** acero gris azulado para todo lo estructural y **un solo color de acento por tipo**; contorno oscuro en todas las caras y sombreado por cara.
+- **Animación y estados** (ya replicados en 3D): cabeza con 16 rumbos, retroceso, fogonazo, brillo propio de cristales y lentes, tinte gris apagado, humo dañada y translúcida en obra.
+
+### Qué falla en las 3D actuales (ver `3d-antes-galeria.png`)
+1. **Todas son la misma maceta.** La base es un cono facetado invertido (embudo) que ocupa más de la mitad de la altura y no tiene ni placa, ni pedestal, ni remaches: parece un macetero, no una base de artillería.
+2. **El arma es pequeña y suelta.** Un único blaster de Kenney apoyado en el borde, sin culata, sin soporte, sin camisa: "un palo con un cubo". Las proporciones están al revés (base enorme, arma diminuta).
+3. **Sin silueta propia por tipo.** Las cuatro son embudo + arma; sólo cambian el color del embudo y un accesorio de pocos píxeles. A zoom alejado se distinguen por el tono, no por la forma.
+4. **Faltan los rasgos que definían a cada tipo en 2D:** cañones múltiples y cinta de munición (balas), cristal y bobinas (láser), depósitos y tuberías altos (fuego), racimo de cristales y tubos (hielo).
+5. **Los niveles apenas se notan:** un anillo de color más y un 14 % de escala en el cañón; el modelo no cambia.
+6. **Sin jerarquía de piezas:** no hay cuerpo giratorio con paneles y chaflanes entre la base y el arma; todo gira como un único bloque pequeño.
+7. **Paleta sin acento coherente:** el embudo azul de láser y hielo es casi igual; el de balas es violeta (no gris) y no se parece al resto de metal del juego.
+
+### Reglas de diseño que seguimos
+1. **Varias piezas con jerarquía:** base (placa + pedestal + aro) → torreta giratoria (cuerpo con chaflanes y paneles) → arma de varios tramos (culata, camisa, tubo, boca) → accesorios (cajón, depósitos, radiadores, antena, luces). Nada de un arma suelta sobre un cuerpo liso.
+2. **Proporciones de la 2D:** base baja y ancha (≈ 30 % de la altura), torreta y arma ocupan el resto; el arma sobresale claramente de la casilla por delante.
+3. **Materiales y piezas:** piezas del pack de armas de Kenney (cañones, culatas, miras, cargadores, silenciadores), del kit de fábrica y del industrial (tuberías, depósitos, engranajes, pistones, soportes) y, para lo que falte, primitivas (`prim`) con chaflán o biselado. Se reutiliza el sistema de partes de `catalog.ts`.
+4. **Silueta y color por tipo:** un color de acento por tipo sobre acero común; la silueta debe leerse en negro. Balas: cañones múltiples + cajón; láser: cristal + bobinas + aletas; fuego: depósitos altos + boquilla ancha; misil: rack de tubos inclinados; hielo: cristales + tubos.
+5. **El nivel cambia el modelo:** más cañones, blindaje, tamaño y detalles nuevos en cada nivel; el color de acento sube con el nivel.
+6. **Contorno y sombreado:** se usa el pase de contorno ya existente; las piezas de color (cristales, lentes, brasas) llevan material propio que brilla.
+7. **Se lee a zoom alejado:** cada hito se revisa también a zoom 0,5 y desde los 4 giros de cámara.
+8. **Animación:** sólo gira la torreta (no la base); retroceso del arma; fogonazo; brillo de cristales según carga; llama piloto; humo si está dañada. Estados: apagada (luces rojas, tinte gris), en obra (translúcida), dañada (humo).
+
+### Decisiones (si dudas, lo más simple)
+- **Misil:** la lógica no tiene torreta de misiles (ni se toca). El modelo del hito 3 se hará y se verá en la galería, pero **no se puede colocar en partida** hasta que exista el tipo en `config.ts`.
+- **Hielo:** sí existe en la lógica; entra en el hito 3 con el misil.
+- Las tres imágenes `2d-*.png` se sacaron con `tools/captura.cjs` (Electron) contra la galería 2D del tag; no se versiona ningún servidor 2D.

@@ -130,3 +130,11 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] M3D-5. Guía y tutorial en 3D con ayudas sobre el mapa, guardado/carga y autoguardado, Electron abre la vista 3D.
 - [x] M3D-6. Rendimiento y compatibilidad: calidad auto/baja/media/alta en las opciones (`quality.ts`, se aplica en caliente; la automática baja sola con FPS bajos), aviso si no hay WebGL2 o se pierde el contexto gráfico, mediciones por nivel en SPEC.md (`__benchQuality`). Sin probar en gráfica integrada ni en Electron.
 - [x] M3D-7. Cierre. (a) Paridad completa: las 15 líneas que quedaban en parcial o pendiente pasan a hecho (zonas y decoración con las reglas de `decor.ts`, apariciones y ruta de enemigos, desgaste, falta de red, cintas paradas, barra de obra, temblor de cámara, formas de objetos en cintas, miniaturas de modelos en el menú, galería `?galeria=1`, modelos propios para poste, batería, alimentador y casa, prueba en Electron). (b) Borrados Phaser, `src/main.ts`, la escena 2D y sus galerías, `iso.ts` y los sprites de Sketch Town y Tiny Dungeon. (c) `CLAUDE.md`, README, SPEC y pull request.
+
+## Rediseño de las torretas 3D (rama `vista-3d`; sólo capa visual)
+- [x] TR0. Referencia 2D (tag `v-2d-final`), capturas en `docs/torretas/`, qué falla y reglas de diseño en SPEC.md.
+- [ ] TR1. Torreta de balas de referencia, con galería y capturas comparadas. **Parar y enseñar antes de seguir.**
+- [ ] TR2. Láser y fuego.
+- [ ] TR3. Misil (sólo galería: la lógica no lo tiene) y hielo.
+- [ ] TR4. Niveles, estados y animaciones.
+- [ ] TR5. Efectos de disparo por tipo y pulido a zoom alejado.
