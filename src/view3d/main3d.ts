@@ -4,6 +4,7 @@
  */
 import { botTick } from '../game/bot';
 import { HELP_CONTROLS } from '../game/ayuda';
+import { isLineTool, previewLine, snapDir } from '../game/conectar';
 import { Game } from '../game/game';
 import type { GuiaState } from '../game/guia-inicio';
 import { AutoSaver, SaveFile, SaveSlot, gameFromSave, latestSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
@@ -300,6 +301,7 @@ async function start() {
     painting = cur;
   };
   window.addEventListener('pointerup', () => (painting = null));
+  let lastSnapKey = '';
 
   // ---------- opciones y pausa ----------
   const governor = new QualityGovernor();
@@ -457,6 +459,12 @@ async function start() {
       const c = game.canPlace(ui.tool, t.x, t.y);
       if (!c.ok) parts.push(`✗ ${c.reason}`);
     }
+    if (isLineTool(ui.tool)) {
+      const pv = previewLine(game, ui.tool, t.x, t.y, ui.dir);
+      const mark = { ok: '✓', error: '✗', open: '○' };
+      if (pv.occupied) parts.push(`✗ ${pv.occupied}`);
+      for (const [label, e] of [['Salida', pv.head], ['Entrada', pv.tail]] as const) parts.push(`${mark[e.state]} ${label}${e.reason ? `: ${e.reason}` : ' correcta'}`);
+    }
     return parts.join(' · ');
   };
 
@@ -556,6 +564,16 @@ async function start() {
     acc.game += t1 - t0;
     acc.view += performance.now() - t1;
     acc.n++;
+    // Imán: al pasar sobre la casilla de un puerto compatible, la cinta o tubería se orienta sola (R sigue sirviendo).
+    const ht = view.hover;
+    const snapKey = ht && isLineTool(ui.tool) && !painting ? `${ui.tool}|${ht.x},${ht.y}` : '';
+    if (snapKey !== lastSnapKey) {
+      lastSnapKey = snapKey;
+      if (snapKey && isLineTool(ui.tool) && ht) {
+        const d = snapDir(game, ui.tool, ht.x, ht.y, ui.dir);
+        if (d !== null) ui.dir = d;
+      }
+    }
     hud.update(game, hoverInfo(), dt);
     // El aviso de pausa se aparta cuando hay un panel flotante abierto (opciones, ayuda o recetas).
     const floating = optionsOpen() || $('help').style.display === 'block' || $('recipes').style.display === 'block';

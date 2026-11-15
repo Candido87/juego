@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../game/config';
 import type { Building, Game } from '../game/game';
 import { isElectric } from '../game/power';
+import { isLineTool, previewLine, EndState } from '../game/conectar';
 import { Port, PortFlow, PortState, hasPorts, ports, portsWithStatus } from '../game/puertos';
 import type { BuildKind, BuildingKind, Dir, TurretKind } from '../game/types';
 import { heightAt, inBounds } from '../game/world';
@@ -207,6 +208,26 @@ export class Overlay {
     mat.opacity = state === 'free' ? 0.55 : 0.95;
   }
 
+  /** Marca de un extremo de la pieza que se va a colocar: verde correcto, rojo incompatible, naranja abierto. */
+  private endMark(x: number, y: number, dir: Dir, head: boolean, state: EndState, pulse: number): void {
+    if (!inBounds(this.game.world, x, y)) return;
+    let m = this.lamps[this.lampN];
+    if (!m) {
+      m = new THREE.Mesh(this.lampGeo, new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false }));
+      m.renderOrder = 22;
+      this.lamps.push(m);
+      this.group.add(m);
+    }
+    this.lampN++;
+    m.visible = true;
+    const k = head ? 0.42 : -0.42;
+    m.position.set(x + 0.5 + [1, 0, -1, 0][dir] * k, this.ground(x, y) + 0.3, y + 0.5 + [0, 1, 0, -1][dir] * k);
+    m.scale.setScalar(state === 'error' ? 1.8 + 0.4 * pulse : 1.6);
+    const mat = m.material as THREE.MeshBasicMaterial;
+    mat.color.setHex(state === 'ok' ? 0x2ee27a : state === 'error' ? 0xff3b3b : 0xffa733);
+    mat.opacity = 0.95;
+  }
+
   /** Conector de un puerto: flecha del color de su flujo (salida llena que se aleja, entrada tenue que apunta al edificio) y luz de estado. */
   private portMark(p: Port, state: PortState, alpha: number, pulse: number, showArrow: boolean): void {
     if (showArrow) this.arrow(p.x, p.y, p.dir, FLOW_COLOR[p.flow], p.io === 'out', alpha * (p.io === 'out' ? pulse : 1));
@@ -217,6 +238,16 @@ export class Overlay {
   private portsOfBuilding(b: Building, alpha: number, pulse: number, emph: boolean): void {
     for (const { port, status } of portsWithStatus(this.game, b)) {
       this.portMark(port, status.state, emph ? alpha : 0.5, pulse, emph || status.state !== 'connected');
+    }
+  }
+
+  /** Con una cinta o tubería elegida: los puertos libres del mismo medio parpadean suave (también los de la guía y la selección). */
+  private compatiblePorts(medium: 'solid' | 'liquid', pulse: number): void {
+    for (const b of this.game.buildings.values()) {
+      if (!b.built) continue;
+      for (const { port, status } of portsWithStatus(this.game, b)) {
+        if (port.medium === medium && status.state === 'free') this.arrow(port.x, port.y, port.dir, FLOW_COLOR[port.flow], port.io === 'out', 0.55 + 0.45 * pulse);
+      }
     }
   }
 
@@ -346,6 +377,14 @@ export class Overlay {
         this.portsOf(s.tool, s.hover.x, s.hover.y, s.dir, 0.9, pulse);
         if (s.tool === 'pole') poleRange(s.hover.x, s.hover.y, true);
         if (s.tool in CONFIG.turrets) turretRing(s.hover.x, s.hover.y, g.turretRange(s.tool as TurretKind), ok ? 0x7dff8a : 0xff5555);
+      }
+    }
+    if (isLineTool(s.tool)) {
+      this.compatiblePorts(s.tool === 'pipeline' ? 'liquid' : 'solid', pulse);
+      if (s.hover) {
+        const pv = previewLine(g, s.tool, s.hover.x, s.hover.y, s.dir);
+        this.endMark(s.hover.x, s.hover.y, s.dir, true, pv.head.state, pulse);
+        this.endMark(s.hover.x, s.hover.y, s.dir, false, pv.tail.state, pulse);
       }
     }
     this.guideAids(s, pulse);

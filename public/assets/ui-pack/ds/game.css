@@ -137,3 +137,5 @@ input[type='checkbox'] { accent-color: var(--ds-green); width: 16px; height: 16p
 #glwarn .panel { color: var(--ds-ink); } #glwarn h2 { color: #0b5d86; font-family: var(--ds-font); }
 #load { font-family: var(--ds-font); letter-spacing: 0.1em; color: #98c1d9; }
 #tech .tnode .tname { font-size: 11px; letter-spacing: 0; }
+#info { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100% + 8px); width: max-content; max-width: min(760px, 94vw); white-space: normal; text-align: center; line-height: 1.3; padding: 3px 12px; background: rgba(32, 36, 47, 0.9); color: #f2f5fa; border-radius: 8px; font-size: 12px; }
+#info .muted, #info b { color: inherit; }

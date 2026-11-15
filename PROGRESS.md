@@ -157,7 +157,7 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] UI-A1. Sistema de diseño HTML/CSS (`public/assets/ui-pack/ds/ds.css`, prefijo `.ds-`: paneles, ventanas, botones con estados y colores, pestañas, barras, casilla, deslizador, tooltip, ranura, separador, lista, 14 iconos SVG, distintivos de estado y puertos por tipo/estado) y galería `/galeria-ui.html` (captura en `docs/ui/galeria-ui.png`). **Parado: esperando visto bueno del estilo antes de A2.**
 - [x] UI-A2. Aplicación a todos los menús, HUD, paneles y tooltips, con iconos de estado. Hecho con `ds/game.css` sobre el mismo HTML (paneles de cristal, botones del pack, pestañas, barras, tooltips, árbol de investigación, iconos en el HUD e iconos de estado); capturas a 1024×600, 1280×720 y 1920×1080 en `docs/ui/`.
 - [x] CON-B1. Puertos tipados (`flow` sólido/petróleo/gasolina en `CONFIG.portFlow`, `side`), `canLink`, `portStatus` (libre, conectado, error con motivo y solución, bloqueado) y conectores siempre visibles con flecha del color del flujo y luz de estado; 7 tests nuevos en `puertos.test.ts`.
-- [ ] CON-B2. Encaje magnético y previsualización con retroalimentación por extremo.
+- [x] CON-B2. Encaje magnético (`conectar.ts`: `snapDir`, `portsAt`) y previsualización por extremo (`previewLine`: verde/rojo con motivo/naranja abierto, puerto ocupado); los puertos libres compatibles parpadean al elegir cinta o tubería; 8 tests en `conectar.test.ts`; captura `docs/ui/conectar-imam.png`.
 - [ ] CON-B3. Tuberías: redimensionado, curvas, uniones, desniveles y exclusividad de líquido.
 - [ ] CON-B4. Herramienta Conectar con A*, ajuste de ruta y mensajes con solución.
 - [ ] CON-B5. Resaltado de cadenas, vista de logística (L), tooltips, guía y simulaciones.
