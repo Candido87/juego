@@ -119,4 +119,4 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] 3D-0. Inventario de packs 3D, copia a `public/assets/3d/`, `ASSETS.md`/`CREDITS.md` y propuesta de mapa de uso. **Parado a la espera del visto bueno.**
 - [x] 3D-1. Three.js (`vista3d.html`, `src/view3d/`): cámara isométrica con giro de 90°, zoom y arrastre; terreno con bloques/rampas/rocas/árboles (Nature Kit); edificios, cintas y tuberías con conexión por vecinos; NPC y enemigos animados; torretas con cañón que apunta. Lee el mismo `Game`.
 - [x] 3D-2. Rendimiento: terreno por chunks, edificios estáticos y objetos de cinta instanciados, descarte y presupuesto de personajes animados; mediciones en SPEC.md (1500 edificios + 300 enemigos: 47 → 73 FPS; 1500 enemigos: 15 → 43 FPS).
-- [ ] 3D-3. Comparación honesta con la vista 2D en `SPEC.md`.
+- [x] 3D-3. Comparación honesta con la vista 2D en `SPEC.md` (aspecto, rendimiento, trabajo que queda, qué se reaprovecha y riesgos).

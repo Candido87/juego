@@ -465,3 +465,48 @@ Con chunks de 16 casillas salió peor (17,1 ms) que con 32 (13,7 ms): más trozo
 - **Draw calls:** siguen altas (~1000-1500) porque cada modelo tiene 2-4 mallas por material y chunk; fusionar modelos en un atlas de geometrías las bajaría.
 - **Lógica del juego:** ~0,5 ms por frame en todas las pruebas; no es el cuello de botella.
 - **Medición:** hecha con la GPU de este equipo y una sola ventana; no se probó en equipos modestos ni en móvil.
+
+## Fase 3: comparación honesta, vista 3D frente a vista 2D
+
+Base de la comparación: la 2D son ~4.150 líneas en `src/view/` (Phaser, sprites de Sketch Town, UI Pack, formas dibujadas por código); la 3D son ~1.600 líneas en `src/view3d/` (Three.js) que ya cubren cámara, terreno, edificios, cintas, tuberías, personajes, torretas, selección y construcción básica. **Ninguna de las dos toca `src/game/`**: leen el mismo `Game`, y por eso se pueden mantener a la vez.
+
+### Aspecto
+- **3D gana en:** giro de cámara en 90° (la 2D no lo tiene), relieve real con sombras, personajes animados (andar, parar, golpear; la 2D tiene un solo fotograma por personaje y balanceo por código), torretas con cañón que apunta de verdad, coherencia entre packs (todo es Kenney 3D con una paleta compartida, mientras que en 2D se mezclan Sketch Town, Tiny Dungeon y UI Pack con estilos que no combinan).
+- **2D gana en:** legibilidad a distancia y nitidez (los sprites dibujados a mano con contorno se leen mejor que modelos "de juguete" sin contorno), control exacto del orden de dibujado, y un aspecto ya pulido (muros conectados, estados de daño, decoración con reglas, UI integrada).
+- **Dudoso:** el color. El Nature Kit usa colores de vértice y la hierba sale turquesa; hay que corregirlo con una paleta o un tinte (es una tarde de trabajo, no un bloqueo). El agua no se ve porque la lógica no tiene casillas de agua.
+- **Cosas de 3D que no existen en 2D y habría que decidir:** altura de edificios que tapan lo que hay detrás (hace falta atenuar o recortar al seleccionar), y cinta que cruza por debajo de algo alto.
+
+### Rendimiento
+Medido sólo en el equipo de desarrollo (ver Fase 2). Con mapa 120x120, 1.500 edificios y 300 enemigos, 73 FPS (13,7 ms) optimizado; con 1.500 enemigos, 43 FPS; la partida normal 40x40 va a más de 300 FPS. **No se midió la vista 2D con las mismas escenas**, así que no hay cifra honesta para compararlas; Phaser con sprites suele ser más barato por objeto, pero la 2D no tiene hoy ningún mecanismo de agrupado y también tendría que optimizarse con mapas grandes. Lo que sí es cierto: la 3D necesita **WebGL con GPU** y trabajo específico (instanciado, presupuesto de esqueletos, sombras opcionales) para aguantar hordas; la 2D sin ese trabajo ya es fluida con los 40x40 actuales. En equipos modestos las sombras serán lo primero que haya que apagar.
+
+### Peso y empaquetado
+- Modelos copiados: ~10 MB en `public/assets/3d/` (se podría recortar a ~6 MB quitando el Nature Kit sin usar). Los sprites 2D actuales pesan ~3,5 MB.
+- Three.js añade ~660 KB (minificado) en un paquete aparte `vista3d`; la 2D (Phaser) sigue en `main` (1,5 MB). Si se mantienen las dos vistas, el paquete de Electron crece unos 10 MB.
+
+### Trabajo que queda para igualar a la 2D
+Estimación gruesa, ordenada por tamaño:
+1. **Interfaz:** reutilizar el HTML/UI Pack de la 2D (paneles, tooltips, guía, tutorial, menú de recetas). La 3D sólo tiene HUD, paleta y ficha de casilla. Es lo más grande, pero es trabajo compartido: la UI de `src/view/ui.ts` está acoplada a Phaser y habría que desacoplarla.
+2. **Murallas y esquinas:** conexiones por vecinos, esquinas, puertas y estados de daño.
+3. **Puertos de entrada/salida** con flechas (`puertos.ts`), indicadores de energía/tubería y cables.
+4. **Retroalimentación visual:** barras de vida, explosiones y humo (partículas), daño visible, ruedas de progreso, iconos sobre edificios.
+5. **Cintas:** cruces, empalmes en T y cinta rápida con animación de textura; hoy sólo rectas y esquinas, orientación de piezas comprobada a ojo.
+6. **Editor de pruebas y tutorial:** el tutorial señala casillas con la cámara 2D; hay que llevarlo a 3D.
+7. **Selección con edificios altos** (atenuar los que tapan) y accesibilidad (zoom mínimo, contraste).
+8. **Agua y ríos:** si se quiere, la lógica debe aportar casillas de agua; los modelos ya están.
+
+### Qué se reaprovecha de lo hecho
+- Toda la lógica y los tests (`src/game/`): cero cambios, 258 tests en verde.
+- `catalog.ts` (tabla de qué modelo es cada cosa, con test de existencia), `camera.ts`, `pick.ts` (ambas puras y con test) y el banco de pruebas (`bench.ts`) valen para cualquier iteración 3D.
+- El proyecto 2D sigue intacto: se puede volver atrás sin coste.
+- Los modelos 3D pueden servir **también en 2D** renderizados a sprites (turntable de 4 giros), como ya se hace con Sketch Town; sería un camino intermedio.
+
+### Riesgos
+- **Alcance:** igualar la 2D en 3D es semanas, no días, sobre todo por la interfaz.
+- **Compatibilidad:** WebGL2 con buena GPU; portátiles integrados y navegadores antiguos fallarán antes que con Phaser (que puede caer a Canvas).
+- **Legibilidad en juego:** sin contornos, los modelos de pequeños objetos se funden con el terreno; hará falta resaltado (outline) o una paleta con más contraste.
+- **Mantener dos vistas** duplica el trabajo de cada función nueva visible (nuevo edificio = sprite + modelo).
+- **Licencia/créditos:** todo CC0 de Kenney; sin riesgo, pero ya hay licencias duplicadas en `assets-juego/` (dos packs pisados) que conviene limpiar.
+- **Animación a escala:** el truco de instanciar en pose base a distancia no anima; para hordas grandes habría que usar animación en texturas de vértices.
+
+### Recomendación
+No sustituir la 2D de golpe. Opciones, de menor a mayor riesgo: (a) quedarse con la 2D y usar los modelos 3D como sprites pre-renderizados (reaprovecha el arte, cero cambio de motor); (b) mantener la 3D como modo opcional "vista 3D" y llevarla a paridad por fases, empezando por la interfaz compartida; (c) migrar del todo, sólo si el giro de cámara y los personajes animados son prioridad de diseño. Mi lectura: el salto de aspecto es real y barato de conseguir (esta rama lo muestra en pocas horas), pero el coste está en la interfaz y el pulido, no en el motor.
