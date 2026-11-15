@@ -551,9 +551,19 @@ export const REDESIGNED: TurretModelKind[] = MODEL_KINDS;
 export const GALLERY_ONLY: TurretModelKind[] = ['turret_missile'];
 
 /** Modelo completo de una torreta de ese tipo y nivel (1-3). */
+/** Apoya la torreta en y = 0: si alguna pieza de la base baja del suelo (placas, patas), se sube todo el conjunto lo que sobre. */
+function groundRig(rig: TurretRig): void {
+  rig.root.updateMatrixWorld(true);
+  const min = new THREE.Box3().setFromObject(rig.root).min.y;
+  if (Math.abs(min) < 1e-4) return;
+  for (const c of rig.root.children) c.position.y -= min;
+  rig.height -= min;
+}
+
 export function buildTurret(kind: TurretModelKind, level: number, damage = 0): TurretRig {
   const lv = Math.max(1, Math.min(3, Math.round(level)));
   const rig = kind === 'turret_bullet' ? bulletRig(lv) : kind === 'turret_laser' ? laserRig(lv) : kind === 'turret_fire' ? fireRig(lv) : kind === 'turret_frost' ? frostRig(lv) : missileRig(lv);
+  groundRig(rig);
   if (damage > 0) addDamage(rig, damage);
   return rig;
 }

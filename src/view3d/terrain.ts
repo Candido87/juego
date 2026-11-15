@@ -7,6 +7,7 @@ import { TERRAIN } from './catalog';
 import { instanced } from './loader';
 import { GROUND_TINT, ORE_COLOR, zoneMultiplier } from './palette';
 import { LEVEL_H } from './pick';
+import { GROUND_OFFSET, slopeLower } from './relieve';
 
 /** Giro (rad, eje Y) de la rampa para que baje hacia cada dirección 0:+x 1:+z 2:-x 3:-z. El modelo baja hacia -z con giro 0 (comprobado en sus vértices). */
 export const SLOPE_YAW = [-Math.PI / 2, Math.PI, Math.PI / 2, 0];
@@ -95,24 +96,12 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
         tint.setRGB(mr, mg, mb);
       }
       tint.multiplyScalar(0.93 + hash2(x, y, seed + 90) * 0.07);
-      if (h <= 0) (c.flat.push(place(cx, 0, cz)), c.flatC.push(tint));
+      // Los modelos de terreno arrancan en y = -GROUND_OFFSET: se suben para que la superficie quede en nivel × LEVEL_H.
+      if (h <= 0) (c.flat.push(place(cx, GROUND_OFFSET, cz)), c.flatC.push(tint));
       else {
-        // Rampa: una sola vecina más baja y las demás iguales o más altas.
-        let lower = -1;
-        let lowerCount = 0;
-        let okOthers = true;
-        for (let d = 0; d < 4; d++) {
-          const nx = x + DX[d];
-          const ny = y + DY[d];
-          if (!inBounds(world, nx, ny)) continue;
-          const nh = heightAt(world, nx, ny);
-          if (nh === h - 1) {
-            lower = d;
-            lowerCount++;
-          } else if (nh < h) okOthers = false;
-        }
-        if (lowerCount === 1 && okOthers && h === 1) (c.slopes.push(place(cx, 0, cz, SLOPE_YAW[lower], 1, LEVEL_H, 1)), c.slopesC.push(tint));
-        else (c.blocks.push(place(cx, 0, cz, 0, 1, h * LEVEL_H, 1)), c.blocksC.push(tint));
+        const lower = slopeLower(world, x, y);
+        if (lower !== null) (c.slopes.push(place(cx, GROUND_OFFSET * LEVEL_H, cz, SLOPE_YAW[lower], 1, LEVEL_H, 1)), c.slopesC.push(tint));
+        else (c.blocks.push(place(cx, GROUND_OFFSET * h * LEVEL_H, cz, 0, 1, h * LEVEL_H, 1)), c.blocksC.push(tint));
       }
       const o = world.ore[y * world.w + x];
       const key = `${x},${y}`;
@@ -121,11 +110,11 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
         const r = hash2(x, y, seed);
         const model = TERRAIN.trees[Math.floor(r * TERRAIN.trees.length)];
         const s = 0.85 + hash2(y, x, seed + 1) * 0.5;
-        add(model, key, place(cx + (hash2(x, y, 5) - 0.5) * 0.3, top, cz + (hash2(x, y, 6) - 0.5) * 0.3, hash2(x, y, 7) * 6.28, s, s, s));
+        add(model, key, place(cx + (hash2(x, y, 5) - 0.5) * 0.3, top + GROUND_OFFSET * s, cz + (hash2(x, y, 6) - 0.5) * 0.3, hash2(x, y, 7) * 6.28, s, s, s));
       } else if (o !== Ore.None) {
         for (let k = 0; k < 2; k++) {
           const s = 0.7 + hash2(x, y, 10 + k) * 0.5;
-          add(TERRAIN.oreRock, key, place(cx + (hash2(x, y, 20 + k) - 0.5) * 0.7, top, cz + (hash2(x, y, 30 + k) - 0.5) * 0.7, hash2(x, y, 40 + k) * 6.28, s, s, s), ORE_COLOR[o]);
+          add(TERRAIN.oreRock, key, place(cx + (hash2(x, y, 20 + k) - 0.5) * 0.7, top + GROUND_OFFSET * s, cz + (hash2(x, y, 30 + k) - 0.5) * 0.7, hash2(x, y, 40 + k) * 6.28, s, s, s), ORE_COLOR[o]);
         }
       } else {
         // Decoración con las reglas de la 2D: determinista por semilla, nunca sobre menas, junto al núcleo, en las
@@ -135,7 +124,7 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
           const spec = DECOR_MODELS[d.kind];
           const model = spec.models[Math.floor(hash2(x, y, seed + 3) * spec.models.length)];
           const s = spec.scale * (0.85 + hash2(y, x, seed + 4) * 0.3);
-          add(model, key, place(cx + (hash2(x, y, 5) - 0.5) * spec.jitter, top, cz + (hash2(x, y, 6) - 0.5) * spec.jitter, d.rot * (Math.PI / 2) + hash2(x, y, 7) * 0.6, s, s, s));
+          add(model, key, place(cx + (hash2(x, y, 5) - 0.5) * spec.jitter, top + GROUND_OFFSET * s, cz + (hash2(x, y, 6) - 0.5) * spec.jitter, d.rot * (Math.PI / 2) + hash2(x, y, 7) * 0.6, s, s, s));
         }
       }
     }

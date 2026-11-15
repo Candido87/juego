@@ -247,6 +247,8 @@ export const CONFIG = {
     beltWidth: 0.65,
     beltHeight: 0.18,
     beltRail: 0.04,
+    /** Margen entre la superficie del terreno y la base de lo que se construye (evita el parpadeo entre caras coplanares). */
+    groundMargin: 0.004,
     beltLane: 0.5,
     /** Tubería: diámetro del tubo y de las bridas de las juntas. */
     pipeDiameter: 0.35,

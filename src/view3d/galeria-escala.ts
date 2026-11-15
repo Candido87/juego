@@ -16,7 +16,7 @@ import { createFlatWorld } from '../game/world';
 import { BASE_YAW, CameraRig, PITCH } from './camera';
 import { ENEMY_MODEL, NPC_MODEL, TERRAIN, CHAR_SCALE } from './catalog';
 import { ROLE_LOOK } from './actors';
-import { instance, tint } from './loader';
+import { gltf, instance, tint } from './loader';
 import { LEVEL_H } from './pick';
 import { ITEM_GEO, OPT_OFF, View3D } from './scene3d';
 import { ITEM_SHAPES } from './pieces';
@@ -388,6 +388,12 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
         out.push([m.name || m.type, +b.min.y.toFixed(3), +b.max.y.toFixed(3), +(b.max.x - b.min.x).toFixed(2), +(b.max.z - b.min.z).toFixed(2)]);
       });
       return out;
+    },
+    raw: (id: string) => {
+      const sc = gltf(id).scene;
+      sc.updateMatrixWorld(true);
+      const b = new THREE.Box3().setFromObject(sc);
+      return [+b.min.x.toFixed(3), +b.min.y.toFixed(3), +b.min.z.toFixed(3), +b.max.x.toFixed(3), +b.max.y.toFixed(3), +b.max.z.toFixed(3)];
     },
     native: (id: string) => {
       const b = new THREE.Box3().setFromObject(instance(id, undefined, 1));

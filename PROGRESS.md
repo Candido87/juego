@@ -165,8 +165,8 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 ## Escala de la vista 3D (reglas en SPEC.md; sólo capa visual)
 - [x] ESC-0. Auditoría: unidad única (`CONFIG.scale`), medidas de todos los modelos (`docs/escala/medidas.json`), tabla objetivo y informe `docs/escala/informe.md`. Tabla aprobada con cambios (15-11-2026): `CONFIG.scale` actualizada. **Parado: esperando visto bueno de las capturas.**
 - [x] ESC-1. Galería de escala `/galeria-escala.html` (isométrica fija y orbital) y capturas en `docs/escala/`. **Parado: esperando visto bueno.**
-- [ ] ESC-2. Cintas, tuberías, postes y objetos transportados con el tamaño objetivo.
-- [ ] ESC-3. Hundimiento en el terreno (causa, regla de base y test con desniveles).
+- [x] ESC-2. Cinta 0,65 × 0,18 (tramos del modelo recto estirados, bordes laterales claros, curva/T/cruce con medios tramos y cubo central), tubería 0,35 con bridas de 0,45 apoyadas en un soporte, objetos 0,15–0,25 sobre la superficie, flechas de dirección y pilotos ajustados; tests en `escala.test.ts`.
+- [x] ESC-3. Base sobre el terreno: `relieve.ts` (superficie = nivel × LEVEL_H + margen 0,004), terreno normalizado (los modelos de Kenney arrancan en −0,05), zócalo bajo lo construido en rampas de terreno y verificación en la vista real (`tools/verificar-bases.js`: 72 edificios en 3 alturas, 0 fuera de ±0,006); tests en `relieve.test.ts`.
 - [ ] ESC-4. Escala del resto (registro de aspectos con un factor por modelo, y tests de proporciones).
 - [ ] ESC-5. Revisión final con capturas.
 - [ ] ESC-6. Detalles de encaje (conectores físicos en puertos, luz de estado, conos y marcas de suelo, flechas, adornos animados opcionales) según la referencia del Factory Kit; ver SPEC.md.

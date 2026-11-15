@@ -16,6 +16,7 @@ import { animations, instance, preload, tint } from './loader';
 import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
 import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
+import { slopeLower, tileSurface } from './relieve';
 import { ITEM_SHAPES, ItemShape, armsFor, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
 import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
@@ -98,6 +99,8 @@ const WALL_STYLE: Record<WallKind, { h: number; color: number; cap: number }> = 
 const WALL_W = 0.36;
 const GATE_COLOR = 0xb9824a;
 const BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
+const PLINTH_MAT = new THREE.MeshStandardMaterial({ color: 0x8a7a5a, flatShading: true, roughness: 1 });
+patchMaterial(PLINTH_MAT);
 const wallMats = new Map<number, THREE.MeshStandardMaterial>();
 /** Material de muro por color (compartido, para que se agrupen en instancias). */
 function wallMat(color: number): THREE.MeshStandardMaterial {
@@ -527,9 +530,10 @@ export class View3D {
 
   // ---------- edificios ----------
   private levelTop(b: Building): number {
+    // La base descansa sobre la superficie más alta de su huella, con un margen mínimo contra el parpadeo (ver relieve.ts).
     let m = 0;
-    for (let y = 0; y < b.d; y++) for (let x = 0; x < b.w; x++) m = Math.max(m, heightAt(this.game.world, b.x + x, b.y + y));
-    return m * LEVEL_H;
+    for (let y = 0; y < b.d; y++) for (let x = 0; x < b.w; x++) m = Math.max(m, tileSurface(this.game.world, b.x + x, b.y + y));
+    return m + CONFIG.scale.groundMargin;
   }
 
   private isKind(x: number, y: number, kinds: string[]): Building | null {
@@ -783,6 +787,14 @@ export class View3D {
         if (old) v.yaw = old.yaw;
         this.buildings.set(b.id, v);
         v.group.position.set(b.x + b.w / 2, this.levelTop(b), b.y + b.d / 2);
+        // Sobre una rampa de terreno la base queda en el borde alto: un zócalo de roca rellena el hueco por el lado bajo.
+        if (b.w === 1 && b.d === 1 && slopeLower(this.game.world, b.x, b.y) !== null) {
+          const plinth = new THREE.Mesh(BOX_GEO, PLINTH_MAT);
+          plinth.scale.set(0.98, LEVEL_H, 0.98);
+          plinth.position.y = -LEVEL_H / 2;
+          plinth.userData.plinth = true;
+          v.group.add(plinth);
+        }
         if (batch && b.built && !v.pivot && !v.spin.length && !v.bob.length) {
           // Estático: se agrupa con los demás en InstancedMesh (no entra en la escena por separado).
           v.group.updateMatrixWorld(true);
@@ -1353,7 +1365,7 @@ export class View3D {
     if (this.ghost) {
       this.ghost.visible = !!this.hover;
       if (this.hover) {
-        this.ghost.position.set(this.hover.x + 0.5, heightAt(w, this.hover.x, this.hover.y) * LEVEL_H, this.hover.y + 0.5);
+        this.ghost.position.set(this.hover.x + 0.5, tileSurface(w, this.hover.x, this.hover.y) + CONFIG.scale.groundMargin, this.hover.y + 0.5);
         const ok = this.game.canPlace(this.buildKind!, this.hover.x, this.hover.y).ok;
         mat.color.setHex(ok ? 0x70ff90 : 0xff6060);
       }
