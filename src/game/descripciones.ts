@@ -281,9 +281,8 @@ export function itemUsedIn(item: ItemId): string[] {
   }
   for (const [k, t] of Object.entries(CONFIG.turrets)) if (t.ammo === item) out.push(`${bname(k as BuildKind)} (munición)`);
   for (const [k, g] of Object.entries(CONFIG.power.generators)) if (g.fuel === item) out.push(`${bname(k as BuildKind)} (combustible)`);
-  for (const n of CONFIG.tech) if ((n.cost[item] ?? 0) > 0) out.push(`Investigación: ${n.name}`);
-  // Los paquetes de ciencia existen para investigar; hasta que haya nodos en el árbol se describen por su propósito.
-  if (item.startsWith('science_') && !out.some((u) => u.startsWith('Investigación'))) out.push('Investigación (árbol de tecnología)');
+  // Los paquetes de ciencia ya no se gastan en investigar (el árbol se compra con puntos): sin uso hasta que haga falta.
+  if (item.startsWith('science_') && !out.length) out.push('Sin uso por ahora: la investigación se compra con puntos');
   if (item === 'food') out.push('La población (consumo continuo)');
   if (item === 'food') out.push(`${bname('house')} y núcleo (para crecer hace falta comida de sobra)`);
   return out;

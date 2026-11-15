@@ -86,20 +86,30 @@ export interface EnemyDef {
 export interface TechEffects {
   /** Multiplicador sumado a los puntos de investigación por minuto (0.2 = +20 %). */
   researchRate?: number;
+  /** Plazas que suma cada casa. */
+  houseCapacity?: number;
+  /** Nivel de las fábricas (las recetas de nivel 2 necesitan 2). */
+  factoryTier?: number;
   /** Multiplicador sumado a la velocidad de los NPCs (0.25 = +25 %). */
   npcSpeed?: number;
+  /** Unidades que suma a la capacidad de carga de los NPCs. */
   npcCapacity?: number;
   npcWork?: number;
-  /** Sube el nivel global de un tipo de torreta. */
+  /** Sube en 1 el nivel global de un tipo de torreta (hasta `turretLevels.maxLevel`). */
   turretLevel?: TurretKind;
 }
 
+/** Ramas del árbol de tecnología, en el orden en que se dibujan. */
+export const TECH_BRANCHES = ['Armamento', 'Defensa', 'Industria', 'Logística', 'Energía y automatización', 'Ingeniería', 'Población y comida'] as const;
+export type TechBranch = (typeof TECH_BRANCHES)[number];
+
+/** Un nodo del árbol: se compra con puntos de investigación, al instante (sin tiempo ni componentes). */
 export interface TechNode {
   id: string;
   name: string;
-  branch: 'Armamento' | 'Defensa' | 'Industria' | 'Logística' | 'Ingeniería';
-  cost: Bag;
-  time: number;
+  branch: TechBranch;
+  /** Coste en puntos de investigación. */
+  cost: number;
   requires: string[];
   unlocks: { buildings?: BuildKind[]; recipes?: string[] };
   effects?: TechEffects;
@@ -119,7 +129,7 @@ export const CONFIG = {
   /** Población inicial: 3 personas. */
   startNpcs: { constructor: 1, transporter: 1, operator: 1 } as Record<NpcRole, number>,
   startUnlocks: {
-    buildings: ['drill', 'belt', 'pipeline', 'storage', 'factory', 'farm', 'pump', 'refinery', 'workshop', 'house', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
+    buildings: ['drill', 'belt', 'pipeline', 'storage', 'factory', 'farm', 'pump', 'refinery', 'workshop', 'laboratory', 'house', 'turret_bullet', 'pole', 'generator'] as BuildKind[],
     /** Recetas de nivel 1. Las de nivel 2 (circuito, batería, placa de muro, ciencia II) llegan con el árbol. */
     recipes: ['iron_plate', 'copper_plate', 'brick', 'gear', 'frame', 'wire', 'pipe', 'gun_part', 'ammo', 'tool_kit', 'science_1'],
   },
@@ -359,7 +369,50 @@ export const CONFIG = {
     table: [{ from: 1, mix: { grunt: 1 } }] as { from: number; mix: Partial<Record<EnemyKind, number>> }[],
   },
 
-  tech: [] as TechNode[],
+  /**
+   * Árbol de tecnología. Costes: primera columna 8-25 puntos, segunda 25-50, tercera 60-90 (ver SPEC.md, "Equilibrado").
+   * Todo lo que no está en `startUnlocks` sale de aquí; un test comprueba que cada edificio y cada receta bloqueados
+   * los desbloquea exactamente un nodo.
+   */
+  tech: [
+    // ---- Armamento ----
+    { id: 'arm_fire', name: 'Lanzallamas', branch: 'Armamento', cost: 12, requires: [], unlocks: { buildings: ['turret_fire'] }, tier: 1 },
+    { id: 'arm_bullet_2', name: 'Balas reforzadas', branch: 'Armamento', cost: 20, requires: [], unlocks: {}, effects: { turretLevel: 'turret_bullet' }, tier: 1 },
+    { id: 'arm_laser', name: 'Torreta láser', branch: 'Armamento', cost: 35, requires: ['ind_circuits'], unlocks: { buildings: ['turret_laser'] }, tier: 2 },
+    { id: 'arm_fire_2', name: 'Depósitos mayores', branch: 'Armamento', cost: 35, requires: ['arm_fire'], unlocks: {}, effects: { turretLevel: 'turret_fire' }, tier: 2 },
+    { id: 'arm_frost', name: 'Torreta de hielo', branch: 'Armamento', cost: 40, requires: ['ind_battery', 'arm_laser'], unlocks: { buildings: ['turret_frost'] }, tier: 3 },
+    { id: 'arm_bullet_3', name: 'Cañones múltiples', branch: 'Armamento', cost: 60, requires: ['arm_bullet_2'], unlocks: {}, effects: { turretLevel: 'turret_bullet' }, tier: 2 },
+    { id: 'arm_laser_2', name: 'Cristal mayor', branch: 'Armamento', cost: 60, requires: ['arm_laser'], unlocks: {}, effects: { turretLevel: 'turret_laser' }, tier: 3 },
+    { id: 'arm_frost_2', name: 'Racimo de cristales', branch: 'Armamento', cost: 70, requires: ['arm_frost'], unlocks: {}, effects: { turretLevel: 'turret_frost' }, tier: 4 },
+    // ---- Defensa ----
+    { id: 'def_wood', name: 'Murallas de madera', branch: 'Defensa', cost: 8, requires: [], unlocks: { buildings: ['wall_wood'] }, tier: 1 },
+    { id: 'def_gate', name: 'Puerta', branch: 'Defensa', cost: 15, requires: ['def_wood'], unlocks: { buildings: ['wall_gate'] }, tier: 2 },
+    { id: 'def_stone', name: 'Murallas de piedra', branch: 'Defensa', cost: 25, requires: ['def_wood'], unlocks: { buildings: ['wall_stone'] }, tier: 2 },
+    { id: 'def_metal', name: 'Murallas de metal', branch: 'Defensa', cost: 50, requires: ['def_stone', 'ind_wallplate'], unlocks: { buildings: ['wall_metal'] }, tier: 3 },
+    // ---- Industria ----
+    { id: 'ind_tier2', name: 'Fábrica de nivel 2', branch: 'Industria', cost: 25, requires: [], unlocks: {}, effects: { factoryTier: 2 }, tier: 1 },
+    { id: 'ind_circuits', name: 'Circuitos', branch: 'Industria', cost: 20, requires: ['ind_tier2'], unlocks: { recipes: ['circuit'] }, tier: 2 },
+    { id: 'ind_wallplate', name: 'Placas de muro', branch: 'Industria', cost: 15, requires: ['ind_tier2'], unlocks: { recipes: ['wall_plate'] }, tier: 2 },
+    { id: 'ind_battery', name: 'Baterías', branch: 'Industria', cost: 25, requires: ['ind_tier2'], unlocks: { recipes: ['battery'] }, tier: 2 },
+    // ---- Logística ----
+    { id: 'log_belt2', name: 'Cinta rápida', branch: 'Logística', cost: 10, requires: [], unlocks: { buildings: ['belt_fast'] }, tier: 1 },
+    { id: 'log_speed_1', name: 'Zapatillas', branch: 'Logística', cost: 15, requires: [], unlocks: {}, effects: { npcSpeed: 0.25 }, tier: 1 },
+    { id: 'log_capacity', name: 'Mochilas', branch: 'Logística', cost: 30, requires: ['log_speed_1'], unlocks: {}, effects: { npcCapacity: 4 }, tier: 2 },
+    { id: 'log_feeder', name: 'Alimentador automático', branch: 'Logística', cost: 45, requires: ['log_belt2', 'ind_circuits'], unlocks: { buildings: ['feeder'] }, tier: 3 },
+    // ---- Energía y automatización ----
+    { id: 'ene_solar', name: 'Panel solar', branch: 'Energía y automatización', cost: 30, requires: ['ind_circuits'], unlocks: { buildings: ['solar'] }, tier: 2 },
+    { id: 'ene_accumulator', name: 'Acumulador', branch: 'Energía y automatización', cost: 30, requires: ['ind_battery'], unlocks: { buildings: ['accumulator'] }, tier: 2 },
+    { id: 'ene_turbine', name: 'Turbina', branch: 'Energía y automatización', cost: 60, requires: ['ene_solar'], unlocks: { buildings: ['turbine'] }, tier: 3 },
+    // ---- Ingeniería ----
+    { id: 'ing_work_1', name: 'Herramientas', branch: 'Ingeniería', cost: 15, requires: [], unlocks: {}, effects: { npcWork: 0.25 }, tier: 1 },
+    { id: 'ing_research_1', name: 'Método científico', branch: 'Ingeniería', cost: 20, requires: [], unlocks: {}, effects: { researchRate: 0.2 }, tier: 1 },
+    { id: 'ing_work_2', name: 'Taller organizado', branch: 'Ingeniería', cost: 45, requires: ['ing_work_1', 'ind_tier2'], unlocks: {}, effects: { npcWork: 0.25 }, tier: 2 },
+    { id: 'ing_research_2', name: 'Laboratorio equipado', branch: 'Ingeniería', cost: 50, requires: ['ing_research_1'], unlocks: {}, effects: { researchRate: 0.25 }, tier: 2 },
+    { id: 'ing_research_3', name: 'Cálculo avanzado', branch: 'Ingeniería', cost: 90, requires: ['ing_research_2', 'ind_circuits'], unlocks: {}, effects: { researchRate: 0.3 }, tier: 3 },
+    // ---- Población y comida ----
+    { id: 'pop_houses_1', name: 'Casas reforzadas', branch: 'Población y comida', cost: 15, requires: [], unlocks: {}, effects: { houseCapacity: 1 }, tier: 1 },
+    { id: 'pop_houses_2', name: 'Casas de dos plantas', branch: 'Población y comida', cost: 40, requires: ['pop_houses_1'], unlocks: {}, effects: { houseCapacity: 1 }, tier: 2 },
+  ] as TechNode[],
 
   /** Interfaz: tooltips y avisos. */
   ui: {

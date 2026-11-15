@@ -36,14 +36,9 @@ describe('tooltip de edificio', () => {
     expect(buildTip(g, 'turret_laser').locked).toBeNull();
   });
 
-  it('el requisito menciona la tecnología cuando existe en el árbol', () => {
+  it('el requisito menciona la tecnología que lo desbloquea en el árbol', () => {
     const g = flatGame();
-    CONFIG.tech.push({ id: 't1', name: 'Óptica', branch: 'Armamento', cost: {}, time: 1, requires: [], unlocks: { buildings: ['turret_laser'] }, tier: 1 });
-    try {
-      expect(lockReason(g, 'turret_laser')).toContain('Óptica');
-    } finally {
-      CONFIG.tech.pop();
-    }
+    expect(lockReason(g, 'turret_laser')).toContain(CONFIG.tech.find((n) => n.id === 'arm_laser')!.name);
   });
 
   it('todos los edificios generan tooltip sin fallar', () => {

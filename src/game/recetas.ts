@@ -32,7 +32,7 @@ export const factoryRecipeIds = (): string[] => Object.keys(CONFIG.recipes).filt
 export function recipeBlockedReason(g: Game, id: string): string | undefined {
   const r = CONFIG.recipes[id];
   if (!g.unlockedRecipes.has(id)) return 'Sin investigar: se desbloquea en el árbol de tecnología';
-  if (r.tier > CONFIG.factory.tier) return `Necesita una fábrica de nivel ${r.tier}`;
+  if (r.tier > g.factoryTier) return `Necesita una fábrica de nivel ${r.tier}`;
   return undefined;
 }
 

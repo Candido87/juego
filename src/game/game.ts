@@ -6,6 +6,7 @@ import { BuildingDef, CONFIG, TurretDef } from './config';
 import { JobBoard } from './jobs';
 import { Npc, stepNpc } from './npc';
 import { dijkstra } from './path';
+import { techNode } from './tecnologia';
 import { Grid, PowerNet, emptyGrid, needsStart, powerMult, rebuildGrid, stepPower } from './power';
 import {
   Bag,
@@ -150,6 +151,9 @@ export interface GameState {
   turretLevel: Game['turretLevel'];
   /** Puntos de investigación acumulados (ausente en guardados antiguos). */
   researchPoints?: number;
+  /** Nodos del árbol investigados y nivel de fábrica (ausentes en guardados antiguos). */
+  researched?: string[];
+  factoryTier?: number;
   nextId: number;
   acc: number;
   queue: QueuedSpawn[];
@@ -208,6 +212,10 @@ export class Game {
   readonly bonus = { npcSpeed: 0, npcCapacity: 0, npcWork: 0, houseCapacity: 0, researchRate: 0 };
   /** Puntos de investigación acumulados (los produce el laboratorio con sus investigadores; ver `pointsPerMinute`). */
   researchPoints = 0;
+  /** Nodos del árbol ya comprados. */
+  readonly researched = new Set<string>();
+  /** Nivel de las fábricas (sube con el árbol). */
+  factoryTier: number = CONFIG.factory.tier;
   /** Nivel global de cada tipo de torreta (sube con el árbol). */
   readonly turretLevel: Record<TurretKind, number> = { turret_bullet: 1, turret_laser: 1, turret_fire: 1, turret_frost: 1 };
 
@@ -548,6 +556,60 @@ export class Game {
     return total * (1 + this.bonus.researchRate);
   }
 
+  // ---------------------------------------------------------------- árbol de tecnología
+
+  /** Estado de un nodo: investigado, bloqueado (faltan requisitos), sin puntos suficientes o disponible. */
+  techState(id: string): 'done' | 'locked' | 'nopoints' | 'available' {
+    const n = techNode(id);
+    if (this.researched.has(id)) return 'done';
+    if (n.requires.some((r) => !this.researched.has(r))) return 'locked';
+    return this.researchPoints >= n.cost ? 'available' : 'nopoints';
+  }
+
+  /** ¿Se puede comprar? Si no, por qué (con cuántos puntos faltan y cuánto tardarás con la producción actual). */
+  canResearch(id: string): { ok: boolean; reason?: string } {
+    const n = techNode(id);
+    const st = this.techState(id);
+    if (st === 'done') return { ok: false, reason: 'Ya investigado' };
+    if (st === 'locked') return { ok: false, reason: `Faltan requisitos: ${n.requires.filter((r) => !this.researched.has(r)).map((r) => techNode(r).name).join(', ')}` };
+    if (st === 'nopoints') {
+      const missing = Math.ceil(n.cost - this.researchPoints);
+      const ppm = this.pointsPerMinute();
+      const when = ppm > 0 ? `unos ${Math.max(1, Math.ceil((n.cost - this.researchPoints) / ppm))} min con la producción actual (${ppm.toFixed(1)}/min)` : 'ahora no produces puntos (hace falta laboratorio con energía e Investigadores)';
+      return { ok: false, reason: `Faltan ${missing} puntos: ${when}` };
+    }
+    return { ok: true };
+  }
+
+  /** Compra un nodo: gasta sus puntos y aplica lo que desbloquea, al instante. */
+  research(id: string): boolean {
+    if (!this.canResearch(id).ok) return false;
+    const n = techNode(id);
+    this.researchPoints -= n.cost;
+    this.researched.add(id);
+    for (const b of n.unlocks.buildings ?? []) this.unlockedBuildings.add(b);
+    for (const r of n.unlocks.recipes ?? []) this.unlockedRecipes.add(r);
+    const e = n.effects;
+    if (e) {
+      this.bonus.npcSpeed += e.npcSpeed ?? 0;
+      this.bonus.npcCapacity += e.npcCapacity ?? 0;
+      this.bonus.npcWork += e.npcWork ?? 0;
+      this.bonus.houseCapacity += e.houseCapacity ?? 0;
+      this.bonus.researchRate += e.researchRate ?? 0;
+      if (e.factoryTier) this.factoryTier = Math.max(this.factoryTier, e.factoryTier);
+      if (e.turretLevel) this.turretLevel[e.turretLevel] = Math.min(CONFIG.turretLevels.maxLevel, this.turretLevel[e.turretLevel] + 1);
+    }
+    this.emit({ type: 'researched', id });
+    return true;
+  }
+
+  /** Nodo que conviene comprar ahora: de los que se pueden comprar o están a un paso, el más barato (null si no queda ninguno). */
+  recommendedTech(): string | null {
+    const open = CONFIG.tech.filter((n) => !this.researched.has(n.id) && n.requires.every((r) => this.researched.has(r)));
+    open.sort((a, b) => a.cost - b.cost || a.tier - b.tier);
+    return open[0]?.id ?? null;
+  }
+
   /** Suma los puntos de este paso y devuelve a Constructor a los investigadores que se han quedado sin puesto. */
   private stepResearch(dt: number): void {
     const surplus = this.researchers().length - this.researchSlots();
@@ -619,7 +681,7 @@ export class Game {
     if (b.kind !== 'factory') return [];
     return Object.keys(CONFIG.recipes).filter((id) => {
       const r = CONFIG.recipes[id];
-      return this.unlockedRecipes.has(id) && r.tier <= CONFIG.factory.tier && (r.building ?? 'factory') === 'factory';
+      return this.unlockedRecipes.has(id) && r.tier <= this.factoryTier && (r.building ?? 'factory') === 'factory';
     });
   }
 
@@ -772,6 +834,8 @@ export class Game {
       bonus: this.bonus,
       turretLevel: this.turretLevel,
       researchPoints: this.researchPoints,
+      researched: [...this.researched],
+      factoryTier: this.factoryTier,
       nextId: this.nextId,
       acc: this.acc,
       queue: this.queue,
@@ -806,6 +870,9 @@ export class Game {
     Object.assign(this.bonus, st.bonus);
     Object.assign(this.turretLevel, st.turretLevel);
     this.researchPoints = st.researchPoints ?? 0;
+    this.researched.clear();
+    (st.researched ?? []).forEach((id) => this.researched.add(id));
+    this.factoryTier = st.factoryTier ?? CONFIG.factory.tier;
     this.nextId = st.nextId;
     this.acc = st.acc;
     this.queue = st.queue;

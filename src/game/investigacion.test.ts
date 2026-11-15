@@ -30,9 +30,9 @@ describe('laboratorio, investigadores y puntos', () => {
     expect(CONFIG.power.demand.laboratory).toBeGreaterThan(0);
     expect(CONFIG.power.mult.laboratory).toEqual([0, 1]);
     expect(CONFIG.npc.roles.researcher.name).toBe('Investigador');
-    // Las tres personas del inicio pueden construirlo con lo que hay en el almacén.
+    // Viene desbloqueado de inicio (hace falta para empezar a investigar) y se puede construir con lo que hay en el almacén.
     const g = flatGame();
-    expect(g.canPlace('laboratory', 3, 3).ok).toBe(false); // bloqueado hasta que se desbloquee o se use `instant`
+    expect(g.canPlace('laboratory', 3, 3).ok).toBe(true);
   });
 
   it('sin investigadores no produce nada, aunque tenga energía', () => {
