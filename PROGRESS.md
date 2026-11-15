@@ -127,6 +127,6 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] M3D-2. Aspecto y legibilidad: paleta corregida (hierba verde, zonas por recurso), contorno de objetos, transparencia de lo que tapa el cursor o la selección, marca de personajes tapados, clic en el cuerpo del edificio.
 - [x] M3D-3. Construcción y logística: murallas con esquinas, T, cruces, daño y puerta (edificio nuevo `wall_gate`); cintas con T y cruce; tuberías con codos; cables y alcance de postes; alcance de torretas; flechas de puertos; iconos de estado.
 - [x] M3D-4. Unidades y efectos: NPCs por rol que andan, esperan, trabajan y enseñan su carga; enemigos que atacan, se ralentizan, arden y caen al morir; torretas con niveles, estados y accesorio propio; un proyectil por tipo; humo de chimeneas y de daño, explosiones y barras de vida.
-- [ ] M3D-5. Tutorial, guía de inicio, guardado/carga, autoguardado y Electron.
+- [x] M3D-5. Guía y tutorial en 3D con ayudas sobre el mapa, guardado/carga y autoguardado, Electron abre la vista 3D.
 - [ ] M3D-6. Rendimiento y compatibilidad (calidad baja/media/alta, aviso sin WebGL2, mediciones).
 - [ ] M3D-7. Cierre: eliminar Phaser y la 2D, CLAUDE.md y SPEC.md, pull request.

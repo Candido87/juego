@@ -7,7 +7,7 @@ Rama de trabajo: `vista-3d`. Entrada 3D: `vista3d.html` + `src/view3d/`. Entrada
 
 **Vista 2D congelada:** desde hoy `src/view/` sólo recibe correcciones graves. Todo lo nuevo que se vea va a `src/view3d/`.
 
-Resumen: **75 hecho · 9 parcial · 13 pendiente · 3 no existe** (100 líneas).
+Resumen: **81 hecho · 10 parcial · 7 pendiente · 2 no existe** (100 líneas).
 
 ## Hallazgos al inventariar (cambian el plan)
 - **(Fase 1 hecha)** La interfaz es una sola para las dos vistas: `vista3d.html` usa `src/view/ui.ts`, `tooltip.ts` y `guia.ts`, que ya no importan Phaser (hay un test que lo vigila).
@@ -15,7 +15,7 @@ Resumen: **75 hecho · 9 parcial · 13 pendiente · 3 no existe** (100 líneas).
 - **Los muros no se pueden construir en una partida normal.** Sólo los desbloquea el tutorial (`tutorial.ts`); con el árbol de tecnología vacío, en la partida libre salen bloqueados, y la puerta nueva igual. Es una decisión de diseño pendiente, no un fallo de la vista.
 - **Las torretas de energía (láser y hielo) nunca disparan.** `Game.turretPower` devuelve 0 para toda torreta con `energyPerShot > 0`, así que su efecto de disparo existe en la vista pero no se verá en una partida hasta que la lógica las alimente. Además están bloqueadas (árbol de tecnología vacío). Es lógica pendiente, no un fallo de la vista.
 - **`Enemy.attacking` no se rellena nunca** en la lógica: la vista deduce el ataque de que el enemigo lleve un rato parado.
-- **Guardado y carga de partida no existen** en la 2D. Sólo se guardan en `localStorage` el progreso de la guía de inicio y qué paneles están plegados. Hay que hacerlo nuevo (toca `src/game/`, con tests).
+- **Guardado y carga de partida** no existían en la 2D; ya existen (Fase 5) en `game/savegame.ts`, con tests.
 - **El árbol de tecnología está vacío** (`CONFIG.tech = []`): el botón "Árbol (T)" existe pero se oculta. No hay pantalla que portar hasta que haya nodos.
 - **El tutorial** (`src/game/tutorial.ts`, `tutorialBot.ts`, `tutorialText.ts`) tiene lógica y tests pero **no está conectado a la vista** en esta rama. Lo que sí funciona es la guía de inicio (`guia.ts`).
 - **No hay menú principal, opciones ni sonido** en la 2D.
@@ -29,7 +29,7 @@ Resumen: **75 hecho · 9 parcial · 13 pendiente · 3 no existe** (100 líneas).
 | 1.4 | Adelantar oleada (con aviso si no hay torretas) | hecho |  |
 | 1.5 | Menú principal | no existe | |
 | 1.6 | Opciones (calidad, sombras, volumen) | parcial | panel de opciones 3D: sombras, velocidad y rendimiento, guardadas; faltan calidad y volumen |
-| 1.7 | Guardado/carga y autoguardado | no existe | sólo guía y paneles en `localStorage` |
+| 1.7 | Guardado/carga y autoguardado | hecho | guardado manual y autoguardado (cada minuto y al cerrar); desde las opciones o con `?load=auto|manual`; al abrir con una partida viva se pregunta Continuar o Nueva; la guía viaja con el guardado |
 
 ## 2. HUD
 | # | Función en 2D | Estado | Nota |
@@ -156,16 +156,16 @@ Resumen: **75 hecho · 9 parcial · 13 pendiente · 3 no existe** (100 líneas).
 ## 12. Guía de inicio y tutorial
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
-| 12.1 | Panel de guía con pasos y detección real (`guia-inicio.ts`, `guia-flujo.ts`) | pendiente | la lógica es pura |
-| 12.2 | Resaltes en el menú y en el mapa, flechas y ruta de ejemplo | pendiente | |
-| 12.3 | Diagnósticos de cinta, energía y tubería | pendiente | |
-| 12.4 | Progreso de la guía guardado | pendiente | |
-| 12.5 | Tutorial guiado (`tutorial.ts`) | pendiente | lógica con tests, sin vista en esta rama |
+| 12.1 | Panel de guía con pasos y detección real (`guia-inicio.ts`, `guia-flujo.ts`) | hecho | el mismo panel de la 2D, sin cambios |
+| 12.2 | Resaltes en el menú y en el mapa, flechas y ruta de ejemplo | hecho | resalte de botón y categoría; flecha que rebota y marco en la casilla; puertos, alcance de postes y ruta de ejemplo con flechas sobre el mapa |
+| 12.3 | Diagnósticos de cinta, energía y tubería | hecho | aviso de texto en el panel y casilla del problema marcada en rojo |
+| 12.4 | Progreso de la guía guardado | hecho | dentro de cada guardado y en `localStorage` |
+| 12.5 | Tutorial guiado (`tutorial.ts`) | hecho | `?tutorial=1` o botón en las opciones: panel con paso N de M, saltar paso o tutorial, resalte y casilla señalada; sin guardar la partida del tutorial |
 
 ## 13. Plataforma
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
-| 13.1 | Electron: ventana, F11, empaquetado e instalador | pendiente | hoy carga `index.html` |
+| 13.1 | Electron: ventana, F11, empaquetado e instalador | parcial | `electron/main.cjs` abre `vista3d.html` (variable `ELECTRON_PAGE` para volver a la 2D); F11 y empaquetado sin cambios; no probado en una ventana de Electron |
 | 13.2 | Build de Vite con varias páginas | hecho | `vista3d` ya es una entrada |
 | 13.3 | Galerías de pruebas (`galeria-torretas.html`, `terreno-prueba.html`, `tools/`) | parcial | existe `tools/galeria3d.html` |
 | 13.4 | Aviso si no hay WebGL2 | pendiente | pedido para la 3D |

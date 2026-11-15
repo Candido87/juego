@@ -16,7 +16,24 @@ import { STATUS_STYLE, StatusIcon, statusIcon, statusKey } from './status';
 
 type Tile = { x: number; y: number };
 
+/** Ayudas de la guía de inicio o del tutorial sobre el mapa (las calcula la interfaz, ver `guia.ts`). */
+export interface GuideAids {
+  /** Casilla recomendada: flecha que rebota y marco. */
+  mark?: Tile | null;
+  /** Ruta de ejemplo con el sentido de la cinta o tubería. */
+  route?: { x: number; y: number; dir: Dir }[] | null;
+  /** La ruta es de líquido (tubería). */
+  liquid?: boolean;
+  /** Casilla del problema detectado. */
+  diag?: Tile | null;
+  /** Flechas de entrada/salida de los edificios de estos tipos. */
+  portKinds?: BuildKind[];
+  /** Alcance de todos los postes. */
+  poleRange?: boolean;
+}
+
 export interface OverlayState {
+  guide?: GuideAids | null;
   selectedId: number | null;
   hoverBuildingId: number | null;
   /** Edificio que se está colocando (null si no hay herramienta de construcción). */
@@ -90,6 +107,8 @@ export class Overlay {
   private iconTimer = 0;
   private arrowGeo = arrowGeometry();
   private rangeGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  /** Flecha que rebota sobre la casilla que recomienda la guía (cono apuntando hacia abajo). */
+  private marker: THREE.Mesh;
   /** Contadores para pruebas y PARIDAD. */
   readonly stats = { wires: 0, arrows: 0, ranges: 0, icons: 0 };
 
@@ -100,7 +119,10 @@ export class Overlay {
     this.ring = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x6fd3ff, depthTest: false, transparent: true, opacity: 0.9 }));
     this.ring.renderOrder = 20;
     this.ring.visible = false;
-    this.group.add(this.wires, this.ring);
+    this.marker = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.5, 4).rotateX(Math.PI), new THREE.MeshBasicMaterial({ color: 0xffd166, depthTest: false, transparent: true, opacity: 0.95 }));
+    this.marker.renderOrder = 23;
+    this.marker.visible = false;
+    this.group.add(this.wires, this.ring, this.marker);
   }
 
   private ground(x: number, y: number): number {
@@ -220,6 +242,32 @@ export class Overlay {
     }
   }
 
+  /** Ayudas de la guía: ruta de ejemplo, casilla del problema, puertos y alcance de postes de los pasos, y la flecha que rebota. */
+  private guideAids(s: OverlayState, pulse: number): void {
+    const a = s.guide;
+    const g = this.game;
+    this.marker.visible = false;
+    if (!a) return;
+    if (a.portKinds) for (const b of g.buildings.values()) if (b.built && a.portKinds.includes(b.kind as BuildKind)) this.portsOf(b.kind, b.x, b.y, b.dir, 0.9, pulse);
+    if (a.poleRange) for (const p of g.buildings.values()) if (p.kind === 'pole' && p.built) this.range(p.x + 0.5, p.y + 0.5, this.ground(p.x, p.y), 2 * CONFIG.power.supplyRadius + 1, 0xffe066, 0.13);
+    if (a.route) {
+      const col = a.liquid ? LIQUID : SOLID;
+      const k = 0.55 + 0.25 * Math.sin(s.time * 4);
+      for (const r of a.route) {
+        this.range(r.x + 0.5, r.y + 0.5, this.ground(r.x, r.y), 0.96, col, 0.22 * k);
+        this.arrow(r.x, r.y, r.dir, col, true, k);
+      }
+    }
+    if (a.diag) this.range(a.diag.x + 0.5, a.diag.y + 0.5, this.ground(a.diag.x, a.diag.y), 1.15, 0xff5555, 0.25 + 0.4 * (0.5 + 0.5 * Math.sin(s.time * 6)));
+    if (a.mark) {
+      const t = a.mark;
+      this.range(t.x + 0.5, t.y + 0.5, this.ground(t.x, t.y), 1.1, 0xffd166, 0.2 + 0.3 * (0.5 + 0.5 * Math.sin(s.time * 5)));
+      this.marker.visible = true;
+      this.marker.position.set(t.x + 0.5, this.ground(t.x, t.y) + 1.25 + Math.abs(Math.sin(s.time * 4)) * 0.3, t.y + 0.5);
+      this.marker.rotation.y = s.time * 1.5;
+    }
+  }
+
   update(s: OverlayState): void {
     const g = this.game;
     this.syncWires();
@@ -255,6 +303,7 @@ export class Overlay {
         if (s.tool in CONFIG.turrets) turretRing(s.hover.x, s.hover.y, g.turretRange(s.tool as TurretKind), ok ? 0x7dff8a : 0xff5555);
       }
     }
+    this.guideAids(s, pulse);
     for (let i = this.arrowN; i < this.arrows.length; i++) this.arrows[i].visible = false;
     for (let i = this.rangeN; i < this.ranges.length; i++) this.ranges[i].visible = false;
     this.stats.arrows = this.arrowN;

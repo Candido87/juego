@@ -10,8 +10,13 @@ const { pathToFileURL } = require('url');
 
 const DEV_URL = process.env.ELECTRON_DEV_URL || 'http://localhost:5173';
 const isDev = !!process.env.ELECTRON_DEV;
+// Página que se abre: la vista 3D (por defecto) o, mientras exista, la 2D (`ELECTRON_PAGE=index.html`).
+const PAGE = process.env.ELECTRON_PAGE || 'vista3d.html';
 const DIST = path.join(__dirname, '..', 'dist');
 const ICON = path.join(__dirname, '..', 'build', 'icon.png');
+
+// WebGL2 también en tarjetas gráficas antiguas que Chromium tiene en lista negra.
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
@@ -50,7 +55,7 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  win.loadURL(isDev ? DEV_URL : 'app://juego/index.html');
+  win.loadURL(isDev ? `${DEV_URL.replace(/\/+$/, '')}/${PAGE}` : `app://juego/${PAGE}`);
   return win;
 }
 
@@ -61,7 +66,7 @@ app.whenReady().then(() => {
     protocol.handle('app', (request) => {
       const url = new URL(request.url);
       let rel = decodeURIComponent(url.pathname);
-      if (rel === '/' || rel === '') rel = '/index.html';
+      if (rel === '/' || rel === '') rel = `/${PAGE}`;
       const file = path.normalize(path.join(DIST, rel));
       // Nunca salir de dist/.
       if (!file.startsWith(DIST)) return new Response('Prohibido', { status: 403 });

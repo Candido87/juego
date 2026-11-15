@@ -5,12 +5,17 @@
 import { botTick } from '../game/bot';
 import { HELP_CONTROLS } from '../game/ayuda';
 import { Game } from '../game/game';
+import type { GuiaState } from '../game/guia-inicio';
+import { AutoSaver, SaveFile, SaveSlot, gameFromSave, latestSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
+import { createTutorialGame } from '../game/tutorial';
 import { BuildKind, Ore, Tile, dirBetween } from '../game/types';
 import { generateWorld, heightAt, oreAt } from '../game/world';
 import { getHud, itemName, ui } from '../view/ui';
 import { setupBench, wiggle } from './bench';
 import { Options, loadOptions, saveOptions } from './options';
+import type { GuideAids } from './overlay3d';
 import { OPT_OFF, OPT_ON, View3D } from './scene3d';
+import { TutorialView } from './tutorial3d';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const ORE_NAMES = ['', 'hierro', 'cobre', 'carbón', 'piedra', 'madera', 'petróleo', 'azufre'];
@@ -21,7 +26,7 @@ const HELP_3D: [string, string][] = [
   ['Z / C', 'Girar la cámara 90° (también los botones ⟲ ⟳)'],
   ['W A S D / flechas', 'Mover la cámara'],
   ...HELP_CONTROLS.slice(3),
-  ['O', 'Opciones (sombras, velocidad, rendimiento)'],
+  ['O', 'Opciones (sombras, velocidad, guardar y cargar, tutorial)'],
 ];
 
 /** Escenario de pruebas visuales: cintas con curva, tuberías, torretas de cada tipo, muros y (opcional) una oleada. */
@@ -86,13 +91,50 @@ function demo(game: Game, wave: boolean) {
   if (wave) game.callWaveNow();
 }
 
+/** Pregunta si se continúa la partida guardada o se empieza otra. */
+function askContinue(s: SaveFile): Promise<'continue' | 'new'> {
+  return new Promise((resolve) => {
+    const el = $('cont');
+    $('load').style.display = 'none';
+    el.style.display = 'flex';
+    el.innerHTML = `<div>Hay una partida guardada</div><div class="csub">${saveSummary(s)}</div><div class="crow"><button data-c="continue">Continuar</button><button data-c="new">Nueva partida</button></div>`;
+    el.onclick = (ev) => {
+      const c = (ev.target as HTMLElement).closest<HTMLElement>('[data-c]')?.dataset.c as 'continue' | 'new' | undefined;
+      if (!c) return;
+      el.style.display = 'none';
+      $('load').style.display = '';
+      resolve(c);
+    };
+  });
+}
+
 async function start() {
   if (!innerWidth || !innerHeight) return requestAnimationFrame(start);
   const q = new URLSearchParams(location.search);
-  const seed = Number(q.get('seed') ?? 7);
   const map = Number(q.get('map') ?? 0);
   const bench = q.get('bench') === '1';
-  const game = new Game({ seed, noWaves: q.get('waves') === '0' || bench, world: map ? generateWorld(seed, map, map) : undefined });
+  const tutorialMode = q.get('tutorial') === '1';
+  const store = (() => {
+    try {
+      return localStorage;
+    } catch {
+      return null;
+    }
+  })();
+  // Partida guardada: con `?load=auto|manual`, o al abrir sin parámetros si hay una viva (se pregunta).
+  let loaded: SaveFile | null = null;
+  const slot = q.get('load');
+  if (slot === 'auto' || slot === 'manual') loaded = readSave(store, slot);
+  else if (!location.search) {
+    const last = latestSave(store);
+    if (last && !last.save.state.gameOver && (await askContinue(last.save)) === 'continue') loaded = last.save;
+  }
+  const seed = loaded ? loaded.seed : Number(q.get('seed') ?? 7);
+  const game = loaded
+    ? gameFromSave(loaded)
+    : tutorialMode
+      ? createTutorialGame()
+      : new Game({ seed, noWaves: q.get('waves') === '0' || bench, world: map ? generateWorld(seed, map, map) : undefined });
   const options: Options = loadOptions(localStorage);
   const opts = q.get('opt') === '0' ? { ...OPT_OFF } : { ...OPT_ON };
   opts.shadows = q.get('shadows') === '0' ? false : options.shadows;
@@ -110,11 +152,27 @@ async function start() {
   const hud = getHud();
   hud.helpControls = HELP_3D;
   hud.bind(game);
+  // La guía de inicio viaja con el guardado; en el tutorial se apaga (el tutorial hace su papel).
+  if (loaded?.guia) hud.guia.state = loaded.guia as GuiaState;
+  if (tutorialMode) hud.guia.state.disabled = true;
   hud.onRestart = () => {
     const p = new URLSearchParams(location.search);
+    p.delete('load');
+    p.delete('tutorial');
     p.set('seed', String(Math.floor(Math.random() * 1e9)));
     location.search = p.toString();
   };
+  // Tutorial guiado: arranca siempre desde cero (la partida del tutorial no se guarda).
+  const tut = tutorialMode ? new TutorialView(game, null, true, () => hud.onRestart()) : null;
+  const camStart = { x: view.rig.x, z: view.rig.z, zoom: view.rig.zoom };
+  // Guardado: manual desde las opciones y automático cada minuto (también al cerrar la pestaña). Sin guardar en pruebas.
+  const canSave = !bench && !tutorialMode && !q.get('demo');
+  const save = (s: SaveSlot) => writeSave(store, s, makeSave(game, seed, Date.now(), hud.guia.state));
+  const autosaver = new AutoSaver();
+  if (canSave) {
+    window.addEventListener('beforeunload', () => !game.gameOver && save('auto'));
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && !game.gameOver && save('auto'));
+  }
   view.onMessage = (t) => hud.flash(t);
   // Alto real del HUD: los paneles flotantes se colocan debajo y no lo pisan.
   new ResizeObserver(() => document.documentElement.style.setProperty('--hudh', `${$('hud').offsetHeight + 8}px`)).observe($('hud'));
@@ -178,6 +236,16 @@ async function start() {
     speed = options.speed;
     $('perf').style.display = options.perf ? 'flex' : 'none';
   };
+  const saveRows = () => {
+    const m = readSave(store, 'manual');
+    const a = readSave(store, 'auto');
+    const line = (s: SaveFile | null) => (s ? `<span class="muted">${saveSummary(s)}</span>` : '<span class="muted">vacío</span>');
+    return (
+      `<div class="orow"><span>Guardar partida</span><button data-save>Guardar</button></div>` +
+      `<div class="orow"><span>Cargar ${line(m)}</span><button data-load="manual" ${m ? '' : 'disabled'}>Manual</button></div>` +
+      `<div class="orow"><span>Autoguardado ${line(a)}</span><button data-load="auto" ${a ? '' : 'disabled'}>Cargar</button></div>`
+    );
+  };
   const renderOptions = () => {
     const seg = (key: string, vals: [string, string][], cur: string) =>
       `<span class="oseg">${vals.map(([v, n]) => `<button data-opt="${key}:${v}" class="${v === cur ? 'active' : ''}">${n}</button>`).join('')}</span>`;
@@ -187,7 +255,9 @@ async function start() {
       `<div class="orow"><span>Contorno de objetos</span>${seg('outline', [['1', 'Sí'], ['0', 'No']], options.outline ? '1' : '0')}</div>` +
       `<div class="orow"><span>Velocidad del juego</span>${seg('speed', [['1', 'x1'], ['2', 'x2'], ['4', 'x4']], String(options.speed))}</div>` +
       `<div class="orow"><span>Mostrar rendimiento</span>${seg('perf', [['1', 'Sí'], ['0', 'No']], options.perf ? '1' : '0')}</div>` +
-      `<div class="orow"><span>Guía de inicio</span><button data-optguide>${hud.guia.disabled ? 'Activar' : 'Reiniciar'}</button></div>`;
+      `<div class="orow"><span>Guía de inicio</span><button data-optguide>${hud.guia.disabled ? 'Activar' : 'Reiniciar'}</button></div>` +
+      (canSave ? saveRows() : '') +
+      `<div class="orow"><span>Tutorial guiado</span><button data-tutorial>Empezar</button></div>`;
   };
   const optionsOpen = () => $('options').style.display === 'block';
   const toggleOptions = (open = !optionsOpen()) => {
@@ -200,6 +270,21 @@ async function start() {
   $('options').addEventListener('click', (ev) => {
     const t = ev.target as HTMLElement;
     if (t.closest('[data-optclose]')) return toggleOptions(false);
+    if (t.closest('[data-save]')) {
+      hud.flash(save('manual') ? 'Partida guardada' : 'No se ha podido guardar');
+      return renderOptions();
+    }
+    const ld = t.closest<HTMLElement>('[data-load]')?.dataset.load;
+    if (ld) {
+      const p = new URLSearchParams();
+      p.set('load', ld);
+      location.search = p.toString();
+      return;
+    }
+    if (t.closest('[data-tutorial]')) {
+      location.search = 'tutorial=1';
+      return;
+    }
     if (t.closest('[data-optguide]')) {
       hud.guia.reopen();
       return toggleOptions(false);
@@ -247,6 +332,25 @@ async function start() {
       if (t) hud.pick(t);
     }
   });
+
+  /** Ayudas sobre el mapa del paso actual de la guía o del tutorial. */
+  const guideAids = (): GuideAids | null => {
+    if (tut) {
+      const mark = tut.targetTile();
+      return mark ? { mark } : null;
+    }
+    const st = hud.guia.step();
+    if (!st) return null;
+    const hl = st.highlight;
+    return {
+      mark: hud.guia.targetTile(),
+      route: hud.guia.route(),
+      liquid: st.link?.from === 'pump' || st.link?.from === 'refinery',
+      diag: hud.guia.diagnosis()?.tile ?? null,
+      portKinds: hl?.ports,
+      poleRange: hl?.poleRange,
+    };
+  };
 
   /** Texto de la casilla bajo el ratón (mismo que la 2D). */
   const hoverInfo = (): string => {
@@ -319,6 +423,14 @@ async function start() {
     view.removeMode = ui.tool === 'remove';
     view.selectedId = ui.selected;
     view.simPaused = ui.paused || game.gameOver;
+    if (tut) {
+      if (Math.hypot(view.rig.x - camStart.x, view.rig.z - camStart.z) > 0.5) tut.flag('camera_moved');
+      if (Math.abs(view.rig.zoom - camStart.zoom) > 0.03) tut.flag('zoomed');
+      if (ui.tool) tut.flag('tool_selected');
+      tut.tick(dt);
+    }
+    if (canSave && !ui.paused && autosaver.tick(dt, game)) save('auto');
+    view.guide = guideAids();
     view.frame(dt);
     acc.game += t1 - t0;
     acc.view += performance.now() - t1;

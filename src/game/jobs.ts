@@ -136,6 +136,24 @@ export class JobBoard {
   private nextId = 1;
   private timer = 0;
 
+  /** Estado para guardar la partida. */
+  exportState(): { jobs: Job[]; nextId: number; timer: number } {
+    return { jobs: [...this.byKey.values()].map((j) => ({ ...j })), nextId: this.nextId, timer: this.timer };
+  }
+
+  /** Restaura el estado guardado (sustituye la cola entera). */
+  importState(s: { jobs: Job[]; nextId: number; timer: number }): void {
+    this.byKey.clear();
+    this.byId.clear();
+    for (const j of s.jobs) {
+      const job = { ...j };
+      this.byKey.set(job.key, job);
+      this.byId.set(job.id, job);
+    }
+    this.nextId = s.nextId;
+    this.timer = s.timer;
+  }
+
   list(): Job[] {
     return [...this.byKey.values()].sort((a, b) => b.priority - a.priority || a.id - b.id);
   }

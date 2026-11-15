@@ -14,7 +14,7 @@ import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
 import { animations, instance, preload, tint } from './loader';
 import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
-import { Overlay } from './overlay3d';
+import { GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { armsFor, beltPiece, maskOf, quarterYaw, yawToDir } from './pieces';
 import { Terrain, buildTerrain } from './terrain';
@@ -209,6 +209,8 @@ export class View3D {
   readonly fx = new Effects();
   /** La partida está en pausa: personajes y partículas se congelan (lo pone la interfaz). */
   simPaused = false;
+  /** Ayudas de la guía sobre el mapa (las pone la interfaz cada fotograma). */
+  guide: GuideAids | null = null;
   private hoverMesh: THREE.Group;
   private selMesh: THREE.LineSegments;
   private ghost: THREE.Group | null = null;
@@ -1185,7 +1187,7 @@ export class View3D {
     this.syncChars(sdt);
     this.syncBuildingFx(sdt);
     this.updateHighlights();
-    this.overlay.update({ selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
+    this.overlay.update({ guide: this.guide, selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
     this.fx.update(sdt, this.camera);
     this.updateHoles();
     this.markers.count = this.markerN;
