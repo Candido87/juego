@@ -6,6 +6,7 @@ import { entries } from './bag';
 import { CONFIG, RECIPE_CATEGORIES, RecipeCategory } from './config';
 import { itemUsedIn } from './descripciones';
 import type { Building, Game } from './game';
+import { techLockText, techUnlockingRecipe, techUnlockingTier } from './tecnologia';
 import type { ItemId } from './types';
 
 export interface RecipeEntry {
@@ -31,8 +32,14 @@ export const factoryRecipeIds = (): string[] => Object.keys(CONFIG.recipes).filt
 /** Motivo por el que una receta no se puede elegir (undefined si se puede). */
 export function recipeBlockedReason(g: Game, id: string): string | undefined {
   const r = CONFIG.recipes[id];
-  if (!g.unlockedRecipes.has(id)) return 'Sin investigar: se desbloquea en el árbol de tecnología';
-  if (r.tier > g.factoryTier) return `Necesita una fábrica de nivel ${r.tier}`;
+  if (!g.unlockedRecipes.has(id)) {
+    const node = techUnlockingRecipe(id);
+    return node ? `Requiere investigar ${techLockText(g, node)}` : 'Sin investigar: aún no hay tecnología que la desbloquee';
+  }
+  if (r.tier > g.factoryTier) {
+    const node = techUnlockingTier(r.tier);
+    return node ? `Necesita una fábrica de nivel ${r.tier}: investiga ${techLockText(g, node)}` : `Necesita una fábrica de nivel ${r.tier}`;
+  }
   return undefined;
 }
 

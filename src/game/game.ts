@@ -6,7 +6,7 @@ import { BuildingDef, CONFIG, TurretDef } from './config';
 import { JobBoard } from './jobs';
 import { Npc, stepNpc } from './npc';
 import { dijkstra } from './path';
-import { techNode } from './tecnologia';
+import { techLabel, techNode, techUnlockingBuilding } from './tecnologia';
 import { Grid, PowerNet, emptyGrid, needsStart, powerMult, rebuildGrid, stepPower } from './power';
 import {
   Bag,
@@ -399,7 +399,10 @@ export class Game {
 
   canPlace(kind: BuildKind, x: number, y: number): PlaceCheck {
     if (this.gameOver) return { ok: false, reason: 'Partida terminada' };
-    if (!this.unlockedBuildings.has(kind)) return { ok: false, reason: 'Sin investigar' };
+    if (!this.unlockedBuildings.has(kind)) {
+      const node = techUnlockingBuilding(kind);
+      return { ok: false, reason: node ? `Sin investigar: ${techLabel(node)}` : 'Sin investigar' };
+    }
     const [fw, fd] = this.def(kind).size;
     const tiles: number[] = [];
     for (let dy = 0; dy < fd; dy++) {

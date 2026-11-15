@@ -6,6 +6,7 @@ import { count, missing } from './bag';
 import { CONFIG } from './config';
 import { describeBuilding, describeItem, formatStat } from './descripciones';
 import type { Game } from './game';
+import { techLockText, techUnlockingBuilding } from './tecnologia';
 import { BuildKind, BuildingKind, ItemId } from './types';
 
 // ---------------------------------------------------------------- edificios
@@ -34,8 +35,8 @@ export interface BuildTip {
 /** Motivo por el que un edificio no se puede construir todavía (null = se puede). */
 export function lockReason(g: Game, kind: BuildingKind): string | null {
   if (kind === 'core' || g.unlockedBuildings.has(kind as BuildKind)) return null;
-  const node = CONFIG.tech.find((n) => n.unlocks.buildings?.includes(kind as BuildKind));
-  return node ? `Requiere investigar: ${node.name}` : 'Bloqueado: aún no hay tecnología que lo desbloquee';
+  const node = techUnlockingBuilding(kind as BuildKind);
+  return node ? `Requiere investigar ${techLockText(g, node)}` : 'Bloqueado: aún no hay tecnología que lo desbloquee';
 }
 
 export function buildTip(g: Game, kind: BuildingKind, key?: string): BuildTip {

@@ -790,3 +790,9 @@ Va después de la investigación, las cintas y los aéreos. Aquí sí se toca la
 - **Navegación:** rueda = zoom hacia el cursor (0,45-1,6), arrastrar = desplazar, "Ver todo" encaja el árbol entero; al abrir se ajusta al ancho con un zoom legible (≥ 0,8) y se baja arrastrando. **Filtro por rama** (desplaza hasta ella y atenúa las demás) y **búsqueda** por nombre o por lo que desbloquea (sin acentos).
 - **Ayuda en pantalla:** si no hay laboratorio, o no hay investigadores, o no produce, un aviso amarillo dice qué hacer.
 - **Código:** `game/arbol.ts` (distribución, textos y búsqueda, con tests) y `view/arbolView.ts` (DOM). Sin comprobar: pantallas pequeñas (menos de 900 px de ancho) y táctil.
+
+### INV4 hecho: bloqueos reales y motivos
+- Todo lo que el árbol desbloquea ya estaba bloqueado de verdad (`canPlace` devuelve "Sin investigar"; las recetas y el nivel de fábrica se comprueban al elegirlas). Ahora **cada motivo nombra el nodo, su rama y su coste** y dice en qué punto está: `techLockText` (en `tecnologia.ts`) da «Torreta láser» (Armamento, 35 puntos) más: *te faltan N puntos*, *antes investiga «X» y «Y»* (si hay requisitos pendientes) o *ya tienes los puntos, pulsa T*.
+- Dónde se ve: botones grises del **menú de construcción** (tooltip y aviso al pulsarlos), el **motivo de `canPlace`** al intentar colocar, y el **panel de recetas** (receta bloqueada: nodo que la desbloquea; receta de nivel 2 sin fábrica de nivel 2: el nodo "Fábrica de nivel 2").
+- Tests (`tecnologia.test.ts`): cada edificio bloqueado tiene un motivo con nodo (ninguno cae en "no hay tecnología"), los motivos cambian con el estado (faltan puntos → ya se puede → investigado), el panel de recetas y los cuatro estados de `techLockText`.
+- Decisión simple: no se abre el árbol solo al pulsar algo bloqueado (sería molesto); el mensaje dice que se pulse T.

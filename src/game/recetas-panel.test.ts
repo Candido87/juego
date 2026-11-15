@@ -26,7 +26,7 @@ describe('panel de recetas (lógica)', () => {
     expect(list.filter((e) => e.selected)).toHaveLength(1);
     const circuit = list.find((e) => e.id === 'circuit')!;
     expect(circuit.available).toBe(false);
-    expect(circuit.reason).toMatch(/Sin investigar/);
+    expect(circuit.reason).toContain('Requiere investigar «Circuitos» (Industria, 20 puntos)');
     expect(list.find((e) => e.id === 'gear')!.available).toBe(true);
     // Desbloqueada pero de nivel 2: la fábrica de nivel 1 no la hace.
     g.unlockedRecipes.add('circuit');

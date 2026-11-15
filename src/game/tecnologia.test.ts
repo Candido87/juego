@@ -160,13 +160,13 @@ describe('árbol de tecnología: compra y efectos', () => {
     g.storage.wood = 50;
     const before = g.canPlace('wall_wood', 3, 3);
     expect(before.ok).toBe(false);
-    expect(before.reason).toBe('Sin investigar');
+    expect(before.reason).toContain('Sin investigar: «Murallas de madera» (Defensa, 8 puntos)');
     g.researchPoints = 8;
     expect(g.research('def_wood')).toBe(true);
     expect(g.canPlace('wall_wood', 3, 3).ok).toBe(true);
     // Lo demás sigue bloqueado.
     expect(g.canPlace('wall_stone', 4, 3).ok).toBe(false);
-    expect(g.canPlace('turret_laser', 5, 3).reason).toBe('Sin investigar');
+    expect(g.canPlace('turret_laser', 5, 3).reason).toContain('«Torreta láser»');
   });
 
   it('el nivel de fábrica 2 habilita las recetas de nivel 2 ya desbloqueadas; las mejoras de torreta suben el nivel (con tope)', () => {
@@ -317,5 +317,75 @@ describe('pantalla del árbol (parte pura)', () => {
     expect(techVisible(techNode('arm_laser'), 'Armamento', '')).toBe(true);
     expect(techVisible(techNode('arm_laser'), 'Defensa', '')).toBe(false);
     expect(techVisible(techNode('arm_laser'), null, 'torreta')).toBe(true);
+  });
+});
+
+import { menuEntries } from './menu';
+import { recipeBlockedReason, recipeEntries } from './recetas';
+import { lockReason } from './tooltips';
+import { techLabel, techLockText, techUnlockingTier } from './tecnologia';
+
+describe('bloqueos reales: el menú y las recetas dicen qué nodo lo desbloquea', () => {
+  it('cada edificio bloqueado del menú nombra su nodo, su rama y su coste, y cambia con el estado', () => {
+    const g = flatGame();
+    const entries = menuEntries(g, 'defense');
+    const wall = entries.find((e) => e.kind === 'wall_wood')!;
+    expect(wall.locked).toContain('«Murallas de madera» (Defensa, 8 puntos)');
+    expect(wall.locked).toContain('te faltan 8 puntos');
+    // Con requisitos pendientes dice cuáles.
+    const metal = entries.find((e) => e.kind === 'wall_metal')!;
+    expect(metal.locked).toContain('antes investiga «Murallas de piedra» y «Placas de muro»');
+    // Con puntos: avisa de que ya se puede comprar.
+    g.researchPoints = 8;
+    expect(lockReason(g, 'wall_wood')).toContain('ya tienes los puntos');
+    // Tras investigarlo deja de estar bloqueado y los demás siguen igual.
+    g.research('def_wood');
+    expect(lockReason(g, 'wall_wood')).toBeNull();
+    expect(lockReason(g, 'wall_stone')).toContain('«Murallas de piedra»');
+    // Lo que viene de inicio nunca está bloqueado.
+    for (const k of CONFIG.startUnlocks.buildings) expect(lockReason(g, k), k).toBeNull();
+  });
+
+  it('todo edificio bloqueado tiene un motivo con nodo (ninguno dice "no hay tecnología")', () => {
+    const g = flatGame();
+    for (const k of BUILD_KINDS) {
+      if (g.unlockedBuildings.has(k)) continue;
+      const reason = lockReason(g, k)!;
+      expect(reason, k).toContain('Requiere investigar');
+      expect(reason, k).toContain(techLabel(techUnlockingBuilding(k)!));
+    }
+  });
+
+  it('el panel de recetas dice qué nodo desbloquea cada receta bloqueada y qué nivel de fábrica hace falta', () => {
+    const g = flatGame();
+    const f = instant(g, 'factory', 4, 4);
+    const circuit = recipeEntries(g, f).find((e) => e.id === 'circuit')!;
+    expect(circuit.available).toBe(false);
+    expect(circuit.reason).toContain('«Circuitos» (Industria, 20 puntos)');
+    // Desbloqueada pero sin fábrica de nivel 2: el motivo es el nivel, con el nodo que lo da.
+    g.unlockedRecipes.add('circuit');
+    const tier = recipeBlockedReason(g, 'circuit')!;
+    expect(tier).toContain('nivel 2');
+    expect(tier).toContain(techLabel(techUnlockingTier(2)!));
+    expect(techUnlockingTier(2)?.id).toBe('ind_tier2');
+    // Con el nivel, ya se puede elegir.
+    g.researchPoints = 25;
+    g.research('ind_tier2');
+    expect(recipeBlockedReason(g, 'circuit')).toBeUndefined();
+    expect(recipeBlockedReason(g, 'iron_plate')).toBeUndefined();
+  });
+
+  it('techLockText cubre los cuatro estados', () => {
+    const g = flatGame();
+    const n = techNode('def_stone');
+    expect(techLockText(g, n)).toContain('antes investiga «Murallas de madera»');
+    g.researchPoints = 100;
+    g.research('def_wood');
+    g.researchPoints = 10;
+    expect(techLockText(g, n)).toContain('te faltan 15 puntos');
+    g.researchPoints = 25;
+    expect(techLockText(g, n)).toContain('pulsa T');
+    g.research('def_stone');
+    expect(techLockText(g, n)).toBe(techLabel(n));
   });
 });
