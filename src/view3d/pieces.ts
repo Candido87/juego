@@ -92,3 +92,29 @@ const SHAPE_OF: Record<string, ItemShape> = {
 export function itemShape(item: string): ItemShape {
   return SHAPE_OF[item] ?? 'crate';
 }
+
+/** Un tramo de la capa animada de una cinta: desplazamiento del centro de la casilla, sentido del flujo y si es medio tramo. */
+export interface FlowQuad {
+  dx: number;
+  dz: number;
+  /** Sentido en que fluye el material (0:+x 1:+z 2:-x 3:-z). */
+  flow: Dir;
+  /** Medio tramo (del borde al centro o del centro al borde) en vez de la casilla entera. */
+  half: boolean;
+}
+
+/**
+ * Tramos de la textura de dirección de una cinta que sale hacia `dir` y recibe de las direcciones `incoming` (vecinas que la alimentan).
+ * Recta (sin entradas o sólo por detrás): un tramo entero. Con entradas laterales (curva, T, cruce): medio tramo por cada
+ * entrada, yendo del borde al centro, y medio tramo del centro a la salida: así la textura sigue el recorrido del material.
+ */
+export function beltFlowQuads(dir: Dir, incoming: Iterable<number>): FlowQuad[] {
+  const back = norm(dir + 2);
+  const ins = [...new Set([...incoming].map(norm))].filter((d) => d !== dir);
+  if (ins.every((d) => d === back)) return [{ dx: 0, dz: 0, flow: dir, half: false }];
+  const out: FlowQuad[] = ins.map((d) => ({ dx: HALF_DX[d] * 0.25, dz: HALF_DZ[d] * 0.25, flow: norm(d + 2) as Dir, half: true }));
+  out.push({ dx: HALF_DX[dir] * 0.25, dz: HALF_DZ[dir] * 0.25, flow: dir, half: true });
+  return out;
+}
+const HALF_DX = [1, 0, -1, 0];
+const HALF_DZ = [0, 1, 0, -1];

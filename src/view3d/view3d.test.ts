@@ -824,3 +824,83 @@ describe('efectos de disparo por tipo', () => {
     expect(new Set(Object.values(TURRET_COLOR)).size).toBe(4);
   });
 });
+
+describe('cintas: textura de dirección animada', () => {
+  it('los tramos siguen el recorrido: recta entera, curva y empalmes en medios tramos hacia el centro y hacia la salida', async () => {
+    const { beltFlowQuads } = await import('./pieces');
+    // Recta (sin entradas o sólo por detrás): un tramo entero en el sentido de la cinta.
+    expect(beltFlowQuads(0, [])).toEqual([{ dx: 0, dz: 0, flow: 0, half: false }]);
+    expect(beltFlowQuads(1, [3])).toEqual([{ dx: 0, dz: 0, flow: 1, half: false }]);
+    // Curva: entra por un lado (la vecina está en +z, el material fluye hacia -z) y sale hacia +x.
+    const curve = beltFlowQuads(0, [1]);
+    expect(curve).toEqual([
+      { dx: 0, dz: 0.25, flow: 3, half: true },
+      { dx: 0.25, dz: 0, flow: 0, half: true },
+    ]);
+    // T: dos laterales + salida; con la de atrás son tres entradas + salida (cruce).
+    expect(beltFlowQuads(0, [1, 3]).length).toBe(3);
+    expect(beltFlowQuads(0, [1, 2, 3]).length).toBe(4);
+    // Cada medio tramo termina en el centro (el de entrada) o empieza en él (el de salida).
+    for (const q of beltFlowQuads(2, [0, 1])) expect(Math.abs(q.dx) + Math.abs(q.dz)).toBeCloseTo(0.25, 8);
+    // Una entrada repetida o apuntando a la propia salida no duplica ni inventa tramos.
+    expect(beltFlowQuads(0, [1, 1, 0])).toEqual(beltFlowQuads(0, [1]));
+  });
+
+  it('una sola capa compartida: instancias por tramo, fase común, y parada y oscura sin energía', async () => {
+    const THREE = await import('three');
+    const { BeltFlow, FLOW_COLOR } = await import('./beltflow');
+    const { CONFIG } = await import('../game/config');
+    const flow = new BeltFlow(new THREE.Texture());
+    const belt = (id: number, x: number, dir: 0 | 1 | 2 | 3, incoming: number[], speed: number, fast = false) => ({ id, x, z: 0, top: 0.4, dir, incoming, fast, speed });
+    const belts = [belt(1, 0, 0, [], CONFIG.belt.speed), belt(2, 1, 0, [2], CONFIG.belt.speed), belt(3, 2, 1, [2], CONFIG.belt.fastSpeed, true), belt(4, 3, 0, [], 0)];
+    flow.sync(belts, 0);
+    // Tres rectas (una con entrada por detrás y otra parada) = 3 tramos enteros; la curva = 2 medios.
+    expect(flow.stats.full).toBe(3);
+    expect(flow.stats.half).toBe(2);
+    expect(flow.stats.moving).toBe(3);
+    expect(flow.stats.stopped).toBe(1);
+    // Dos mallas instanciadas en total, sea cual sea el número de cintas.
+    expect(flow.group.children.length).toBe(2);
+    // La fase avanza con el tiempo del juego y no en pausa (dt = 0).
+    const p0 = flow.phase.value;
+    flow.sync(belts, 0.5);
+    expect(flow.phase.value).toBeGreaterThan(p0);
+    const p1 = flow.phase.value;
+    flow.sync(belts, 0);
+    expect(flow.phase.value).toBe(p1);
+    // La parada va oscura y con velocidad 0; la rápida, más rápida y de otro color.
+    const full = flow.group.children[0] as import('three').InstancedMesh;
+    const color = (i: number) => {
+      const c = new THREE.Color();
+      full.getColorAt(i, c);
+      return c.getHex();
+    };
+    const speed = (i: number) => (full.geometry.getAttribute('aSpeed') as import('three').BufferAttribute).getX(i);
+    expect(speed(0)).toBe(1);
+    expect(color(0)).toBe(FLOW_COLOR.normal);
+    // Sin energía: velocidad 0 y color de parada.
+    flow.sync([belt(1, 0, 0, [], 0), ...belts.slice(1)], 0);
+    expect(speed(0)).toBe(0);
+    expect(color(0)).toBe(FLOW_COLOR.stopped);
+    // Volver a tener energía la devuelve a su velocidad y color.
+    flow.sync(belts, 0);
+    expect(speed(0)).toBe(1);
+    expect(color(0)).toBe(FLOW_COLOR.normal);
+  });
+
+  it('rehace las capas cuando cambia la forma (cinta nueva, quitada o girada) y no antes', async () => {
+    const THREE = await import('three');
+    const { BeltFlow } = await import('./beltflow');
+    const flow = new BeltFlow(new THREE.Texture());
+    const b = (id: number, dir: 0 | 1 | 2 | 3, inc: number[] = []) => ({ id, x: id, z: 0, top: 0.4, dir, incoming: inc, fast: false, speed: 2 });
+    flow.sync([b(1, 0), b(2, 0)], 0);
+    expect(flow.stats.full).toBe(2);
+    // Añadir una cinta con entrada lateral suma tramos.
+    flow.sync([b(1, 0), b(2, 0), b(3, 0, [1])], 0);
+    expect(flow.stats.full).toBe(2);
+    expect(flow.stats.half).toBe(2);
+    // Quitarla los quita; girar una cambia su posición pero no el recuento.
+    flow.sync([b(1, 0), b(2, 1)], 0);
+    expect([flow.stats.full, flow.stats.half]).toEqual([2, 0]);
+  });
+});

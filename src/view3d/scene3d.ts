@@ -23,6 +23,8 @@ import { ThreatMarks } from './threat3d';
 import { QUALITY, QualityPreset } from './quality';
 import { techNode } from '../game/tecnologia';
 import { TurretRig, animateRig, buildTurret, scaffold, turretDamage } from './turrets3d';
+import { BeltFlow, BeltInfo } from './beltflow';
+import { powerMult } from '../game/power';
 import { Terrain, buildTerrain } from './terrain';
 
 type Tile = { x: number; y: number };
@@ -46,6 +48,8 @@ export const OPT_OFF: ViewOptions = { batch: false, cull: false, chunk: 0, shado
 /** Grosor de las tuberías respecto al modelo (1 = ocupa la casilla entera). */
 const PIPE_T = 0.7;
 const FAST_TINT = 0xbfe0ff;
+/** Altura de la cara superior de una cinta sobre su casilla (donde va la textura de dirección). */
+const BELT_TOP = 0.4;
 /** Cinta parada por falta de energía: se ve apagada. */
 const BELT_OFF_TINT = 0x6f7480;
 /** Segundos de temblor de cámara cuando golpean el núcleo. */
@@ -245,6 +249,9 @@ export class View3D {
   private fpsAcc = 0;
   private fpsN = 0;
   private batchGroup: THREE.Group | null = null;
+  /** Textura de dirección animada de las cintas. */
+  readonly flow = new BeltFlow();
+  private flowInfos: BeltInfo[] = [];
   private batchDirty = false;
   private batchAge = 0;
   private belts: Building[] = [];
@@ -330,6 +337,7 @@ export class View3D {
     this.overlay = new Overlay(game, (b) => this.levelTop(b), (b) => this.buildings.get(b.id)?.height ?? 1);
     this.scene.add(this.overlay.group);
     this.scene.add(this.fx.group);
+    this.scene.add(this.flow.group);
 
     const c = game.core;
     this.rig.x = c.x + 1;
@@ -737,7 +745,31 @@ export class View3D {
       this.batchAge += dt;
       if (this.batchDirty && this.batchAge > 0.3) this.rebuildBatch();
       this.syncItems();
+      this.syncFlow(dt);
     }
+  }
+
+  /** Datos de cada cinta para la capa de dirección: entradas (de la firma del modelo), velocidad real y altura. */
+  private syncFlow(dt: number): void {
+    const infos = this.flowInfos;
+    infos.length = this.belts.length;
+    for (let i = 0; i < this.belts.length; i++) {
+      const b = this.belts[i];
+      const flags = this.buildings.get(b.id)?.sig.slice(-4) ?? '----';
+      const fast = b.kind === 'belt_fast';
+      let info = infos[i];
+      if (!info) info = infos[i] = { id: 0, x: 0, z: 0, top: 0, dir: 0, incoming: [], fast: false, speed: 0 };
+      info.id = b.id;
+      info.x = b.x;
+      info.z = b.y;
+      info.top = this.levelTop(b) + BELT_TOP;
+      info.dir = b.dir;
+      info.fast = fast;
+      info.speed = (fast ? CONFIG.belt.fastSpeed : CONFIG.belt.speed) * powerMult(b);
+      info.incoming.length = 0;
+      for (let d = 0; d < 4; d++) if (flags[d] === 'i') info.incoming.push(d);
+    }
+    this.flow.sync(infos, this.simPaused ? 0 : dt);
   }
 
   /** Reagrupa todas las mallas de los edificios estáticos: un InstancedMesh por (malla, material, trozo de 16x16). */
