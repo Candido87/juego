@@ -1,35 +1,184 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Vista 3D (prototipo)</title>
-<style>
-html,body{margin:0;height:100%;overflow:hidden;background:#9fd0e8;font:13px/1.35 "Segoe UI",Arial,sans-serif;color:#fff}
-#v{position:fixed;inset:0}
-.panel{position:fixed;background:#1d2330e6;border:1px solid #fff3;border-radius:8px;padding:8px 10px}
-#top{top:8px;left:8px;right:8px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-#top b{color:#ffd23c}
-#res{display:flex;gap:10px;flex-wrap:wrap}
-#res span{background:#fff1;border-radius:4px;padding:1px 6px}
-button{font:inherit;color:#fff;background:#3a4a6a;border:1px solid #fff4;border-radius:5px;padding:3px 9px;cursor:pointer}
-button:hover{background:#4f6590}button.on{background:#c88a20}
-#build{left:8px;bottom:8px;max-width:calc(50vw - 110px);display:flex;gap:5px;flex-wrap:wrap}
-#info{right:8px;bottom:8px;width:260px;min-height:60px}
-#perf{left:50%;bottom:8px;transform:translateX(-50%);font:12px monospace;white-space:pre;text-align:center}
-#help{display:none}
-#load{position:fixed;inset:0;display:grid;place-items:center;background:#1d2330;font-size:18px}
-</style></head><body>
-<div id="v"></div>
-<div id="top" class="panel">
-  <span><b>Vista 3D</b> · prototipo</span>
-  <span id="wave"></span><span id="core"></span><span id="res"></span>
-  <span style="margin-left:auto;display:flex;gap:6px">
-    <button id="rl" title="Q">⟲ Girar</button><button id="rr" title="E">Girar ⟳</button>
-    <button id="sp">x1</button><button id="bot" class="on">Auto: sí</button><button id="sh" class="on">Sombras</button>
-  </span>
-</div>
-<div id="help" class="panel">Arrastrar: mover · Rueda: zoom · Q/E: girar 90° · WASD: mover · Clic: seleccionar · R: girar pieza · Clic der./Esc: cancelar</div>
-<div id="perf" class="panel"></div>
-<div id="build" class="panel"></div>
-<div id="info" class="panel">Selecciona una casilla</div>
-<div id="load">Cargando modelos…</div>
-<script type="module" src="/src/view3d/main3d.ts"></script>
-</body></html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fábrica isométrica (3D)</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #1d2330; font-family: system-ui, sans-serif; color: #e8ecf2; }
+      #v { position: fixed; inset: 0; }
+      #v canvas { display: block; }
+      .panel { position: fixed; background: rgba(20, 24, 32, 0.88); border: 1px solid #39414f; border-radius: 8px; padding: 8px 10px; font-size: 13px; user-select: none; }
+      .panel h3 { margin: 2px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #98c1d9; }
+      button { background: #2a313d; color: #e8ecf2; border: 1px solid #46505f; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+      button:hover:not(:disabled) { border-color: #98c1d9; }
+      button:disabled { opacity: 0.4; cursor: default; }
+      button.active { background: #3d5a80; border-color: #98c1d9; }
+      b { color: #ffd166; }
+      .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+      .muted { color: #8b95a5; }
+      .bad { color: #ff7b7b; }
+      .warn { color: #ffd166; }
+      .good { color: #7dff8a; }
+      /* Columnas laterales: los paneles se apilan dentro de ellas y nunca se solapan entre sí ni con el menú inferior. */
+      .col { position: fixed; top: 8px; bottom: calc(var(--tbh, 100px) + 16px); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+      .col > .panel { position: static; pointer-events: auto; box-sizing: border-box; }
+      #leftcol { left: 8px; width: max-content; max-width: calc(100% - 300px); }
+      #rightcol { right: 8px; width: 270px; }
+      #hud { flex: none; display: flex; flex-direction: column; gap: 4px; }
+      #hud .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      #researchWrap { display: none; }
+      .bar { display: inline-block; width: 70px; height: 7px; background: #11151c; border-radius: 4px; overflow: hidden; vertical-align: 0; }
+      .bar > i { display: block; height: 100%; background: #6fd3ff; }
+      #inventory { width: 170px; flex: 0 1 auto; min-height: 0; overflow: auto; }
+      #inventory .it { display: flex; justify-content: space-between; line-height: 1.6; }
+      .gt { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #6f7b8c; margin: 6px 0 1px; }
+      .gt:first-child { margin-top: 0; }
+      #side { flex: 0 1 auto; min-height: 0; overflow: auto; }
+      h3.collapsible { cursor: pointer; display: flex; align-items: baseline; gap: 6px; }
+      h3.collapsible:hover { color: #c8e3f3; }
+      h3 .arrow { display: inline-block; width: 10px; }
+      h3 .sum { text-transform: none; letter-spacing: 0; font-weight: normal; color: #8b95a5; font-size: 11px; }
+      h3 .sum.collapsed-only { display: none; }
+      h3.collapsed .sum.collapsed-only { display: inline; }
+      h3.collapsed + .pbody { display: none; }
+      .npcrow { display: flex; align-items: center; justify-content: space-between; gap: 6px; line-height: 2; }
+      .job { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 4px; align-items: center; line-height: 1.7; font-size: 12px; }
+      .job button { padding: 0 6px; }
+      #selected { flex: none; display: none; max-height: 45%; overflow: auto; }
+      #toolbar { bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; width: max-content; max-width: calc(100% - 40px); box-sizing: border-box; }
+      #toprow, #toolrow { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; }
+      #cats { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; }
+      #tools { display: flex; gap: 4px; flex-wrap: wrap; }
+      .tab { padding: 3px 9px; border-radius: 12px; background: #232a35; }
+      .tab.active { background: #3d5a80; border-color: #98c1d9; }
+      .step { padding: 3px 6px; color: #8b95a5; background: transparent; border-color: transparent; }
+      .tbtn.locked, .tab.locked { opacity: 0.45; filter: grayscale(0.8); }
+      .tbtn.locked:hover { border-color: #46505f; }
+      .kbd { display: inline-block; min-width: 12px; text-align: center; margin-right: 4px; padding: 0 3px; border-radius: 3px; background: #11151c; color: #ffd166; font-size: 11px; }
+      #dir { min-width: 22px; text-align: center; font-size: 17px; }
+      #info { display: inline-block; width: 150px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #msg { top: 120px; left: 50%; transform: translateX(-50%); display: none; color: #ffd166; font-size: 15px; }
+      #over { inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: rgba(10, 12, 18, 0.7); border: 0; border-radius: 0; font-size: 22px; }
+      #tech { inset: 40px; display: none; overflow: auto; padding: 14px 18px; }
+      #tech .branch { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+      #tech .bname { width: 100px; color: #98c1d9; font-weight: 600; }
+      #tech .node { width: 150px; min-height: 46px; border-radius: 8px; padding: 6px 8px; border: 2px solid #46505f; background: #232a35; cursor: default; font-size: 12px; }
+      #tech .node.done { border-color: #7dff8a; background: #1f3326; }
+      #tech .node.avail { border-color: #ffd166; cursor: pointer; }
+      #tech .node.avail:hover { background: #3a3424; }
+      #tech .node.locked { opacity: 0.45; }
+      #tech .node.current { border-color: #6fd3ff; }
+      #tech .arrow { color: #46505f; }
+      #help { top: 84px; left: 50%; transform: translateX(-50%); width: min(600px, calc(100% - 32px)); max-height: calc(100% - var(--tbh, 100px) - 110px); overflow: auto; display: none; z-index: 8; box-sizing: border-box; padding: 12px 16px; }
+      #help h3 { display: flex; justify-content: space-between; align-items: center; }
+      #help table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
+      #help td { padding: 2px 8px 2px 0; vertical-align: top; line-height: 1.4; }
+      #help td:first-child { white-space: nowrap; color: #ffd166; width: 1%; }
+      #guide { flex: none; display: none; width: 270px; box-sizing: border-box; background: rgba(24, 30, 40, 0.72); border-color: #ffd166; font-size: 12px; line-height: 1.4; transition: opacity 0.2s; }
+      #guide:hover { background: rgba(24, 30, 40, 0.95); }
+      #guide .g-head { display: flex; gap: 6px; align-items: baseline; margin-bottom: 3px; }
+      #guide .g-title { font-weight: 600; color: #ffd166; font-size: 13px; flex: 1; }
+      #guide .g-n { color: #8b95a5; font-size: 11px; }
+      #guide .g-head button { padding: 0 5px; line-height: 1.3; }
+      #guide .g-miss { margin-top: 4px; color: #ff9f7b; }
+      #guide .g-foot { margin-top: 5px; display: flex; gap: 6px; justify-content: flex-end; }
+      #guide .g-foot button { font-size: 11px; padding: 2px 6px; background: transparent; }
+      #guide .g-done { color: #7dff8a; font-size: 13px; font-weight: 600; }
+      .guide-hl { outline: 2px solid #ffd166; outline-offset: 1px; animation: ghl 1s ease-in-out infinite; }
+      @keyframes ghl { 50% { outline-color: rgba(255, 209, 102, 0.25); box-shadow: 0 0 8px #ffd166; } }
+      #recipes { top: 90px; right: 290px; width: 400px; max-height: calc(100% - var(--tbh, 100px) - 120px); overflow: auto; display: none; z-index: 7; box-sizing: border-box; padding: 10px 12px; background: rgba(20, 24, 32, 0.95); }
+      #recipes h3 { display: flex; justify-content: space-between; align-items: center; }
+      #recipes .rcats { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
+      #recipes .rrow { display: block; width: 100%; text-align: left; margin-bottom: 4px; padding: 5px 8px; line-height: 1.35; }
+      #recipes .rrow .rname { font-weight: 600; }
+      #recipes .rrow .rmeta { color: #8b95a5; font-size: 11px; }
+      #recipes .rrow.sel { background: #3d5a80; border-color: #98c1d9; }
+      #recipes .rrow.locked { opacity: 0.45; filter: grayscale(0.7); }
+      #recipes .rrow .why { color: #ff9f7b; font-size: 11px; }
+      #tip { position: fixed; display: none; pointer-events: none; z-index: 10; width: max-content; max-width: 320px; font-size: 12px; line-height: 1.45; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5); }
+      #tip .tt-title { font-size: 13px; font-weight: 600; color: #98c1d9; margin-bottom: 3px; }
+      #tip .tt-sec { margin-top: 5px; }
+      #tip .tt-stats { margin-top: 5px; color: #b9c2cf; }
+      /* --- sólo vista 3D --- */
+      /* Los paneles flotantes empiezan debajo del HUD (su alto real llega en --hudh) y entre las dos columnas. */
+      #recipes { top: calc(var(--hudh, 130px) + 16px); right: 290px; width: min(400px, calc(100% - 592px)); min-width: 250px; max-height: calc(100% - var(--tbh, 100px) - var(--hudh, 130px) - 40px); }
+      #help, #options { top: calc(var(--hudh, 130px) + 16px); background: rgba(20, 24, 32, 0.97); }
+      #help { max-height: calc(100% - var(--tbh, 100px) - var(--hudh, 130px) - 40px); }
+      #msg { top: calc(var(--hudh, 130px) + 16px); z-index: 5; }
+      #guide, #inventory { max-width: 270px; }
+      #options { left: 50%; transform: translateX(-50%); width: min(380px, calc(100% - 32px)); display: none; z-index: 9; box-sizing: border-box; padding: 12px 16px; }
+      #options h3 { display: flex; justify-content: space-between; align-items: center; }
+      #options .orow { display: flex; justify-content: space-between; align-items: center; gap: 10px; line-height: 2.1; }
+      #options .oseg { display: flex; gap: 3px; }
+      #pausebanner { top: 40%; left: 50%; transform: translate(-50%, -50%); display: none; flex-direction: column; align-items: center; gap: 10px; z-index: 6; padding: 16px 28px; font-size: 20px; }
+      #pausebanner .prow { display: flex; gap: 6px; }
+      #hud #perf { font: 11px monospace; color: #8b95a5; display: none; }
+      #load { position: fixed; inset: 0; display: grid; place-items: center; background: #1d2330; font-size: 18px; z-index: 20; }
+    </style>
+    <link rel="stylesheet" href="assets/ui-pack/ui-pack.css" />
+  </head>
+  <body>
+    <div id="v"></div>
+    <div id="leftcol" class="col">
+      <div id="hud" class="panel">
+        <div class="row">
+          <span data-tip="hud:core">Núcleo <b id="core">0</b></span>
+          <span data-tip="hud:wave">Oleada <b id="wave">0</b></span>
+          <span data-tip="hud:wave">Siguiente en <b id="next">0:00</b></span>
+          <span id="researchWrap">Investigando <b id="research">—</b></span>
+        </div>
+        <div class="row" id="colony"></div>
+        <div class="row">
+          <button id="callWave">Adelantar oleada</button>
+          <button id="pause">Pausa</button>
+          <button id="techBtn">Árbol (T)</button>
+          <button id="helpBtn" title="Ayuda y controles (H)">? Ayuda (H)</button>
+          <button id="optBtn" title="Opciones (O)">Opciones (O)</button>
+          <button id="rl" title="Girar la cámara a la izquierda (Z)">⟲ Z</button>
+          <button id="rr" title="Girar la cámara a la derecha (C)">C ⟳</button>
+        </div>
+        <div class="row" id="perf">
+        </div>
+      </div>
+      <div id="guide" class="panel"></div>
+      <div id="inventory" class="panel">
+        <h3 class="collapsible" data-collapse="inventory"><span class="arrow">▾</span>Almacén <span class="sum collapsed-only" id="invSum"></span></h3>
+        <div class="pbody" id="invList"></div>
+      </div>
+    </div>
+    <div id="rightcol" class="col">
+      <div id="side" class="panel">
+        <h3 class="collapsible" data-collapse="npcs"><span class="arrow">▾</span>NPCs <span class="sum collapsed-only" id="npcSum"></span></h3>
+        <div class="pbody" id="npcs"></div>
+        <h3 class="collapsible" data-collapse="jobs" style="margin-top: 10px"><span class="arrow">▾</span>Cola de trabajos <span class="sum" id="jobCount"></span></h3>
+        <div class="pbody" id="jobs"></div>
+      </div>
+      <div id="selected" class="panel"></div>
+    </div>
+    <div id="toolbar" class="panel">
+      <div id="toprow">
+        <div id="cats"></div>
+        <span class="muted">Dir (R)</span><span id="dir">↘</span>
+        <span id="info" class="muted"></span>
+      </div>
+      <div id="toolrow">
+        <div id="tools"></div>
+        <button data-tool="remove" data-key="X">X · Quitar</button>
+      </div>
+    </div>
+    <div id="help" class="panel"></div>
+    <div id="options" class="panel"></div>
+    <div id="pausebanner" class="panel"><div>Pausa</div><div class="prow"><button id="resume">Reanudar (P)</button><button id="pauseOpt">Opciones</button><button id="pauseHelp">Ayuda</button><button id="pauseNew">Nueva partida</button></div></div>
+    <div id="recipes" class="panel"></div>
+    <div id="msg" class="panel"></div>
+    <div id="tech" class="panel"></div>
+    <div id="tip" class="panel"></div>
+    <div id="over" class="panel">
+      <div id="overText">El núcleo ha caído</div>
+      <button id="restart">Nueva partida</button>
+    </div>
+    <div id="load">Cargando modelos…</div>
+    <script type="module" src="/src/view3d/main3d.ts"></script>
+  </body>
+</html>

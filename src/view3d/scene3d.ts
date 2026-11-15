@@ -80,12 +80,20 @@ export class View3D {
   readonly rig = new CameraRig();
   terrain!: Terrain;
   hover: Tile | null = null;
-  selected: Tile | null = null;
   /** Modo construcción (lo pone la interfaz). */
   buildKind: BuildKind | null = null;
   buildDir: Dir = 0;
-  onSelect: (t: Tile | null) => void = () => {};
-  onPlace: (kind: BuildKind, x: number, y: number) => void = () => {};
+  /** Herramienta Quitar activa (resalta en rojo). */
+  removeMode = false;
+  /** Edificio seleccionado (lo pone la interfaz): se marca su huella entera. */
+  selectedId: number | null = null;
+  /** Clic sin arrastrar: casilla (o null) y botón del ratón. */
+  onClick: (t: Tile | null, button: number) => void = () => {};
+  /** Botón izquierdo abajo; si devuelve true empieza a "pintar" en vez de mover la cámara. */
+  onDown: (t: Tile | null, ev: PointerEvent) => boolean = () => false;
+  onPaint: (t: Tile) => void = () => {};
+  /** Avisos de eventos del juego para la interfaz. */
+  onMessage: (text: string) => void = () => {};
   private buildings = new Map<number, BView>();
   private npcs = new Map<number, CView>();
   private enemies = new Map<number, CView>();
@@ -172,49 +180,46 @@ export class View3D {
   // ---------- entrada ----------
   private bindInput(): void {
     const el = this.renderer.domElement;
-    let down: { x: number; y: number; moved: boolean; button: number } | null = null;
+    let down: { x: number; y: number; moved: boolean; button: number; painting: boolean } | null = null;
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     el.addEventListener('pointerdown', (e) => {
-      down = { x: e.clientX, y: e.clientY, moved: false, button: e.button };
+      this.hover = this.pick(e.clientX, e.clientY);
+      const painting = e.button === 0 && this.onDown(this.hover, e);
+      down = { x: e.clientX, y: e.clientY, moved: false, button: e.button, painting };
       el.setPointerCapture(e.pointerId);
     });
     el.addEventListener('pointermove', (e) => {
-      if (down) {
-        const dx = e.clientX - down.x;
-        const dy = e.clientY - down.y;
-        if (down.moved || Math.hypot(dx, dy) > 4) {
-          down.moved = true;
-          this.rig.drag(e.movementX, e.movementY);
-        }
-      }
       this.hover = this.pick(e.clientX, e.clientY);
+      if (!down) return;
+      if (down.painting) {
+        if (this.hover) this.onPaint(this.hover);
+        return;
+      }
+      const dx = e.clientX - down.x;
+      const dy = e.clientY - down.y;
+      if (down.moved || Math.hypot(dx, dy) > 6) {
+        down.moved = true;
+        this.rig.drag(e.movementX, e.movementY);
+      }
     });
     el.addEventListener('pointerup', (e) => {
-      if (down && !down.moved) {
-        const t = this.pick(e.clientX, e.clientY);
-        if (down.button === 2) this.buildKind = null;
-        else if (this.buildKind && t) this.onPlace(this.buildKind, t.x, t.y);
-        else {
-          this.selected = t;
-          this.onSelect(t);
-        }
-      }
+      if (down && !down.moved && !down.painting) this.onClick(this.pick(e.clientX, e.clientY), down.button);
       down = null;
+    });
+    el.addEventListener('pointerleave', () => {
+      if (!down) this.hover = null;
     });
     el.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.rig.setZoom(this.rig.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+      const r = el.getBoundingClientRect();
+      this.rig.zoomAt(e.deltaY < 0 ? 1.14 : 0.88, e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
     }, { passive: false });
+    const typing = (e: KeyboardEvent) => ['INPUT', 'SELECT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName);
     window.addEventListener('keydown', (e) => {
-      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
-      const k = e.key.toLowerCase();
-      this.keys.add(k);
-      if (k === 'q') this.rig.rotate(-1);
-      else if (k === 'e') this.rig.rotate(1);
-      else if (k === 'r') this.buildDir = (((this.buildDir + 1) % 4) as Dir);
-      else if (k === 'escape') this.buildKind = null;
+      if (!typing(e)) this.keys.add(e.key.toLowerCase());
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.key.toLowerCase()));
+    window.addEventListener('blur', () => this.keys.clear());
   }
 
   private pick(cx: number, cy: number): Tile | null {
@@ -613,6 +618,11 @@ export class View3D {
   // ---------- eventos, resaltado y fantasma ----------
   private handleEvents(): void {
     for (const ev of this.game.drainEvents()) {
+      if (ev.type === 'npcDied') this.onMessage('¡Un NPC ha muerto!');
+      else if (ev.type === 'npcArrived') this.onMessage('Ha llegado una persona nueva a la colonia');
+      else if (ev.type === 'npcLeft') this.onMessage('Alguien se ha marchado por el hambre');
+      else if (ev.type === 'wave') this.onMessage(`¡Oleada ${ev.wave}!`);
+      else if (ev.type === 'researched') this.onMessage('Investigación completada');
       if (ev.type !== 'shot') continue;
       const v = this.buildings.get(ev.towerId);
       if (v) {
@@ -644,10 +654,23 @@ export class View3D {
       if (t) g.position.set(t.x + 0.5, heightAt(w, t.x, t.y) * LEVEL_H + 0.05, t.y + 0.5);
     };
     set(this.hoverMesh, this.hover);
-    set(this.selMesh, this.selected);
+    const sb = this.selectedId !== null ? this.game.buildings.get(this.selectedId) : undefined;
+    this.selMesh.visible = !!sb;
+    if (sb) {
+      this.selMesh.position.set(sb.x + sb.w / 2, this.levelTop(sb) + 0.05, sb.y + sb.d / 2);
+      this.selMesh.scale.set(sb.w * 1.04, 1, sb.d * 1.04);
+    }
     const quad = this.hoverMesh.children[0] as THREE.Mesh;
     const mat = quad.material as THREE.MeshBasicMaterial;
     mat.color.setHex(0xffffff);
+    if (this.removeMode && this.hover) {
+      const rb = this.game.buildingAt(this.hover.x, this.hover.y);
+      mat.color.setHex(rb && rb.kind !== 'core' ? 0xff5555 : 0x888888);
+      if (rb) {
+        this.hoverMesh.position.set(rb.x + rb.w / 2, this.levelTop(rb) + 0.06, rb.y + rb.d / 2);
+        this.hoverMesh.scale.set(rb.w, 1, rb.d);
+      }
+    } else this.hoverMesh.scale.set(1, 1, 1);
     // Fantasma de construcción.
     const key = this.buildKind && this.hover ? `${this.buildKind}|${this.buildDir}` : '';
     if (key !== this.ghostKey) {

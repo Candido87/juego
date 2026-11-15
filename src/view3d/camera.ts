@@ -46,6 +46,22 @@ export class CameraRig {
     this.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
   }
 
+  /**
+   * Zoom hacia el cursor: (sx, sy) son píxeles desde el centro de la pantalla (sy hacia abajo).
+   * El punto del suelo bajo el cursor se queda quieto.
+   */
+  zoomAt(factor: number, sx: number, sy: number): void {
+    const s0 = this.ppu * this.zoom;
+    this.setZoom(this.zoom * factor);
+    const s1 = this.ppu * this.zoom;
+    const k = 1 / s0 - 1 / s1;
+    const r = this.right();
+    const f = this.forward();
+    const fy = -sy / Math.sin(PITCH);
+    this.x += (r.x * sx + f.x * fy) * k;
+    this.z += (r.z * sx + f.z * fy) * k;
+  }
+
   /** Vector de "derecha" de la pantalla sobre el suelo. */
   right(): Vec3 {
     return { x: Math.cos(this.yaw), y: 0, z: -Math.sin(this.yaw) };

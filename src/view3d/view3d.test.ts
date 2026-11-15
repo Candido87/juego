@@ -118,3 +118,67 @@ describe('escenario de medición', () => {
     expect(a.g.enemies[0].x).not.toBe(x0);
   });
 });
+
+describe('zoom hacia el cursor', () => {
+  it('el punto del suelo bajo el cursor no se mueve', () => {
+    const c = new CameraRig();
+    c.x = 10;
+    c.z = 20;
+    const sx = 120;
+    const sy = -80;
+    // punto del suelo bajo el cursor: objetivo + derecha·sx/s − adelante·sy/(s·sen)
+    const ground = () => {
+      const s = c.ppu * c.zoom;
+      const r = c.right();
+      const f = c.forward();
+      return { x: c.x + (r.x * sx) / s + (f.x * -sy) / (s * Math.sin(PITCH)), z: c.z + (r.z * sx) / s + (f.z * -sy) / (s * Math.sin(PITCH)) };
+    };
+    const before = ground();
+    c.zoomAt(1.5, sx, sy);
+    const after = ground();
+    expect(c.zoom).toBeCloseTo(1.5, 6);
+    expect(after.x).toBeCloseTo(before.x, 6);
+    expect(after.z).toBeCloseTo(before.z, 6);
+  });
+});
+
+describe('opciones de la vista 3D', () => {
+  it('carga por defecto, guarda y descarta valores inválidos', async () => {
+    const { DEFAULT_OPTIONS, OPTIONS_KEY, loadOptions, saveOptions } = await import('./options');
+    const data = new Map<string, string>();
+    const store = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+    expect(loadOptions(store)).toEqual(DEFAULT_OPTIONS);
+    expect(loadOptions(null)).toEqual(DEFAULT_OPTIONS);
+    saveOptions(store, { shadows: false, speed: 4, perf: true });
+    expect(loadOptions(store)).toEqual({ shadows: false, speed: 4, perf: true });
+    data.set(OPTIONS_KEY, '{"speed":7,"shadows":"x"}');
+    expect(loadOptions(store)).toEqual(DEFAULT_OPTIONS);
+    data.set(OPTIONS_KEY, 'no es json');
+    expect(loadOptions(store)).toEqual(DEFAULT_OPTIONS);
+  });
+});
+
+describe('interfaz sin Phaser', () => {
+  it('los módulos de interfaz que usa la vista 3D no importan Phaser ni la escena 2D', async () => {
+    const { readFileSync } = await import('node:fs');
+    const seen = new Set<string>();
+    const bad: string[] = [];
+    const visit = (file: string) => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      const src = readFileSync(file, 'utf8');
+      for (const m of src.matchAll(/from '([^']+)'/g)) {
+        const spec = m[1];
+        if (spec === 'phaser') bad.push(`${file} → phaser`);
+        if (!spec.startsWith('.')) continue;
+        const base = join(file, '..', spec);
+        const next = existsSync(`${base}.ts`) ? `${base}.ts` : existsSync(join(base, 'index.ts')) ? join(base, 'index.ts') : null;
+        if (next) visit(next);
+      }
+    };
+    visit(join('src', 'view3d', 'main3d.ts'));
+    expect(bad).toEqual([]);
+    expect([...seen].some((f) => f.endsWith('GameScene.ts') || f.endsWith('shapes.ts'))).toBe(false);
+    expect([...seen].some((f) => f.endsWith(join('view', 'ui.ts')))).toBe(true);
+  });
+});

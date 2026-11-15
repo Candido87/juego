@@ -1,22 +1,4 @@
-# PARIDAD — migración de la vista 2D (Phaser) a 3D (Three.js)
-
-Decisión (15-11-2026): el juego pasa a 3D. La vista 2D se retira cuando todas las líneas de este archivo estén en **hecho**.
-Rama de trabajo: `vista-3d`. Entrada 3D: `vista3d.html` + `src/view3d/`. Entrada 2D: `index.html` + `src/view/`.
-
-**Estados:** `hecho` (funciona en 3D) · `parcial` (existe pero le falta lo indicado) · `pendiente` · `no existe` (tampoco lo tiene la 2D hoy; se anota para no perderlo).
-
-**Vista 2D congelada:** desde hoy `src/view/` sólo recibe correcciones graves. Todo lo nuevo que se vea va a `src/view3d/`.
-
-Resumen: **14 hecho · 19 parcial · 58 pendiente · 6 no existe** (97 líneas).
-
-## Hallazgos al inventariar (cambian el plan)
-- **La interfaz 2D ya es HTML/CSS**, no Phaser: `index.html` + `src/view/ui.ts` (`Hud`), `tooltip.ts`, `guia.ts`. Lo que la ata a Phaser es poco: `ui.ts` y `tooltip.ts` importan `ITEM_COLORS` de `shapes.ts` (que importa Phaser) y los iconos salen de la hoja de sprites Tiny Factory (`sprites.ts`). La Fase 1 es desacoplar y reconectar, no reescribir desde cero.
-- **Guardado y carga de partida no existen** en la 2D. Sólo se guardan en `localStorage` el progreso de la guía de inicio y qué paneles están plegados. Hay que hacerlo nuevo (toca `src/game/`, con tests).
-- **El árbol de tecnología está vacío** (`CONFIG.tech = []`): el botón "Árbol (T)" existe pero se oculta. No hay pantalla que portar hasta que haya nodos.
-- **El tutorial** (`src/game/tutorial.ts`, `tutorialBot.ts`, `tutorialText.ts`) tiene lógica y tests pero **no está conectado a la vista** en esta rama. Lo que sí funciona es la guía de inicio (`guia.ts`).
-- **No hay menú principal, opciones ni sonido** en la 2D.
-
-## 1. Arranque, menús y ciclo de partida
+parcial se reutilizan los iconos 2D de Tiny Factory; faltan miniaturas de los modelos 
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
 | 1.1 | Arranca directo en partida (semilla fija 7) | hecho | `?seed=` en 3D |

@@ -520,3 +520,13 @@ El juego pasa a 3D con Three.js; la vista 2D de Phaser se retira cuando `PARIDAD
 - **Estados de PARIDAD.md:** además de pendiente/hecho se usan `parcial` (existe pero incompleto) y `no existe` (la 2D tampoco lo tiene), para no dar por hecho lo que está a medias.
 - **Hallazgos que cambian el plan:** la interfaz 2D ya es HTML/CSS (la Fase 1 es desacoplarla de `shapes.ts`/`sprites.ts`, no reescribirla); no hay guardado de partida, ni menú principal, ni opciones, ni sonido; el árbol de tecnología está vacío (`CONFIG.tech = []`); el tutorial tiene lógica y tests pero no vista en esta rama.
 - **No hay `CLAUDE.md`** en el repositorio: se creará en la Fase 7.
+
+## Migración, Fase 1: interfaz
+- **Una sola interfaz.** No se reescribió: `vista3d.html` copia el DOM y el CSS de `index.html` y usa el mismo `Hud` (`src/view/ui.ts`), `TooltipManager` y `GuiaView`. Para quitarles Phaser bastó mover `ITEM_COLORS` de `shapes.ts` a `src/view/itemColors.ts` (lo reexporta `shapes.ts`, así la 2D no cambia). Un test recorre los imports desde `main3d.ts` y falla si aparece `phaser`, `GameScene` o `shapes`.
+- **Teclas.** Q/E siguen cambiando de categoría (como dice la ayuda); **la cámara gira con Z/C** y con los botones ⟲ ⟳. O abre las opciones. El resto igual que en 2D (R, X, P, H, Esc, 1–9, Mayús + arrastrar).
+- **Opciones** (nuevo, `options.ts` con test): sombras, velocidad x1/x2/x4, mostrar rendimiento y reiniciar la guía. Se guardan en `localStorage`. Calidad y volumen quedan para las fases 6 y posteriores (no hay sonido en el juego).
+- **Pausa:** aviso central con Reanudar, Opciones, Ayuda y Nueva partida; se aparta si hay un panel flotante abierto.
+- **Nueva partida:** recarga la página con otra semilla (lo más simple; no hay estado que conservar hasta que exista el guardado).
+- **Sin solapamientos:** los paneles flotantes (recetas, ayuda, opciones, avisos) se colocan debajo del alto real del HUD (`--hudh`) y entre las dos columnas. Comprobado por script con todos abiertos a 967×853 y 1024×640.
+- **Iconos del menú:** siguen siendo los de la hoja 2D Tiny Factory. Las miniaturas de los modelos 3D quedan anotadas en PARIDAD 3.4.
+- **El bot ya no arranca solo:** `?auto=1` lo activa (antes era el modo por defecto del prototipo).

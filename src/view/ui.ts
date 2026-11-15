@@ -13,7 +13,7 @@ import { categoryAvailable, cycleCategory, menuEntries } from '../game/menu';
 import { groupInventory, inventorySummary, jobsSummary, npcSummary } from '../game/panels';
 import { Bag, BuildKind, Dir, FREE_ROLES, ItemId, NPC_ROLES, NpcRole, rotateCW } from '../game/types';
 import { demandOf, isElectric } from '../game/power';
-import { ITEM_COLORS } from './shapes';
+import { ITEM_COLORS } from './itemColors';
 import { TooltipManager } from './tooltip';
 import { GENERATED_ICONS, JOB_ICONS, ROLE_ICONS, TILESHEET, TOOL_ICONS, frameRect } from './sprites';
 
@@ -211,6 +211,9 @@ export class Hud {
     this.setTool(ui.tool);
   }
 
+  /** Lista de controles de la ayuda (la vista 3D añade los suyos). */
+  helpControls: [string, string][] = HELP_CONTROLS;
+
   /** Guía de inicio (avisos y resaltes). */
   readonly guia = new GuiaView();
 
@@ -245,7 +248,7 @@ export class Hud {
     el.style.display = open ? 'block' : 'none';
     if (!open) return;
     const rows = (list: [string, string][]) => `<table>${list.map(([k, t]) => `<tr><td>${k}</td><td>${t}</td></tr>`).join('')}</table>`;
-    el.innerHTML = `<h3>Controles <button id="helpClose" title="Cerrar (H o Esc)">✕</button></h3>${rows(HELP_CONTROLS)}<h3>Conceptos principales</h3>${rows(HELP_CONCEPTS)}<h3>Guía de inicio</h3><p class="muted" style="margin:2px 0 6px">Avisos con un objetivo cada vez para empezar bien${this.guia.disabled ? ' (ahora desactivada)' : ''}.</p><button id="guideReopen">${this.guia.disabled ? 'Activar la guía de inicio' : 'Reiniciar la guía de inicio'}</button>`;
+    el.innerHTML = `<h3>Controles <button id="helpClose" title="Cerrar (H o Esc)">✕</button></h3>${rows(this.helpControls)}<h3>Conceptos principales</h3>${rows(HELP_CONCEPTS)}<h3>Guía de inicio</h3><p class="muted" style="margin:2px 0 6px">Avisos con un objetivo cada vez para empezar bien${this.guia.disabled ? ' (ahora desactivada)' : ''}.</p><button id="guideReopen">${this.guia.disabled ? 'Activar la guía de inicio' : 'Reiniciar la guía de inicio'}</button>`;
     $('helpClose').addEventListener('click', () => this.closeHelp());
     $('guideReopen').addEventListener('click', () => {
       this.guia.reopen();
