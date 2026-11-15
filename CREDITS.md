@@ -6,26 +6,26 @@ Licencia: https://creativecommons.org/publicdomain/zero/1.0/ · Apoyar a Kenney:
 
 | Pack | Autor | Enlace | Licencia | Uso en el juego |
 |---|---|---|---|---|
-| Tiny Factory | Kenney | https://kenney.nl/assets/tiny-factory | CC0 | Cintas, máquinas, NPCs, iconos (`public/assets/kenney/tiny-factory.png`) |
-| Tiny Dungeon | Kenney | https://kenney.nl/assets/tiny-dungeon | CC0 | Enemigos (`public/assets/kenney/tiny-dungeon.png`) |
+| Tiny Factory | Kenney | https://kenney.nl/assets/tiny-factory | CC0 | Iconos de roles y trabajos de la interfaz (`public/assets/kenney/tiny-factory.png`) |
+| UI Pack | Kenney | https://kenney.nl/assets/ui-pack | CC0 | Paneles, botones, barras, cursor y fuente (`public/assets/ui-pack/`) |
+| Modelos 3D | Kenney | ver lista al final | CC0 | Terreno, edificios, personajes y armas (`public/assets/3d/`) |
 
-## Previstos (están en `assets-juego/`, todavía sin cargar en el juego)
+## Usados en la antigua vista 2D o sólo descargados (el juego ya no los carga)
 
-| Pack | Autor | Enlace | Licencia | Uso previsto |
+| Pack | Autor | Enlace | Licencia | Para qué era |
 |---|---|---|---|---|
+| Tiny Dungeon | Kenney | https://kenney.nl/assets/tiny-dungeon | CC0 | Enemigos de la vista 2D |
 | Sketch Town + Sketch Town Expansion | Kenney | https://kenney.nl/assets/sketch-town | CC0 | Murallas, terreno, árboles, decoración |
-| UI Pack | Kenney | https://kenney.nl/assets/ui-pack | CC0 | Paneles, botones, barras, cursor, fuente |
 | Tanks | Kenney | https://kenney.nl/assets/tanks | CC0 | Enemigos blindados, proyectiles |
 | Space Shooter Redux / Extension | Kenney | https://kenney.nl/assets/space-shooter-redux | CC0 | Cabezas de torreta, naves voladoras, láseres |
 | Smoke Particle Pack | Kenney | https://kenney.nl/assets/smoke-particles | CC0 | Humo, explosiones, destellos |
 
 Cuando uno de estos packs se cargue de verdad en el juego, pasa a la tabla de arriba.
 
-- **Sketch Town 1.0 y Sketch Town Expansion 1.1** — Kenney (https://kenney.nl/assets/sketch-town), CC0. Copiados a `public/assets/sketch-town/` y `public/assets/sketch-town-expansion/` para terreno, murallas y decoración (en integración).
 - **UI Pack** — Kenney (https://kenney.nl/assets/ui-pack), CC0. Paneles, botones, barras, cursor y fuente Kenney Future Narrow, copiados a `public/assets/ui-pack/` (sólo lo usado) y aplicados por `ui-pack.css`.
 
 
-## Modelos 3D (rama `vista-3d`, CC0, Kenney)
+## Modelos 3D (CC0, Kenney)
 
 Copiados a `public/assets/3d/<pack>/` (cada carpeta con su `License.txt`):
 

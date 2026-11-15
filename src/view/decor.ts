@@ -13,7 +13,7 @@ export interface Decor {
   x: number;
   y: number;
   kind: DecorKind;
-  /** Giro del PNG (índice 0-3 → N,E,S,W) para dar variedad. */
+  /** Giro en cuartos de vuelta (0-3) para dar variedad. */
   rot: number;
   /** Objeto alto que puede tapar el cursor, el fantasma o un enemigo. */
   tall: boolean;
@@ -110,14 +110,3 @@ export function zoneWeights(n: number): { dry: number; rock: number } {
 }
 
 export const tintNoise = (seed: number) => valueNoise(mulberry32((seed ^ 0x7177) >>> 0));
-
-/** Imágenes de Sketch Town que usa la decoración: [paquete, nombre]. Cada una en sus 4 giros. */
-export const DECOR_SPRITES: Partial<Record<DecorKind, ['base' | 'exp', string]>> = {
-  tree: ['base', 'tree_single'],
-  trees: ['base', 'tree_multiple'],
-  pine: ['exp', 'tree_pine'],
-  pineLarge: ['exp', 'tree_pineLarge'],
-  rock: ['base', 'rocks_grass'],
-  rockDirt: ['base', 'rocks_dirt'],
-};
-export const decorSpriteKey = (kind: DecorKind, rot: number) => `dec_${kind}_${'NESW'[rot]}`;

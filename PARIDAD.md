@@ -1,13 +1,13 @@
 # PARIDAD — migración de la vista 2D (Phaser) a 3D (Three.js)
 
 Decisión (15-11-2026): el juego pasa a 3D. La vista 2D se retira cuando todas las líneas de este archivo estén en **hecho**.
-Rama de trabajo: `vista-3d`. Entrada 3D: `vista3d.html` + `src/view3d/`. Entrada 2D: `index.html` + `src/view/`.
+**Hecho (Fase 7): la vista 2D y Phaser están borrados.** Este archivo queda como registro de lo que hacía la 2D y de cómo quedó cada cosa en 3D.
+Rama de trabajo: `vista-3d`. Entrada: `vista3d.html` + `src/view3d/` (`index.html` sólo redirige). `src/view/` conserva la interfaz HTML compartida y las reglas puras.
 
 **Estados:** `hecho` (funciona en 3D) · `parcial` (existe pero le falta lo indicado) · `pendiente` · `no existe` (tampoco lo tiene la 2D hoy; se anota para no perderlo).
 
-**Vista 2D congelada:** desde hoy `src/view/` sólo recibe correcciones graves. Todo lo nuevo que se vea va a `src/view3d/`.
 
-Resumen: **98 hecho · 0 parcial · 0 pendiente · 3 no existe** (101 líneas). Paridad alcanzada: la vista 2D se retira en la Fase 7.
+Resumen: **98 hecho · 0 parcial · 0 pendiente · 3 no existe** (101 líneas). Paridad alcanzada.
 
 ## Hallazgos al inventariar (cambian el plan)
 - **(Fase 1 hecha)** La interfaz es una sola para las dos vistas: `vista3d.html` usa `src/view/ui.ts`, `tooltip.ts` y `guia.ts`, que ya no importan Phaser (hay un test que lo vigila).

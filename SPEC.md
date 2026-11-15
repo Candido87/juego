@@ -1,15 +1,19 @@
 # SPEC — Fábrica isométrica con defensa
 
-Juego de fábrica + defensa en vista isométrica 2D. TypeScript, Phaser 3, Vite, Vitest.
-Sin backend ni assets externos.
+Juego de fábrica + defensa en vista isométrica 3D. TypeScript, Three.js, Vite, Vitest. Sin backend.
+
+> **Nota (15-11-2026):** el juego empezó en 2D con Phaser y se migró a 3D. La vista 2D está borrada. Las secciones
+> antiguas de este documento que hablan de Phaser, `shapes.ts`, `GameScene.ts`, sprites o Sketch Town describen esa
+> etapa y se conservan como historial; lo vigente para la vista está en las secciones "Migración, Fase N" del final
+> y en `CLAUDE.md`. Las reglas del juego (economía, recetas, energía, oleadas) no cambiaron con la migración.
 
 ## Arquitectura
 - `src/game/*`: lógica pura (sin Phaser ni DOM). Se puede simular sin gráficos (`npm run sim`).
   - `config.ts`: **todos** los números (costes, daños, tiempos, velocidades, árbol, oleadas).
-  - `types.ts`, `world.ts` (mapa), `iso.ts` (matemática isométrica), `path.ts` (rutas),
+  - `types.ts`, `world.ts` (mapa), `path.ts` (rutas),
     `game.ts` (estado y sistemas), `jobs.ts` (cola de trabajos), `npc.ts` (NPCs), `bot.ts` (jugador automático).
-- `src/view/*`: Phaser + DOM. Sólo lee el estado y envía comandos (`place`, `remove`, `hire`, `research`...).
-  - `shapes.ts`: único archivo con el aspecto de todo (prismas isométricos generados por código).
+- `src/view/*`: interfaz HTML/CSS compartida y reglas puras de la vista (decoración, muros, iconos). Sólo lee el estado y envía comandos (`place`, `remove`, `research`...).
+- `src/view3d/*`: vista 3D con Three.js (`scene3d.ts`, `catalog.ts`, `terrain.ts`, `overlay3d.ts`...). Ver `CLAUDE.md`.
 
 ## Vista (hecho)
 Proyección isométrica 2:1 (64x32), orden por profundidad (x+y), semitransparencia de objetos altos
@@ -616,3 +620,30 @@ Alta coincide con la cifra de la Fase 2 (13,7 ms), así que mover el suavizado a
 - Sólo hay un equipo, con gráfica dedicada. **No se ha probado en gráfica integrada, ni en Electron, ni en otro navegador.**
 - La bajada automática está cubierta por tests, pero no se ha visto actuar en el juego porque este equipo nunca baja de 30 FPS. Tampoco se ha provocado una pérdida real de contexto gráfico.
 - La calidad Baja pierde el contorno, que ayuda a leer el mapa; se puede volver a activar suelto.
+
+## Migración, Fase 7: cierre de paridad y retirada de la 2D
+
+**Decisión del usuario:** antes de borrar la 2D, llevar a "hecho" las 15 líneas de `PARIDAD.md` que estaban en parcial o pendiente. Cómo quedó cada una:
+
+- **Zonas de terreno.** Las casillas sin recurso se tiñen por zona con el mismo ruido y umbrales que la 2D (`zoneWeights` en `decor.ts`): arena o tierra seca, hierba y roca, con transición continua. En 3D el tinte es un multiplicador en color lineal que puede pasar de 1 (`zoneMultiplier`), porque multiplicar el verde de la hierba por un color normal nunca da arena.
+- **Decoración.** Ya no hay regla propia de la 3D: sale de `generateDecor` (determinista por semilla; nunca sobre menas, a 5 casillas del núcleo, a 3 de las apariciones ni a 2 del pasillo recto hasta el núcleo). Cada tipo de `decor.ts` tiene su modelo. Sigue sin bloquear: se esconde al construir encima, ahora en toda la huella del edificio. No reaparece al desmontar (igual de simple que antes).
+- **Apariciones y ruta** (`threat3d.ts`). Bandera roja con disco en cada punto de aparición y un punto rojo por casilla de la ruta prevista; sólo se rehace cuando cambia `game.flowVersion`.
+- **Cintas paradas.** La cinta sin energía se oscurece y lleva un piloto rojo intermitente en el borde; el texto de la casilla lo dice. No lleva icono flotante: al principio todas las cintas están paradas y habría uno por casilla.
+- **Sin conexión a la red** (`offGrid`). Aviso rojo en consumidores sin poste. Regla para no llenar el mapa de avisos: mientras no exista ninguna red sólo avisa lo que no hace nada sin energía.
+- **Desgaste.** Engranaje amarillo por debajo del 50 % (rinde la mitad) y rojo a 0 (averiado). El porcentaje sigue en la ficha.
+- **Obra.** Barra azul de progreso sobre el edificio a medio levantar.
+- **Temblor de cámara** al golpear el núcleo: 0,14 s, en el plano de la pantalla.
+- **Objetos en cintas.** Forma por familia (terrón, tronco, losa, disco, cilindro, caja) con el color del objeto; una malla instanciada por forma.
+- **Iconos del menú.** Miniaturas de los propios modelos, dibujadas al arrancar a una textura (`View3D.thumbnails`). Los iconos del pack quedan de respaldo.
+- **Modelos provisionales.** Poste (antes una chimenea) y batería (antes un depósito igual que la bomba) se hacen con cajas y cilindros (`prim` en `catalog.ts`); el alimentador se distingue de la base de las torretas (tinte y caja encima) y la casa del generador (tinte claro).
+- **Galería.** `?galeria=1` enseña todos los edificios y las torretas en sus 3 niveles con el mismo código del juego.
+- **Opciones.** El volumen sale de la línea de opciones y se anota aparte como "no existe": no hay sonido.
+- **Electron.** Prueba de humo (`ELECTRON_SMOKE`): abre el build por `app://`, guarda captura y resumen. Resultado: arranca, 144 FPS, sin errores de consola.
+
+**Qué se borró.** Phaser (dependencia), `src/main.ts`, `GameScene.ts`, `shapes.ts`, `solids.ts`, `turretModels.ts`, `decorView.ts`, `gallery.ts`, `terrenoPrueba.ts`, `sketch.ts`, `iso.ts`, sus tests, `galeria-torretas.html`, `terreno-prueba.html` y los sprites de Sketch Town y Tiny Dungeon de `public/assets`. `muros.ts`, `decor.ts` y `sprites.ts` se quedan sólo con lo que usa la 3D. `index.html` redirige a `vista3d.html` conservando los parámetros. Los tests bajan de 289 a 260 porque se van los de la 2D.
+
+**Lo que no se ha hecho o no se ha comprobado.**
+- El instalador (`npm run dist`) no se ha regenerado ni probado; sólo el build abierto con Electron.
+- El aviso de "sin conexión a la red" y el de desgaste están cubiertos por tests y el desgaste se vio en pantalla forzando el valor; no se han visto aparecer en una partida larga.
+- Las carpetas de packs descargados de la raíz (`assets-juego/`, `Tiles/`, `Map/`, `Tilemap/`) no se han tocado: el juego no las carga, pero borrarlas es decisión aparte.
+- Siguen pendientes de lógica (no de vista): árbol de tecnología vacío, torretas de energía que no disparan, sonido y menú principal.

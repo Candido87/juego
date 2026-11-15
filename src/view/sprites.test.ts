@@ -1,18 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { CONFIG } from '../game/config';
 import { BUILD_KINDS, NPC_ROLES } from '../game/types';
-import { BILLBOARDS, GENERATED_ICONS, JOB_ICONS, ROLE_ICONS, TILE_COUNT, TOOL_ICONS, TOP_TEXTURES, frameRect, rotationFor } from './sprites';
+import { GENERATED_ICONS, JOB_ICONS, ROLE_ICONS, TILESHEET, TILE_COUNT, TOOL_ICONS, frameRect } from './sprites';
 
-describe('mapa de sprites (Kenney Tiny Factory)', () => {
-  const frames = [
-    ...Object.values(TOP_TEXTURES).map((t) => t!.frame),
-    ...Object.values(BILLBOARDS),
-    ...Object.values(TOOL_ICONS),
-    ...Object.values(ROLE_ICONS),
-    ...Object.values(JOB_ICONS),
-  ];
+describe('iconos de la interfaz (Kenney Tiny Factory)', () => {
+  const frames = [...Object.values(TOOL_ICONS), ...Object.values(ROLE_ICONS), ...Object.values(JOB_ICONS)];
 
-  it('todas las casillas existen en la hoja', () => {
+  it('la hoja existe y todas las casillas están dentro', () => {
+    expect(existsSync(resolve(__dirname, '../../public', TILESHEET.url))).toBe(true);
     for (const f of frames) {
       expect(Number.isInteger(f)).toBe(true);
       expect(f).toBeGreaterThanOrEqual(0);
@@ -20,20 +17,9 @@ describe('mapa de sprites (Kenney Tiny Factory)', () => {
     }
   });
 
-  it('cada rol de NPC tiene sprite de pie e icono', () => {
-    for (const r of NPC_ROLES) {
-      expect(BILLBOARDS[`npc_${r}`]).toBeDefined();
-      expect(ROLE_ICONS[r]).toBeDefined();
-    }
-  });
-
-  it('las texturas de cara superior son de edificios que existen', () => {
-    for (const k of Object.keys(TOP_TEXTURES)) expect(k === 'core' || (BUILD_KINDS as readonly string[]).includes(k)).toBe(true);
+  it('cada rol de NPC tiene icono y los iconos son de edificios que existen', () => {
+    for (const r of NPC_ROLES) expect(ROLE_ICONS[r]).toBeDefined();
     for (const k of Object.keys(TOOL_ICONS)) expect(CONFIG.buildings[k as keyof typeof CONFIG.buildings]).toBeDefined();
-  });
-
-  it('las cintas giran para apuntar a cada dirección', () => {
-    expect([0, 1, 2, 3].map(rotationFor)).toEqual([1, 2, 3, 0]);
   });
 
   it('el índice de casilla se convierte a su rectángulo', () => {
@@ -42,19 +28,15 @@ describe('mapa de sprites (Kenney Tiny Factory)', () => {
   });
 });
 
-describe('iconos del menú de construcción', () => {
+describe('iconos de respaldo del menú de construcción', () => {
   it('cada edificio tiene icono del pack o generado por código', () => {
-    for (const k of BUILD_KINDS) {
-      expect(TOOL_ICONS[k] !== undefined || GENERATED_ICONS[k] !== undefined, k).toBe(true);
-    }
+    for (const k of BUILD_KINDS) expect(TOOL_ICONS[k] !== undefined || GENERATED_ICONS[k] !== undefined, k).toBe(true);
   });
 
   it('los iconos generados caben en la cuadrícula de 16x16', () => {
     for (const [k, rects] of Object.entries(GENERATED_ICONS)) {
       expect(rects!.length, k).toBeGreaterThan(0);
-      for (const [x, y, w, h] of rects!) {
-        expect(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 16 && y + h <= 16, `${k} ${[x, y, w, h]}`).toBe(true);
-      }
+      for (const [x, y, w, h] of rects!) expect(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 16 && y + h <= 16, `${k} ${[x, y, w, h]}`).toBe(true);
     }
   });
 });

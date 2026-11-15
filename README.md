@@ -1,13 +1,13 @@
 # Fábrica Isométrica
 
-Juego de fábrica + defensa en vista isométrica 2D (TypeScript, Phaser 3, Vite). Funciona en el navegador y como
-aplicación de escritorio para Windows (Electron).
+Juego de fábrica + defensa en vista isométrica 3D (TypeScript, Three.js, Vite). Funciona en el navegador (necesita
+WebGL2) y como aplicación de escritorio para Windows (Electron).
 
 ## Navegador
 | Comando | Qué hace |
 |---|---|
 | `npm install` | Instala las dependencias (una sola vez). |
-| `npm run dev` | Servidor de desarrollo en http://localhost:5173 |
+| `npm run dev` | Servidor de desarrollo en http://localhost:5173 (el juego es `vista3d.html`; la raíz redirige) |
 | `npm run build` | Comprueba tipos y genera `dist/` |
 | `npm test` | Tests (Vitest) |
 | `npm run sim` | Simulación sin gráficos con el bot |
@@ -27,4 +27,5 @@ aplicación de escritorio para Windows (Electron).
 
 ## Créditos
 Gráficos de terceros de Kenney (CC0): ver [CREDITS.md](CREDITS.md). Diseño en [SPEC.md](SPEC.md), progreso en
-[PROGRESS.md](PROGRESS.md), inventario de gráficos en [ASSETS.md](ASSETS.md).
+[PROGRESS.md](PROGRESS.md), inventario de gráficos en [ASSETS.md](ASSETS.md), guía para trabajar en el código en
+[CLAUDE.md](CLAUDE.md). La antigua vista 2D (Phaser) se retiró al alcanzar la paridad: ver [PARIDAD.md](PARIDAD.md).

@@ -121,7 +121,7 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] 3D-2. Rendimiento: terreno por chunks, edificios estáticos y objetos de cinta instanciados, descarte y presupuesto de personajes animados; mediciones en SPEC.md (1500 edificios + 300 enemigos: 47 → 73 FPS; 1500 enemigos: 15 → 43 FPS).
 - [x] 3D-3. Comparación honesta con la vista 2D en `SPEC.md` (aspecto, rendimiento, trabajo que queda, qué se reaprovecha y riesgos).
 
-## Migración a 3D (rama `vista-3d`; la 2D se retira al llegar a paridad, ver `PARIDAD.md`)
+## Migración a 3D (rama `vista-3d`; terminada: la 2D se retiró al llegar a paridad, ver `PARIDAD.md`)
 - [x] M3D-0. `PARIDAD.md` con todo lo que hace la 2D y su estado en 3D; vista 2D congelada. **Parado para enseñar PARIDAD.md.**
 - [x] M3D-1. Interfaz HTML/CSS compartida y sin Phaser conectada a la 3D: HUD, menú por categorías con tooltips, almacén, NPCs, trabajos, ficha, recetas, ayuda, opciones, pausa, fin de partida, quitar, pintar cintas, zoom al cursor. Sin solapamientos.
 - [x] M3D-2. Aspecto y legibilidad: paleta corregida (hierba verde, zonas por recurso), contorno de objetos, transparencia de lo que tapa el cursor o la selección, marca de personajes tapados, clic en el cuerpo del edificio.
@@ -129,4 +129,4 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] M3D-4. Unidades y efectos: NPCs por rol que andan, esperan, trabajan y enseñan su carga; enemigos que atacan, se ralentizan, arden y caen al morir; torretas con niveles, estados y accesorio propio; un proyectil por tipo; humo de chimeneas y de daño, explosiones y barras de vida.
 - [x] M3D-5. Guía y tutorial en 3D con ayudas sobre el mapa, guardado/carga y autoguardado, Electron abre la vista 3D.
 - [x] M3D-6. Rendimiento y compatibilidad: calidad auto/baja/media/alta en las opciones (`quality.ts`, se aplica en caliente; la automática baja sola con FPS bajos), aviso si no hay WebGL2 o se pierde el contexto gráfico, mediciones por nivel en SPEC.md (`__benchQuality`). Sin probar en gráfica integrada ni en Electron.
-- [ ] M3D-7. Cierre: eliminar Phaser y la 2D, CLAUDE.md y SPEC.md, pull request.
+- [x] M3D-7. Cierre. (a) Paridad completa: las 15 líneas que quedaban en parcial o pendiente pasan a hecho (zonas y decoración con las reglas de `decor.ts`, apariciones y ruta de enemigos, desgaste, falta de red, cintas paradas, barra de obra, temblor de cámara, formas de objetos en cintas, miniaturas de modelos en el menú, galería `?galeria=1`, modelos propios para poste, batería, alimentador y casa, prueba en Electron). (b) Borrados Phaser, `src/main.ts`, la escena 2D y sus galerías, `iso.ts` y los sprites de Sketch Town y Tiny Dungeon. (c) `CLAUDE.md`, README, SPEC y pull request.

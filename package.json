@@ -15,7 +15,6 @@
     "dist": "npm run build && electron-builder --win --publish never"
   },
   "dependencies": {
-    "phaser": "^3.80.1",
     "three": "^0.187.0"
   },
   "devDependencies": {
