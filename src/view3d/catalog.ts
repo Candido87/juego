@@ -71,6 +71,12 @@ export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
     { prim: 'cyl', size: [0.13, 0.13, 0.13], color: 0x4a7bd9, y: 0.56, dx: 0.2 },
   ],
   feeder: [{ model: 'factory/hopper-round', fit: 0.62, tint: 0xffdc8a }, { model: 'factory/box-small', fit: 0.3, stack: true }],
+  // Ascensor: torre baja con una plataforma de carga arriba.
+  elevator: [
+    { prim: 'box', size: [0.7, 0.9, 0.7], color: 0x5c6b80 },
+    { prim: 'box', size: [0.8, 0.1, 0.8], color: 0xffc800, y: 0.9, glow: true },
+    { prim: 'box', size: [0.5, 0.3, 0.5], color: 0x2f3947, y: 1.0 },
+  ],
   turret_bullet: [{ model: 'factory/hopper-round', fit: 0.85 }],
   turret_laser: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xa8d8ff }],
   turret_fire: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xffb080 }],

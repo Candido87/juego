@@ -4,12 +4,14 @@
  * previsualización en verde (correcto), rojo (incompatible, con el motivo) o naranja (abierto).
  */
 import type { Building, Game } from './game';
+import { CONFIG } from './config';
+import { heightAt } from './world';
 import { FLOW_NAMES, Port, PortMedium, hasPorts, ports } from './puertos';
 import { DX, DY, Dir, opposite } from './types';
 
 export type LineTool = 'belt' | 'belt_fast' | 'pipeline';
 export const isLineTool = (k: string | null): k is LineTool => k === 'belt' || k === 'belt_fast' || k === 'pipeline';
-const isLine = (b: Building) => b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline';
+const isLine = (b: Building) => b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline' || b.kind === 'elevator';
 
 export type EndState = 'ok' | 'error' | 'open';
 export interface LineEnd {
@@ -27,6 +29,15 @@ export interface LinePreview {
   occupied: string | null;
 }
 
+/** Diferencia de altura entre dos casillas. */
+const dh = (g: Game, ax: number, ay: number, bx: number, by: number) => Math.abs(heightAt(g.world, ax, ay) - heightAt(g.world, bx, by));
+/** Motivo de un desnivel imposible, con lo que hay que hacer. */
+const slopeReason = (g: Game, medium: PortMedium, d: number): string =>
+  medium === 'liquid'
+    ? `Desnivel imposible (${d} niveles): una tubería sólo sube o baja 1 nivel; rodea el desnivel`
+    : g.unlockedBuildings.has('elevator')
+      ? `Desnivel imposible (${d} niveles): una cinta sólo sube o baja 1; pon un ascensor de cintas`
+      : `Desnivel imposible (${d} niveles): una cinta sólo sube o baja 1; investiga el Ascensor de cintas (Logística)`;
 const mediumOf = (t: LineTool): PortMedium => (t === 'pipeline' ? 'liquid' : 'solid');
 const mediumName = (m: PortMedium) => (m === 'liquid' ? 'una tubería' : 'una cinta');
 
@@ -64,6 +75,7 @@ export function previewLine(g: Game, tool: LineTool, x: number, y: number, dir: 
     const fm: PortMedium = front.kind === 'pipeline' ? 'liquid' : 'solid';
     if (fm !== medium) head = { state: 'error', reason: `Tipo de flujo incorrecto: ${mediumName(medium)} no puede entrar en ${mediumName(fm)}` };
     else if (front.dir === opposite(dir)) head = { state: 'error', reason: 'Sentido contrario: la línea de enfrente viene hacia aquí' };
+    else if (dh(g, x, y, front.x, front.y) > 1) head = { state: 'error', reason: slopeReason(g, medium, dh(g, x, y, front.x, front.y)) };
     else head = { state: 'ok' };
   } else if (front.kind === 'core') {
     head = medium === 'solid' ? { state: 'ok' } : { state: 'error', reason: 'Tipo de flujo incorrecto: el núcleo no recibe líquidos' };
@@ -90,6 +102,7 @@ export function previewLine(g: Game, tool: LineTool, x: number, y: number, dir: 
     const bm: PortMedium = back.kind === 'pipeline' ? 'liquid' : 'solid';
     if (bm !== medium) tail = { state: 'error', reason: `Tipo de flujo incorrecto: ${mediumName(bm)} no puede alimentar ${mediumName(medium)}` };
     else if (back.dir !== dir) tail = { state: 'open', reason: 'Abierto: la línea de atrás no apunta hacia aquí' };
+    else if (dh(g, x, y, back.x, back.y) > (back.kind === 'elevator' ? CONFIG.elevator.maxRise : 1)) tail = { state: 'error', reason: slopeReason(g, medium, dh(g, x, y, back.x, back.y)) };
     else tail = { state: 'ok' };
   } else {
     const mine = here.find((c) => c.owner === back);

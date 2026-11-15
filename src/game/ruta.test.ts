@@ -150,3 +150,65 @@ describe('B4 · herramienta Conectar: ruta con A*', () => {
     expect(canAffordRoute(g, r.route)).toBe(false);
   });
 });
+
+describe('CIN3/CIN4 · rutas con rampas y ascensores', () => {
+  const ridge = (g: Game, x: number, h: number) => {
+    for (let y = 0; y < g.world.h; y++) g.world.height[y * g.world.w + x] = h;
+  };
+  const setup = (h: number) => {
+    const g = flatGame([[3, 5, 1]]);
+    g.npcs = [];
+    const drill = instant(g, 'drill', 3, 5, 0);
+    const store = instant(g, 'storage', 9, 5, 0);
+    powerUp(g, [[4, 6], [8, 6], [6, 6]], [2, 7]);
+    ridge(g, 6, h); // el muro se levanta después: colocar edificios sólidos comprueba que quede camino al núcleo
+    return { g, from: freeOutPorts(g, drill)[0], to: freeInPorts(g, store).find((p) => p.side === 2)! };
+  };
+
+  it('un desnivel de 1 nivel se cruza con rampa: sin ascensores y contado como desnivel', () => {
+    const { g, from, to } = setup(1);
+    const r = findRoute(g, from, { port: to });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.route.elevators).toBe(0);
+    expect(r.route.slopes).toBeGreaterThanOrEqual(2);
+  });
+
+  it('un muro de 3 niveles sin ascensor investigado: no hay ruta y sugiere investigarlo', () => {
+    const { g, from, to } = setup(3);
+    const r = findRoute(g, from, { port: to });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.fix).toContain('Ascensor de cintas');
+  });
+
+  it('con el ascensor investigado la ruta lo usa, cuesta sus componentes y el material llega', () => {
+    const { g, from, to } = setup(3);
+    g.unlockedBuildings.add('elevator');
+    const r = findRoute(g, from, { port: to });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.route.elevators).toBe(2);
+    expect(r.route.pieces.filter((p) => p.kind === 'elevator')).toHaveLength(2);
+    expect(r.route.cost.circuit).toBe(2);
+    expect(r.route.cost.gear).toBe(r.route.pieces.length - 2 + 8);
+    g.storage.circuit = 5;
+    expect(buildRoute(g, r.route)).toBe(r.route.pieces.length);
+    completeAll(g);
+    run(g, 120);
+    expect((g.buildings.get([...g.buildings.values()].find((b) => b.kind === 'drill')!.id)!.out.iron_ore ?? 0)).toBeGreaterThanOrEqual(0);
+    expect(g.storage.iron_ore ?? 0).toBeGreaterThan(0);
+  });
+
+  it('una tubería no usa ascensor: ante un muro de 2 niveles se rodea o falla con motivo', () => {
+    const g = flatGame([[3, 5, 6]]);
+    g.npcs = [];
+    const pump = instant(g, 'pump', 3, 5, 0);
+    const ref = instant(g, 'refinery', 9, 5, 0);
+    ridge(g, 6, 2);
+    const r = findRoute(g, freeOutPorts(g, pump)[0], { port: freeInPorts(g, ref).find((p) => p.side === 2)! });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.fix).toContain('tuberías sólo suben');
+  });
+});

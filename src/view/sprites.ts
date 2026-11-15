@@ -28,6 +28,7 @@ export const TOOL_ICONS: Partial<Record<BuildKind, number>> = {
   turbine: 94,
   accumulator: 86,
   feeder: 128,
+  elevator: 128,
   wall_wood: 124,
   wall_stone: 72,
   wall_metal: 117,

@@ -10,6 +10,10 @@ import * as THREE from 'three';
 import { CONFIG } from '../game/config';
 import type { Dir } from '../game/types';
 import { beltFlowQuads } from './pieces';
+import { LEVEL_H } from './pick';
+
+/** Inclinación de una rampa de 1 nivel: sube LEVEL_H a lo largo de una casilla. */
+const RAMP_ANGLE = Math.atan(LEVEL_H);
 
 /**
  * Longitud (casillas) que ocupa la imagen entera a lo largo del flujo, y ancho de la capa. La imagen (256 px) trae cuatro
@@ -32,6 +36,8 @@ export interface BeltInfo {
   fast: boolean;
   /** Velocidad real en casillas por segundo (0 si está parada por falta de energía). */
   speed: number;
+  /** Rampa: +1 sube hacia delante, -1 baja, 0 llano. */
+  slope?: number;
 }
 
 /** Plano horizontal de `len` × WIDTH cuya textura corre a lo largo de +x con los chevrones apuntando a +x (como la imagen). */
@@ -105,7 +111,7 @@ export class BeltFlow {
     let rebuild = belts.length !== this.topo.size;
     if (!rebuild) {
       for (const b of belts) {
-        if (this.topo.get(b.id) !== `${b.x},${b.z},${b.dir},${b.incoming.join('')},${b.top}`) {
+        if (this.topo.get(b.id) !== `${b.x},${b.z},${b.dir},${b.incoming.join('')},${b.top},${(b.slope ?? 0)}`) {
           rebuild = true;
           break;
         }
@@ -142,15 +148,19 @@ export class BeltFlow {
     const up = new THREE.Vector3(0, 1, 0);
     const pos = new THREE.Vector3();
     const one = new THREE.Vector3(1, 1, 1);
+    const tilt = new THREE.Quaternion();
+    const zAxis = new THREE.Vector3(0, 0, 1);
     let nf = 0;
     let nh = 0;
     for (const b of belts) {
-      this.topo.set(b.id, `${b.x},${b.z},${b.dir},${b.incoming.join('')},${b.top}`);
+      this.topo.set(b.id, `${b.x},${b.z},${b.dir},${b.incoming.join('')},${b.top},${(b.slope ?? 0)}`);
       const list: { mesh: 0 | 1; index: number }[] = [];
       for (const qd of beltFlowQuads(b.dir, b.incoming)) {
         if ((qd.half ? nh : nf) >= MAX) continue;
         q.setFromAxisAngle(up, yawOf(qd.flow));
-        pos.set(b.x + 0.5 + qd.dx, b.top + 0.02, b.z + 0.5 + qd.dz);
+        const ramp = (b.slope ?? 0) !== 0 && !qd.half && qd.flow === b.dir;
+        if (ramp) q.multiply(tilt.setFromAxisAngle(zAxis, (b.slope ?? 0) * RAMP_ANGLE));
+        pos.set(b.x + 0.5 + qd.dx, b.top + 0.02 + (ramp ? ((b.slope ?? 0) * LEVEL_H) / 2 : 0), b.z + 0.5 + qd.dz);
         m.compose(pos, q, one);
         if (qd.half) {
           this.half.setMatrixAt(nh, m);

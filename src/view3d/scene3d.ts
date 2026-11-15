@@ -534,6 +534,7 @@ export class View3D {
     if (b.kind in CONFIG.turrets) s += `|L${this.game.turretLevel[b.kind as TurretKind]}|D${turretDamage(b.hp, b.maxHp)}`;
     if (b.kind === 'belt' || b.kind === 'belt_fast') {
       if (beltStopped(b)) s += '|off';
+      s += `|s${this.beltSlope(b)}`;
       for (let d = 0; d < 4; d++) {
         const n = this.isKind(b.x + DX[d], b.y + DY[d], ['belt', 'belt_fast']);
         s += n && n.dir === (d + 2) % 4 ? 'i' : '-';
@@ -568,7 +569,16 @@ export class View3D {
       if (sig.includes('|off')) tint(o, BELT_OFF_TINT);
       else if (kind === 'belt_fast' && pc.piece !== 'straight') tint(o, FAST_TINT);
       o.rotation.y = quarterYaw(pc.k);
-      group.add(o);
+      const slope = Number(/\|s(-?\d)/.exec(sig)?.[1] ?? 0);
+      if (slope && pc.piece === 'straight') {
+        // Rampa: la pieza recta se inclina para unir los dos niveles (sube LEVEL_H a lo largo de la casilla).
+        const pivot = new THREE.Group();
+        pivot.rotation.set(0, yawToDir(b.dir), slope * Math.atan(LEVEL_H), 'XYZ');
+        pivot.position.y = (slope * LEVEL_H) / 2;
+        o.rotation.y = quarterYaw(pc.k) - yawToDir(b.dir);
+        pivot.add(o);
+        group.add(pivot);
+      } else group.add(o);
       top = 0.4;
     } else if (kind === 'pipeline') {
       // Tubería: tramo recto, o medios tramos hacia cada vecino con un codo central.
@@ -778,6 +788,14 @@ export class View3D {
     }
   }
 
+  /** Rampa de la cinta: +1 si sube un nivel hacia la casilla de delante, -1 si baja, 0 si va llana (o si delante no hay otra cinta). */
+  private beltSlope(b: Building): number {
+    const f = this.game.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
+    if (!f || !(f.kind === 'belt' || f.kind === 'belt_fast')) return 0;
+    const d = this.game.slopeAhead(b);
+    return d === 1 || d === -1 ? d : 0;
+  }
+
   /** Datos de cada cinta para la capa de dirección: entradas (de la firma del modelo), velocidad real y altura. */
   private syncFlow(dt: number): void {
     const infos = this.flowInfos;
@@ -787,7 +805,7 @@ export class View3D {
       const flags = this.buildings.get(b.id)?.sig.slice(-4) ?? '----';
       const fast = b.kind === 'belt_fast';
       let info = infos[i];
-      if (!info) info = infos[i] = { id: 0, x: 0, z: 0, top: 0, dir: 0, incoming: [], fast: false, speed: 0 };
+      if (!info) info = infos[i] = { id: 0, x: 0, z: 0, top: 0, dir: 0, incoming: [], fast: false, speed: 0, slope: 0 };
       info.id = b.id;
       info.x = b.x;
       info.z = b.y;
@@ -795,6 +813,7 @@ export class View3D {
       info.dir = b.dir;
       info.fast = fast;
       info.speed = (fast ? CONFIG.belt.fastSpeed : CONFIG.belt.speed) * powerMult(b);
+      info.slope = this.beltSlope(b);
       info.incoming.length = 0;
       for (let d = 0; d < 4; d++) if (flags[d] === 'i') info.incoming.push(d);
     }

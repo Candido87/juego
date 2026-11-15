@@ -7,7 +7,7 @@
 import { CONFIG } from './config';
 import type { Building, Game } from './game';
 import { Dir, DX, DY, BuildKind, Ore, Tile, dirBetween, opposite } from './types';
-import { inBounds, oreAt } from './world';
+import { inBounds, oreAt, heightAt } from './world';
 
 export type Medium = 'solid' | 'liquid';
 
@@ -203,6 +203,8 @@ export function planRoute(g: Game, src: Building, isTarget: (b: Building) => boo
       }
       const ni = ny * w + nx;
       if (prev.has(ni) || !free(nx, ny)) continue;
+      // Una cinta o tubería sólo sube o baja 1 nivel (CIN3): la ruta de ejemplo no cruza desniveles imposibles.
+      if (Math.abs(heightAt(g.world, nx, ny) - heightAt(g.world, x, y)) > 1) continue;
       prev.set(ni, i);
       if (prev.size < maxLen * maxLen) q.push(ni);
     }

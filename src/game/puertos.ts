@@ -82,7 +82,7 @@ export interface PortStatus {
   fix?: string;
 }
 
-const isBelt = (b: Building) => b.kind === 'belt' || b.kind === 'belt_fast';
+const isBelt = (b: Building) => b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'elevator';
 const hasAny = (bag: Record<string, number | undefined>) => Object.values(bag).some((n) => (n ?? 0) > 0);
 
 /** Estado de un puerto concreto de un edificio, mirando lo que hay en su casilla exterior. */

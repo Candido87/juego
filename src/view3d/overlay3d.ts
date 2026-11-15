@@ -10,7 +10,7 @@ import { isLineTool, previewLine, EndState } from '../game/conectar';
 import { pipeConflicts, pipeJoinConflict } from '../game/tuberias';
 import { Chain, chainOf } from '../game/cadena';
 import { Port, PortFlow, PortState, hasPorts, ports, portsWithStatus } from '../game/puertos';
-import type { BuildKind, BuildingKind, Dir, TurretKind } from '../game/types';
+import { BuildKind, BuildingKind, DX, DY, Dir, TurretKind } from '../game/types';
 import { heightAt, inBounds } from '../game/world';
 import { ITEM_COLORS } from '../view/itemColors';
 import { LEVEL_H } from './pick';
@@ -38,7 +38,7 @@ export interface GuideAids {
 /** Herramienta Conectar: modo activo, salida elegida y ruta de la vista previa. */
 export interface ConnectAids {
   from: Port | null;
-  route: { x: number; y: number; dir: Dir }[] | null;
+  route: { x: number; y: number; dir: Dir; kind?: 'elevator' }[] | null;
   liquid: boolean;
 }
 
@@ -440,7 +440,8 @@ export class Overlay {
         const col = c.from ? FLOW_COLOR[c.from.flow] : SOLID;
         for (const r of c.route) {
           this.range(r.x + 0.5, r.y + 0.5, this.ground(r.x, r.y), 0.96, 0x2ee27a, 0.28);
-          this.arrow(r.x, r.y, r.dir, col, true, 0.9);
+          this.arrow(r.x, r.y, r.dir, col, true, r.kind === 'elevator' ? 0 : 0.9);
+          if (r.kind === 'elevator') this.range(r.x + 0.5, r.y + 0.5, this.ground(r.x, r.y), 1.1, 0xffc800, 0.55 + 0.3 * pulse);
         }
       }
     }
@@ -457,6 +458,12 @@ export class Overlay {
     if (s.time - this.mixAt > 0.5) {
       this.mixAt = s.time;
       this.mixTiles = pipeConflicts(g).flatMap((c) => c.net.pipes.map((p) => ({ x: p.x, y: p.y })));
+      // Desnivel imposible entre una cinta o tubería y la de delante: la casilla de delante late en rojo.
+      for (const b of g.buildings.values()) {
+        if (!b.built || !(b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline' || b.kind === 'elevator')) continue;
+        const f = g.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
+        if (f && f.built && (f.kind === 'belt' || f.kind === 'belt_fast' || f.kind === 'pipeline' || f.kind === 'elevator') && !g.slopeOk(b, f)) this.mixTiles.push({ x: f.x, y: f.y });
+      }
     }
     for (const t of this.mixTiles) this.range(t.x + 0.5, t.y + 0.5, this.ground(t.x, t.y), 0.96, 0xff3b3b, 0.25 + 0.3 * pulse);
     this.guideAids(s, pulse);

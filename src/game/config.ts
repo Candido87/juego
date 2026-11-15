@@ -168,6 +168,7 @@ export const CONFIG = {
   buildings: {
     drill: { name: 'Taladro', cost: { frame: 1, gear: 2 }, buildTime: 3, hp: 60, solid: true, size: [1, 1] },
     belt: { name: 'Cinta', cost: { gear: 1 }, buildTime: 0.6, hp: 20, solid: false, size: [1, 1] },
+    elevator: { name: 'Ascensor de cintas', cost: { frame: 2, gear: 4, circuit: 1 }, buildTime: 2, hp: 40, solid: false, size: [1, 1] },
     belt_fast: { name: 'Cinta rápida', cost: { gear: 1, wire: 1 }, buildTime: 0.8, hp: 25, solid: false, size: [1, 1] },
     pipeline: { name: 'Tubería', cost: { pipe: 1 }, buildTime: 0.6, hp: 25, solid: false, size: [1, 1] },
     storage: { name: 'Almacén', cost: { frame: 3 }, buildTime: 4, hp: 120, solid: true, size: [1, 1], storage: true },
@@ -196,7 +197,10 @@ export const CONFIG = {
   } as Record<BuildKind, BuildingDef>,
   coreDef: { name: 'Núcleo', cost: {}, buildTime: 0, hp: 300, solid: true, size: [2, 2], storage: true } as BuildingDef,
 
-  belt: { speed: 2, fastSpeed: 4 },
+  /** `rampUpFactor`: una cinta que sube un nivel va más lenta (× este factor); sube y baja como mucho 1 nivel sin ascensor. */
+  belt: { speed: 2, fastSpeed: 4, rampUpFactor: 0.5 },
+  /** Ascensor de cintas: salva hasta `maxRise` niveles; mueve `speed` casillas de cinta por segundo (limitado) y necesita energía. */
+  elevator: { speed: 1.2, maxRise: 4 },
   /** Tuberías (sin energía): unidades de líquido que caben por casilla y que pasan a la siguiente por segundo. */
   pipe: { cap: 4, rate: 4 },
   /**
@@ -234,7 +238,7 @@ export const CONFIG = {
     /** Distancia Chebyshev máxima entre un edificio y su poste. */
     supplyRadius: 2,
     /** Consumo de cada edificio conectado. */
-    demand: { belt: 0.5, belt_fast: 1, drill: 3, farm: 2, pump: 2, refinery: 4, factory: 5, feeder: 1, turret_laser: 8, turret_frost: 6, laboratory: 3 } as Partial<Record<BuildKind, number>>,
+    demand: { belt: 0.5, belt_fast: 1, drill: 3, farm: 2, pump: 2, refinery: 4, factory: 5, feeder: 1, elevator: 2, turret_laser: 8, turret_frost: 6, laboratory: 3 } as Partial<Record<BuildKind, number>>,
     /** Multiplicador de rendimiento [sin red, con red]; con apagón se interpola según la satisfacción. */
     mult: { belt: [0, 1], belt_fast: [0, 1], drill: [1, 2], farm: [1, 2], pump: [1, 2], refinery: [0.5, 1.5], factory: [0.5, 1.5], laboratory: [0, 1] } as Partial<Record<BuildKind, [number, number]>>,
     generators: {
@@ -404,6 +408,7 @@ export const CONFIG = {
     { id: 'ind_battery', name: 'Baterías', branch: 'Industria', cost: 25, requires: ['ind_tier2'], unlocks: { recipes: ['battery'] }, tier: 2 },
     // ---- Logística ----
     { id: 'log_belt2', name: 'Cinta rápida', branch: 'Logística', cost: 10, requires: [], unlocks: { buildings: ['belt_fast'] }, tier: 1 },
+    { id: 'log_elevator', name: 'Ascensor de cintas', branch: 'Logística', cost: 30, requires: ['log_belt2'], unlocks: { buildings: ['elevator'] }, tier: 2 },
     { id: 'log_speed_1', name: 'Zapatillas', branch: 'Logística', cost: 15, requires: [], unlocks: {}, effects: { npcSpeed: 0.25 }, tier: 1 },
     { id: 'log_capacity', name: 'Mochilas', branch: 'Logística', cost: 30, requires: ['log_speed_1'], unlocks: {}, effects: { npcCapacity: 4 }, tier: 2 },
     { id: 'log_feeder', name: 'Alimentador automático', branch: 'Logística', cost: 45, requires: ['log_belt2', 'ind_circuits'], unlocks: { buildings: ['feeder'] }, tier: 3 },

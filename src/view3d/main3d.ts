@@ -12,7 +12,7 @@ import { Game } from '../game/game';
 import type { GuiaState } from '../game/guia-inicio';
 import { AutoSaver, SaveFile, SaveSlot, gameFromSave, latestSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
 import { createTutorialGame } from '../game/tutorial';
-import { BUILD_KINDS, BuildKind, ItemId, Ore, Tile, TurretKind, dirBetween } from '../game/types';
+import { BUILD_KINDS, BuildKind, DX, DY, ItemId, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { CONFIG } from '../game/config';
 import { generateWorld, heightAt, oreAt } from '../game/world';
 import { getHud, itemName, setToolIcons, ui } from '../view/ui';
@@ -516,6 +516,13 @@ async function start() {
     if (b && beltStopped(b)) parts.push('⚠ Cinta parada: sin energía');
     const st = b ? statusIcon(game, b) : null;
     if (st && st.type !== 'producing') parts.push(`⚠ ${STATUS_STYLE[st.type].title}`);
+    if (b && b.built && (b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline' || b.kind === 'elevator')) {
+      const f = game.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
+      if (f && f.built && (f.kind === 'belt' || f.kind === 'belt_fast' || f.kind === 'pipeline' || f.kind === 'elevator') && !game.slopeOk(b, f)) {
+        const dh = Math.abs(heightAt(game.world, f.x, f.y) - heightAt(game.world, b.x, b.y));
+        parts.push(`⚠ Desnivel imposible (${dh} niveles): ${b.kind === 'pipeline' ? 'una tubería sólo sube o baja 1 nivel' : 'una cinta sólo sube o baja 1: pon un ascensor de cintas'}`);
+      }
+    }
     // Puerto bajo el ratón (casilla exterior de un edificio): tipo, sentido, estado y qué conectar.
     if (!b) {
       for (const { owner, port } of portsAt(game, t.x, t.y)) {
@@ -531,7 +538,7 @@ async function start() {
         const r = connectRoute(t);
         if (!r) parts.push('Elige una entrada libre o una línea');
         else if (!r.ok) parts.push(`✗ ${r.reason}`);
-        else parts.push(`✓ Ruta: ${r.route.pieces.length} piezas, ${r.route.curves} curvas${r.route.slopes ? `, ${r.route.slopes} desniveles` : ''} · coste ${Object.entries(r.route.cost).map(([k, v]) => `${v} ${itemName(k as ItemId)}`).join(', ')}${canAffordRoute(game, r.route) ? '' : ' (faltan materiales)'}`);
+        else parts.push(`✓ Ruta: ${r.route.pieces.length} piezas, ${r.route.curves} curvas${r.route.slopes ? `, ${r.route.slopes} rampas` : ''}${r.route.elevators ? `, ${r.route.elevators} ascensores` : ''} · coste ${Object.entries(r.route.cost).map(([k, v]) => `${v} ${itemName(k as ItemId)}`).join(', ')}${canAffordRoute(game, r.route) ? '' : ' (faltan materiales)'}`);
       }
     }
     if (ui.tool && ui.tool !== 'remove' && ui.tool !== 'connect') {

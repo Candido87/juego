@@ -76,6 +76,7 @@ export const BUILD_KINDS = [
   'turbine',
   'accumulator',
   'feeder',
+  'elevator',
   'turret_bullet',
   'turret_laser',
   'turret_fire',

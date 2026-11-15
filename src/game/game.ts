@@ -25,7 +25,12 @@ import {
   isLiquid,
   opposite,
 } from './types';
-import { World, coreOrigin, generateWorld, inBounds, oreAt, spawnPoints } from './world';
+import { World, coreOrigin, generateWorld, heightAt, inBounds, oreAt, spawnPoints } from './world';
+
+/** Cintas (normal, rápida) y ascensores: lo que lleva sólidos de casilla en casilla. */
+export const isBeltKind = (k: string): boolean => k === 'belt' || k === 'belt_fast' || k === 'elevator';
+/** Cintas, ascensores y tuberías. */
+export const isLineKind = (k: string): boolean => isBeltKind(k) || k === 'pipeline';
 
 export interface Building {
   id: number;
@@ -745,7 +750,7 @@ export class Game {
     if (front.kind === 'pipeline') return true;
     if (this.def(front.kind).storage) return true;
     // Una cinta sólo se lleva la salida si tiene energía.
-    return (front.kind === 'belt' || front.kind === 'belt_fast') && powerMult(front) > 0;
+    return isBeltKind(front.kind) && powerMult(front) > 0;
   }
 
   turretDef(b: Building): TurretDef | undefined {
@@ -1176,7 +1181,7 @@ export class Game {
   private otherFeederWaiting(b: Building, dir: Dir): boolean {
     for (let k = 0; k < 4; k++) {
       const n = this.buildingAt(b.x + DX[k], b.y + DY[k]);
-      if (!n || !n.built || (n.kind !== 'belt' && n.kind !== 'belt_fast') || n.dir !== opposite(k as Dir) || n.dir === dir) continue;
+      if (!n || !n.built || !isBeltKind(n.kind) || n.dir !== opposite(k as Dir) || n.dir === dir) continue;
       if (n.item !== null && n.beltProgress >= 1) return true;
     }
     return false;
@@ -1185,7 +1190,9 @@ export class Game {
   pushItem(x: number, y: number, item: ItemId, dir: Dir, src?: Building): boolean {
     const b = this.buildingAt(x, y);
     if (!b || !b.built) return false;
-    const belt = b.kind === 'belt' || b.kind === 'belt_fast';
+    const belt = isBeltKind(b.kind);
+    // Pendiente: una cinta o tubería sólo sube o baja 1 nivel (rampa); el ascensor salva hasta CONFIG.elevator.maxRise.
+    if (src && isLineKind(src.kind) && isLineKind(b.kind) && !this.slopeOk(src, b)) return false;
     if (isLiquid(item)) {
       // Los líquidos sólo viajan por tuberías: un productor sólo puede sacarlos a una tubería.
       if (belt) return false;
@@ -1211,7 +1218,7 @@ export class Game {
     }
     if (belt) {
       if (b.item !== null || b.dir === opposite(dir)) return false;
-      const fromBelt = !!src && (src.kind === 'belt' || src.kind === 'belt_fast');
+      const fromBelt = !!src && isBeltKind(src.kind);
       // Empalme: si otra cinta también espera para entrar aquí, se alterna el turno (si no, la que se procesa antes dejaría sin servicio a la otra).
       if (fromBelt && b.lastFrom === dir && this.otherFeederWaiting(b, dir)) return false;
       b.item = item;
@@ -1224,6 +1231,26 @@ export class Game {
       return true;
     }
     return false;
+  }
+
+  /** Diferencia de altura (en niveles) de la casilla de delante de `b` respecto a la suya. */
+  slopeAhead(b: Building): number {
+    const x = b.x + DX[b.dir];
+    const y = b.y + DY[b.dir];
+    return inBounds(this.world, x, y) ? heightAt(this.world, x, y) - heightAt(this.world, b.x, b.y) : 0;
+  }
+
+  /** ¿Sube la cinta un nivel hacia la casilla de delante (rampa)? */
+  private rampUp(b: Building): boolean {
+    if (b.kind === 'elevator') return false;
+    const f = this.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
+    return !!f && isLineKind(f.kind) && this.slopeAhead(b) === 1;
+  }
+
+  /** ¿Puede pasar material de `src` a `dst` (cintas, tuberías o ascensores) con la diferencia de altura que hay? */
+  slopeOk(src: Building, dst: Building): boolean {
+    const dh = Math.abs(heightAt(this.world, dst.x, dst.y) - heightAt(this.world, src.x, src.y));
+    return dh <= (src.kind === 'elevator' ? CONFIG.elevator.maxRise : 1);
   }
 
   /** Velocidad de fabricación (se amplía con energía y desgaste). */
@@ -1264,14 +1291,15 @@ export class Game {
 
   private stepBelts(dt: number): void {
     for (const b of this.buildings.values()) {
-      if ((b.kind !== 'belt' && b.kind !== 'belt_fast') || !b.built || b.item === null) continue;
-      // Sin energía la cinta no se mueve (multiplicador 0): eso es el modo manual.
-      const speed = (b.kind === 'belt_fast' ? CONFIG.belt.fastSpeed : CONFIG.belt.speed) * powerMult(b);
+      if (!isBeltKind(b.kind) || !b.built || b.item === null) continue;
+      // Sin energía la cinta no se mueve (multiplicador 0): eso es el modo manual. Subir una rampa es más lento.
+      const base = b.kind === 'belt_fast' ? CONFIG.belt.fastSpeed : b.kind === 'elevator' ? CONFIG.elevator.speed : CONFIG.belt.speed;
+      const speed = base * powerMult(b) * (this.rampUp(b) ? CONFIG.belt.rampUpFactor : 1);
       if (speed <= 0) continue;
       b.beltProgress = Math.min(1, b.beltProgress + speed * dt);
       if (b.beltProgress >= 1 && this.pushItem(b.x + DX[b.dir], b.y + DY[b.dir], b.item, b.dir, b)) {
         const dest = this.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
-        if (dest && dest.kind !== 'belt' && dest.kind !== 'belt_fast') this.stats.beltTo[dest.kind === 'core' ? 'storage' : dest.kind] = (this.stats.beltTo[dest.kind === 'core' ? 'storage' : dest.kind] ?? 0) + 1;
+        if (dest && !isBeltKind(dest.kind)) this.stats.beltTo[dest.kind === 'core' ? 'storage' : dest.kind] = (this.stats.beltTo[dest.kind === 'core' ? 'storage' : dest.kind] ?? 0) + 1;
         b.item = null;
         b.beltProgress = 0;
       }
@@ -1510,7 +1538,7 @@ export class Game {
 }
 
 /** Edificios que se pueden girar (tienen salida o dirección). */
-export const ROTATABLE: BuildingKind[] = ['belt', 'belt_fast', 'pipeline', 'drill', 'factory', 'feeder', 'farm', 'pump', 'refinery'];
+export const ROTATABLE: BuildingKind[] = ['belt', 'belt_fast', 'elevator', 'pipeline', 'drill', 'factory', 'feeder', 'farm', 'pump', 'refinery'];
 
 /** Edificios que transforman entradas en salidas con una receta. */
 /** Edificios de producción: no se pasan material entre sí; su salida sólo la aceptan cintas, tuberías o almacenes. */

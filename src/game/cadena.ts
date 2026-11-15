@@ -13,7 +13,7 @@ export interface Chain {
   buildings: Building[];
 }
 
-const isLine = (b: Building) => b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline';
+const isLine = (b: Building) => b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline' || b.kind === 'elevator';
 /** Tope de nodos recorridos (protege de redes enormes). */
 const MAX_NODES = 600;
 

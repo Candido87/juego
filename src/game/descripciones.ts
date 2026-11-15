@@ -33,6 +33,7 @@ export const QUE: Record<BuildingKind, string> = {
   turbine: 'Generador avanzado: mucha más electricidad por la misma gasolina.',
   accumulator: 'Guarda electricidad sobrante y la devuelve cuando falta.',
   feeder: 'Mete automáticamente objetos de la casilla de atrás en el edificio de delante.',
+  elevator: 'Sube o baja objetos de una cinta hasta 4 niveles. Necesita electricidad y es más lento que una cinta.',
   turret_bullet: 'Dispara balas al enemigo más cercano.',
   turret_laser: 'Dispara un rayo que ignora la armadura. Necesita electricidad.',
   turret_fire: 'Lanza fuego en área que quema a los enemigos de tierra.',
@@ -64,6 +65,7 @@ export const SIRVE: Record<BuildingKind, string> = {
   turbine: 'Para redes grandes que piden mucha electricidad.',
   accumulator: 'Evita apagones cortos: aguanta los picos de consumo con la energía que guardó.',
   feeder: 'Automatiza el abastecimiento de fábricas, torretas y generadores. Necesita electricidad.',
+  elevator: 'Una cinta sólo sube o baja 1 nivel (rampa, más lenta al subir). Para un desnivel mayor pon un ascensor: la cinta entra por detrás y sale por delante a la otra altura.',
   turret_bullet: 'Tu defensa básica. Necesita munición: se la lleva un Transportista o un alimentador.',
   turret_laser: 'Eficaz contra enemigos blindados. Sin electricidad no dispara.',
   turret_fire: 'Muy eficaz contra grupos de enemigos de tierra. Gasta carbón; no alcanza a los voladores.',
@@ -336,7 +338,7 @@ export interface Category {
 /** Categorías del menú de construcción. Cada edificio está en exactamente una (lo comprueba un test). */
 export const CATEGORIES: Category[] = [
   { id: 'extraction', name: 'Extracción', kinds: ['drill', 'pump'] },
-  { id: 'transport', name: 'Transporte', kinds: ['belt', 'belt_fast', 'pipeline', 'feeder', 'storage'] },
+  { id: 'transport', name: 'Transporte', kinds: ['belt', 'belt_fast', 'pipeline', 'elevator', 'feeder', 'storage'] },
   { id: 'industry', name: 'Industria', kinds: ['factory', 'refinery'] },
   { id: 'energy', name: 'Energía', kinds: ['pole', 'generator', 'solar', 'turbine', 'accumulator'] },
   { id: 'defense', name: 'Defensa', kinds: ['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'wall_wood', 'wall_stone', 'wall_metal', 'wall_gate'] },

@@ -141,7 +141,7 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 
 ## Pendiente, en este orden (diseño en SPEC.md)
 - [ ] INV1-INV5. Investigación con puntos y árbol (rama `investigacion`, creada, aún sin código): laboratorio, investigadores, puntos, árbol, pantalla, bloqueos reales, guardado, guía y sim.
-- [ ] CIN0-CIN4. Cintas: Fase 0 de assets, textura animada, curvas, rampas, ascensor.
+- [x] CIN0-CIN4. Cintas: Fase 0 de assets, textura animada, curvas, rampas (CIN3) y ascensor (CIN4). Rampas: una cinta o tubería sólo sube o baja 1 nivel; la cinta que sube va a `CONFIG.belt.rampUpFactor` (0,5). Ascensor de cintas (edificio `elevator`, Logística → `log_elevator`, cuesta bastidor 2, engranaje 4, circuito 1, necesita energía, 1,2 casillas/s, salva hasta 4 niveles); desnivel imposible avisado en rojo y en el texto; Conectar (A*) usa rampas y ascensores; 11 tests nuevos (`pendientes.test.ts`, `ruta.test.ts`).
 - [ ] AIR5-AIR9. Enemigos aéreos y lanzamisiles.
 
 ## Cuatro mejoras de edificios (parte C, después de los aéreos; reglas en SPEC.md)
