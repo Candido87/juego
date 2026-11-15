@@ -20,6 +20,7 @@ import { gltf, instance, tint } from './loader';
 import { LEVEL_H } from './pick';
 import { ITEM_GEO, OPT_OFF, View3D } from './scene3d';
 import { ITEM_SHAPES } from './pieces';
+import { aspectF } from './aspectos';
 
 export interface ScaleRow {
   cat: string;
@@ -208,11 +209,11 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
   label('PERSONAS Y ENEMIGOS', 5, 0.3, 7.3, 0.45);
   (Object.keys(ROLE_LOOK) as NpcRole[]).forEach((r, i) => {
     const look = ROLE_LOOK[r];
-    put('persona', `NPC ${r}`, factory.makeChar(look.model, look.scale * CHAR_SCALE, r, look.tint).group, 2 + i * 1.5, 8, { lift: 1.5, key: `npc_${r}` });
+    put('persona', `NPC ${r}`, factory.makeChar(look.model, look.scale * CHAR_SCALE * aspectF(`npc_${r}`), r, look.tint).group, 2 + i * 1.5, 8, { lift: 1.5, key: `npc_${r}` });
   });
   (Object.keys(ENEMY_MODEL) as EnemyKind[]).forEach((e, i) => {
     const def = ENEMY_MODEL[e];
-    put('enemigo', `enemigo ${e}`, factory.makeChar(def.model, def.scale * CHAR_SCALE, e, null).group, 11 + i * 1.5, 8, { lift: 1.9 + def.lift, y: def.lift, key: `enemy_${e}` });
+    put('enemigo', `enemigo ${e}`, factory.makeChar(def.model, def.scale * CHAR_SCALE * aspectF(`enemy_${e}`), e, null).group, 11 + i * 1.5, 8, { lift: 1.9 + def.lift, y: def.lift, key: `enemy_${e}` });
   });
 
   // ---------- Torretas (z = 11) ----------
@@ -256,9 +257,9 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
     ['roca alta', TERRAIN.rocks[3], 0.75],
     ['arbusto', TERRAIN.small[0], 1.2],
   ];
-  decor.forEach(([n, model, s], i) => put('decoración', n, instance(model, undefined, s), 2 + i * 2.2, 29, { lift: 3.2, key: model.replace('nature/', '') }));
+  decor.forEach(([n, model, s], i) => put('decoración', n, instance(model, undefined, s * aspectF(model.replace('nature/', ''))), 2 + i * 2.2, 29, { lift: 3.2, key: model.replace('nature/', '') }));
   (['wall_wood', 'wall_stone', 'wall_metal', 'wall_gate'] as BuildKind[]).forEach((k, i) => put('muro', game.def(k).name, mk(k, `${k}|0|1|----`), 21 + i * 2, 29, { lift: 2, key: k }));
-  put('persona', 'NPC (referencia junto al árbol)', factory.makeChar(NPC_MODEL, ROLE_LOOK.constructor.scale * CHAR_SCALE, 'ref', null).group, 4.1, 30.4, { lift: 1.5, key: 'npc_constructor' });
+  put('persona', 'NPC (referencia junto al árbol)', factory.makeChar(NPC_MODEL, ROLE_LOOK.constructor.scale * CHAR_SCALE * aspectF('npc_constructor'), 'ref', null).group, 4.1, 30.4, { lift: 1.5, key: 'npc_constructor' });
   // Cubo de 1×1×1 casilla de referencia.
   const cube = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xd62828 }));
   cube.position.set(30.5, 0.5, 30.5);

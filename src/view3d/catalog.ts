@@ -44,7 +44,7 @@ export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
   belt_fast: [{ model: 'factory/conveyor-stripe', fit: 1 }],
   pipeline: [{ model: 'factory/pipe-large', fit: 1 }],
   storage: [{ model: 'industrial/shipping-container-a', fit: 0.95 }],
-  factory: [{ model: 'factory/machine', fit: 0.9 }, { model: 'factory/robot-arm-a', fit: 0.5, stack: true }],
+  factory: [{ model: 'factory/machine', fit: 0.9 }, { model: 'factory/robot-arm-a', fit: 0.34, stack: true }],
   farm: [{ model: 'factory/hopper-square', fit: 0.8 }, { model: 'forest/plant', fit: 0.5, stack: true }],
   pump: [{ model: 'industrial/detail-tank', fit: 0.8 }, { model: 'factory/pipe-large-valve', fit: 0.5, stack: true }],
   refinery: [{ model: 'industrial/detail-tank-large', fit: 0.9 }, { model: 'industrial/chimney-medium', fit: 0.4, dx: 0.3, dz: -0.3 }],

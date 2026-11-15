@@ -8,6 +8,10 @@ import { instanced } from './loader';
 import { GROUND_TINT, ORE_COLOR, zoneMultiplier } from './palette';
 import { LEVEL_H } from './pick';
 import { GROUND_OFFSET, slopeLower } from './relieve';
+import { aspectF } from './aspectos';
+
+/** Factor del registro de aspectos de un modelo de árbol (por el nombre del modelo). */
+const aF = (model: string): number => aspectF(model.replace('nature/', ''));
 
 /** Giro (rad, eje Y) de la rampa para que baje hacia cada dirección 0:+x 1:+z 2:-x 3:-z. El modelo baja hacia -z con giro 0 (comprobado en sus vértices). */
 export const SLOPE_YAW = [-Math.PI / 2, Math.PI, Math.PI / 2, 0];
@@ -26,6 +30,10 @@ export interface Terrain {
   group: THREE.Group;
   /** Esconde (escala 0) la decoración de una casilla cuando se construye encima. */
   hideDecor(x: number, y: number): void;
+  /** Opacidad (1 = sólido) de la decoración con transparencia por tramado (árboles) de una casilla; no hace nada si no hay. */
+  setFade(x: number, y: number, fade: number): void;
+  /** Casillas con árboles. */
+  treeTiles(): [number, number][];
   stats: { tiles: number; chunks: number; instancedMeshes: number; decor: number };
 }
 
@@ -58,6 +66,32 @@ const DECOR_MODELS: Record<DecorKind, { models: readonly string[]; scale: number
 /**
  * `spawns` = casillas de aparición de enemigos: ni ellas ni el pasillo hasta el núcleo llevan decoración (reglas de `decor.ts`).
  */
+/** Añade a una malla instanciada la opacidad por instancia (`aFade`), dibujada con tramado: sin mezcla, sin ordenar y sin coste extra. */
+function addFade(im: THREE.InstancedMesh): void {
+  const fade = new THREE.InstancedBufferAttribute(new Float32Array(im.count).fill(1), 1);
+  im.geometry = im.geometry.clone();
+  im.geometry.setAttribute('aFade', fade);
+  const base = im.material as THREE.Material;
+  const mat = base.clone();
+  const prev = base.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer) => {
+    prev?.(shader, renderer);
+    shader.vertexShader = shader.vertexShader.replace('void main() {', `attribute float aFade;
+varying float vFade;
+void main() {
+  vFade = aFade;`);
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'void main() {',
+      `varying float vFade;
+void main() {
+  if (vFade < 0.999 && fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) > vFade) discard;`,
+    );
+  };
+  mat.customProgramCacheKey = () => 'hole-fade';
+  im.material = mat;
+  im.userData.fade = fade;
+}
+
 export function buildTerrain(world: World, coreTile: { x: number; y: number }, seed = 1, chunk = 16, spawns: Tile[] = []): Terrain {
   const zone = tintNoise(seed);
   const decor = new Map<number, { kind: DecorKind; rot: number }>();
@@ -109,7 +143,7 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
       if (o === Ore.Wood) {
         const r = hash2(x, y, seed);
         const model = TERRAIN.trees[Math.floor(r * TERRAIN.trees.length)];
-        const s = 0.85 + hash2(y, x, seed + 1) * 0.5;
+        const s = (0.85 + hash2(y, x, seed + 1) * 0.5) * aF(model);
         add(model, key, place(cx + (hash2(x, y, 5) - 0.5) * 0.3, top + GROUND_OFFSET * s, cz + (hash2(x, y, 6) - 0.5) * 0.3, hash2(x, y, 7) * 6.28, s, s, s));
       } else if (o !== Ore.None) {
         for (let k = 0; k < 2; k++) {
@@ -123,7 +157,7 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
         if (d) {
           const spec = DECOR_MODELS[d.kind];
           const model = spec.models[Math.floor(hash2(x, y, seed + 3) * spec.models.length)];
-          const s = spec.scale * (0.85 + hash2(y, x, seed + 4) * 0.3);
+          const s = spec.scale * (0.85 + hash2(y, x, seed + 4) * 0.3) * aF(model);
           add(model, key, place(cx + (hash2(x, y, 5) - 0.5) * spec.jitter, top + GROUND_OFFSET * s, cz + (hash2(x, y, 6) - 0.5) * spec.jitter, d.rot * (Math.PI / 2) + hash2(x, y, 7) * 0.6, s, s, s));
         }
       }
@@ -145,6 +179,7 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
     addGroup(instanced(TERRAIN.slope, c.slopes, c.slopesC, 'grass', true));
     for (const [model, d] of c.decor) {
       const g = instanced(model, d.mats, d.colors);
+      if ((TERRAIN.trees as readonly string[]).includes(model)) for (const im of g.children) addFade(im as THREE.InstancedMesh);
       addGroup(g);
       decorCount += d.mats.length;
       d.keys.forEach((k, i) => {
@@ -158,6 +193,21 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
   return {
     group,
     stats: { tiles: world.w * world.h, chunks: chunks.size, instancedMeshes: meshes, decor: decorCount },
+    setFade(x, y, fade) {
+      for (const { g, i } of index.get(`${x},${y}`) ?? []) {
+        for (const c of g.children) {
+          const a = c.userData.fade as THREE.InstancedBufferAttribute | undefined;
+          if (!a || a.getX(i) === fade) continue;
+          a.setX(i, fade);
+          a.needsUpdate = true;
+        }
+      }
+    },
+    treeTiles() {
+      const out: [number, number][] = [];
+      for (const [k, l] of index) if (l.some(({ g }) => g.children.some((c) => c.userData.fade))) out.push(k.split(',').map(Number) as [number, number]);
+      return out;
+    },
     hideDecor(x, y) {
       for (const { g, i } of index.get(`${x},${y}`) ?? []) {
         for (const c of g.children) {

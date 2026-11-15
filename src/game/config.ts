@@ -223,7 +223,7 @@ export const CONFIG = {
       item_lump: { w: 0.22 }, item_log: { w: 0.25 }, item_slab: { w: 0.25 }, item_disc: { w: 0.22 }, item_shell: { w: 0.18 }, item_crate: { w: 0.22 },
       npc_constructor: { h: 0.62 }, npc_transporter: { h: 0.62 }, npc_operator: { h: 0.62 }, npc_mechanic: { h: 0.62 }, npc_researcher: { h: 0.62 },
       enemy_grunt: { h: 0.65 }, enemy_runner: { h: 0.62 }, enemy_armored: { h: 0.8 }, enemy_flyer: { h: 0.6 }, enemy_tank: { h: 1.0 },
-      turret_bullet: { h: 1.0 }, turret_laser: { h: 1.0 }, turret_fire: { h: 1.0 }, turret_frost: { h: 1.0 },
+      turret_bullet: { h: 1.3 }, turret_laser: { h: 1.3 }, turret_fire: { h: 1.3 }, turret_frost: { h: 1.3 },
       turret_2x2: { w: 1.8, h: 1.3 },
       drill: { h: 1.2 }, storage: { h: 0.9 }, factory: { h: 1.6 }, farm: { h: 0.8 }, pump: { h: 0.8 },
       refinery: { h: 1.7 }, workshop: { h: 1.2 }, laboratory: { h: 1.3 }, house: { h: 1.1 },
@@ -240,7 +240,7 @@ export const CONFIG = {
     maxFactoryHeight: 2.0,
     maxChimneyHeight: 2.4,
     /** Árboles: alto 1,0–1,3 y copa de 0,8 de ancho como máximo; se vuelven transparentes si tapan cintas o edificios. */
-    tree: { minHeight: 1.0, maxHeight: 1.3, maxCanopy: 0.8 },
+    tree: { minHeight: 1.0, maxHeight: 1.3, maxCanopy: 0.8, fade: 0.3 },
     maxBuildingHeight: 1.8,
     maxWidth: 1,
     /** Cinta: ancho y alto del cuerpo (1 casilla de largo), borde lateral y carril útil para los objetos. */

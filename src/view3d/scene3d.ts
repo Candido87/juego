@@ -17,6 +17,7 @@ import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
 import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { slopeLower, tileSurface } from './relieve';
+import { aspectF, aspectSy } from './aspectos';
 import { ITEM_SHAPES, ItemShape, armsFor, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
 import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
@@ -284,6 +285,8 @@ export class View3D {
   readonly flow = new BeltFlow();
   private flowInfos: BeltInfo[] = [];
   private batchDirty = false;
+  private fadeAt = -1;
+  private faded = new Set<string>();
   private batchAge = 0;
   private belts: Building[] = [];
   private itemMeshes = new Map<ItemShape, THREE.InstancedMesh>();
@@ -743,7 +746,11 @@ export class View3D {
         group.add(o);
       });
     }
-    view.height = top;
+    // Registro de aspectos: factor de escala del modelo (aspectos.ts).
+    const af = aspectF(kind);
+    const asy = aspectSy(kind);
+    if (af !== 1 || asy !== 1) group.scale.set(af, af * asy, af);
+    view.height = top * af * asy;
     group.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) m.castShadow = m.receiveShadow = true;
@@ -768,6 +775,38 @@ export class View3D {
     return view;
   }
 
+  /**
+   * Árboles que tapan: los que quedan entre la cámara y una cinta, tubería o edificio (hasta donde alcanza su altura en la
+   * vista isométrica) se vuelven semitransparentes (`CONFIG.scale.tree.fade`). Se recalcula unas veces por segundo.
+   */
+  private fadeTrees(): void {
+    if (this.time - this.fadeAt < 0.25) return;
+    this.fadeAt = this.time;
+    const yaw = this.rig.yaw;
+    const dx = Math.sin(yaw);
+    const dz = Math.cos(yaw);
+    const near = new Set<string>();
+    const reach = CONFIG.scale.tree.maxHeight / Math.tan(Math.PI / 6);
+    for (const b of this.game.buildings.values()) {
+      for (let k = 0.6; k <= Math.min(reach, 2.4); k += 0.6) {
+        for (const lat of [-0.5, 0, 0.5]) {
+          const x = Math.floor(b.x + b.w / 2 + dx * k - dz * lat);
+          const y = Math.floor(b.y + b.d / 2 + dz * k + dx * lat);
+          near.add(`${x},${y}`);
+        }
+      }
+    }
+    for (const [x, y] of this.terrain.treeTiles()) {
+      const k = `${x},${y}`;
+      const hide = near.has(k) && !this.game.buildingAt(x, y);
+      const was = this.faded.has(k);
+      if (hide === was) continue;
+      this.terrain.setFade(x, y, hide ? CONFIG.scale.tree.fade : 1);
+      if (hide) this.faded.add(k);
+      else this.faded.delete(k);
+    }
+  }
+
   private syncBuildings(dt: number): void {
     const seen = new Set<number>();
     const batch = this.opts.batch;
@@ -790,8 +829,10 @@ export class View3D {
         // Sobre una rampa de terreno la base queda en el borde alto: un zócalo de roca rellena el hueco por el lado bajo.
         if (b.w === 1 && b.d === 1 && slopeLower(this.game.world, b.x, b.y) !== null) {
           const plinth = new THREE.Mesh(BOX_GEO, PLINTH_MAT);
-          plinth.scale.set(0.98, LEVEL_H, 0.98);
-          plinth.position.y = -LEVEL_H / 2;
+          const kf = aspectF(b.kind);
+          const ky = kf * aspectSy(b.kind);
+          plinth.scale.set(0.98 / kf, LEVEL_H / ky, 0.98 / kf);
+          plinth.position.y = -LEVEL_H / 2 / ky;
           plinth.userData.plinth = true;
           v.group.add(plinth);
         }
@@ -1093,7 +1134,7 @@ export class View3D {
         v = undefined;
       }
       if (!v) {
-        v = this.makeChar(look.model, look.scale * CHAR_SCALE, n.role, look.tint);
+        v = this.makeChar(look.model, look.scale * CHAR_SCALE * aspectF(`npc_${n.role}`), n.role, look.tint);
         v.group.position.set(n.x, 0, n.y);
         this.npcs.set(n.id, v);
         this.scene.add(v.group);
@@ -1137,7 +1178,7 @@ export class View3D {
         seenE.add(en.id);
         let v = this.enemies.get(en.id);
         if (!v) {
-          v = this.makeChar(def.model, def.scale * CHAR_SCALE, en.kind);
+          v = this.makeChar(def.model, def.scale * CHAR_SCALE * aspectF(`enemy_${en.kind}`), en.kind);
           v.group.position.set(en.x, 0, en.y);
           this.enemies.set(en.id, v);
           this.scene.add(v.group);
@@ -1192,7 +1233,7 @@ export class View3D {
     let lod = this.lod.get(kind);
     if (!lod) {
       const def = ENEMY_MODEL[kind];
-      const g = instance(def.model, undefined, def.scale * CHAR_SCALE);
+      const g = instance(def.model, undefined, def.scale * CHAR_SCALE * aspectF(`enemy_${kind}`));
       g.updateMatrixWorld(true);
       const meshes: THREE.InstancedMesh[] = [];
       const locals: THREE.Matrix4[] = [];
@@ -1471,6 +1512,7 @@ export class View3D {
     this.fx.begin(this.camera);
     this.handleEvents();
     this.syncBuildings(dt);
+    this.fadeTrees();
     this.syncChars(sdt);
     this.syncBuildingFx(sdt);
     this.updateHighlights();
