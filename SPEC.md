@@ -441,3 +441,27 @@ Decisiones de la Fase 1 (para anotar lo que se eligió ante dudas):
 - **Colores:** el Nature Kit usa colores de vértice (sin textura) y la hierba sale turquesa; se mantiene tal cual.
 - **Pendiente / simplificado:** puertos de entrada/salida (flechas), esquinas de muro, daño visible, partículas, interfaz HTML completa (sólo HUD, paleta y ficha de casilla). La orientación de curvas y cruces de tubería se comprobó a ojo.
 - **Demo:** `/vista3d.html?demo=wave` coloca cintas, tuberías, torretas y muros y lanza una oleada; `?auto=0` desactiva el bot; `?speed=4` acelera.
+
+## Fase 2: rendimiento de la vista 3D
+
+**Cómo se mide.** `/vista3d.html?bench=1&map=120&objs=1500&enemies=300&opt=1&auto=0&zoom=0.6`. `bench=1` crea un mapa grande con edificios ya construidos (tiras de cinta, tubería y muro, y edificios sueltos) y enemigos que se mueven; `opt=0` apaga las optimizaciones, `shadows=0` las sombras, `chunk=N` el tamaño de trozo de terreno. En la consola, `__bench(n)` ejecuta *n* frames seguidos esperando a la GPU (`gl.finish`) y devuelve ms por frame, FPS, llamadas de dibujo y triángulos. Se mide así porque con la pestaña oculta `requestAnimationFrame` se frena.
+
+**Qué se hizo.** Terreno instanciado y troceado en chunks (descarte por cámara); edificios estáticos (cintas, tuberías, muros, casas...) agrupados en `InstancedMesh` por malla, material y trozo, reconstruidos como mucho cada 0,3 s; objetos sobre las cintas en un solo `InstancedMesh`; materiales teñidos compartidos (para poder agrupar); personajes fuera de cámara no se animan; con muchos a la vista sólo los 250 más cercanos al centro llevan esqueleto y el resto se dibuja instanciado en pose base. Los modelos ya eran ligeros (de 14 a 280 KB cada uno); no hizo falta tocarlos.
+
+**Resultados** (navegador integrado de la app, GPU del equipo del usuario; ms por frame con GPU sincronizada, ventana ~800x700):
+
+| Escena | Sin optimizar (`opt=0`) | Optimizada | Mejora |
+|---|---|---|---|
+| Mapa 120x120, 1500 edificios, 300 enemigos | 21,3 ms (47 FPS), 984 llamadas, 1,37 M tris | 13,7 ms (73 FPS), 1036 llamadas, 1,10 M tris | 1,55x |
+| Igual, sin sombras | — | 10,7 ms (93 FPS), 512 llamadas, 0,55 M tris | |
+| Mapa 80x80, 300 edificios, 1500 enemigos | 64,6 ms (15 FPS), 2977 llamadas | 23,2 ms (43 FPS), 1463 llamadas | 2,8x |
+| Partida normal 40x40 (demo con oleada) | — | 2,6 ms (>300 FPS), 270 llamadas | |
+
+Con chunks de 16 casillas salió peor (17,1 ms) que con 32 (13,7 ms): más trozos = más llamadas. Se dejó 32.
+
+**Lo que queda caro.**
+- **Sombras:** cuestan ~3 ms con el mapa grande (hay un botón "Sombras").
+- **Personajes con esqueleto:** son lo más caro por unidad. A 1500 enemigos, 250 animados y 1250 instanciados en pose base (no animan; giran según su id). Una solución real para hordas enormes sería animación por texturas de vértices (no se hizo).
+- **Draw calls:** siguen altas (~1000-1500) porque cada modelo tiene 2-4 mallas por material y chunk; fusionar modelos en un atlas de geometrías las bajaría.
+- **Lógica del juego:** ~0,5 ms por frame en todas las pruebas; no es el cuello de botella.
+- **Medición:** hecha con la GPU de este equipo y una sola ventana; no se probó en equipos modestos ni en móvil.

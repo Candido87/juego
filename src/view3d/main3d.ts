@@ -5,7 +5,9 @@ import { formatClock } from '../game/format';
 import { Game } from '../game/game';
 import { BuildKind, Ore } from '../game/types';
 import { heightAt, oreAt } from '../game/world';
-import { View3D } from './scene3d';
+import { generateWorld } from '../game/world';
+import { setupBench, wiggle } from './bench';
+import { OPT_OFF, OPT_ON, View3D } from './scene3d';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const ORE_NAME = ['', 'Hierro', 'Cobre', 'Carbón', 'Piedra', 'Madera', 'Petróleo', 'Azufre'];
@@ -50,11 +52,19 @@ function demo(game: Game, wave: boolean) {
 async function start() {
   if (!innerWidth || !innerHeight) return requestAnimationFrame(start);
   const q = new URLSearchParams(location.search);
-  const game = new Game({ seed: Number(q.get('seed') ?? 7), noWaves: q.get('waves') === '0' });
-  const view = new View3D($('v'), game);
+  const seed = Number(q.get('seed') ?? 7);
+  const map = Number(q.get('map') ?? 0);
+  const bench = q.get('bench') === '1';
+  const game = new Game({ seed, noWaves: q.get('waves') === '0' || bench, world: map ? generateWorld(seed, map, map) : undefined });
+  const opts = q.get('opt') === '0' ? { ...OPT_OFF } : { ...OPT_ON };
+  if (q.get('shadows') === '0') opts.shadows = false;
+  if (q.get('chunk')) opts.chunk = Number(q.get('chunk'));
+  const view = new View3D($('v'), game, opts);
   await view.init((d, t) => ($('load').textContent = `Cargando modelos… ${d}/${t}`));
   $('load').remove();
   (window as unknown as { __v3: unknown }).__v3 = { view, game };
+  if (bench) setupBench(game, { objects: Number(q.get('objs') ?? 1500), enemies: Number(q.get('enemies') ?? 300) });
+  if (bench) view.rig.zoom = Number(q.get('zoom') ?? 0.6);
   if (q.get('demo')) demo(game, q.get('demo') === 'wave');
 
   let speed = Number(q.get('speed') ?? 1);
@@ -65,6 +75,8 @@ async function start() {
   $('bot').onclick = () => ((auto = !auto), ($('bot').textContent = `Auto: ${auto ? 'sí' : 'no'}`), $('bot').classList.toggle('on', auto));
   $('bot').textContent = `Auto: ${auto ? 'sí' : 'no'}`;
   $('bot').classList.toggle('on', auto);
+  $('sh').classList.toggle('on', opts.shadows);
+  $('sh').onclick = () => (view.setShadows(!opts.shadows), $('sh').classList.toggle('on', opts.shadows));
   $('rl').onclick = () => view.rig.rotate(-1);
   $('rr').onclick = () => view.rig.rotate(1);
 
@@ -122,6 +134,35 @@ async function start() {
     $('perf').textContent = `${i.fps.toFixed(0)} FPS\n${i.calls} draw calls\n${(i.triangles / 1000).toFixed(0)}k tris\nedif ${c.buildings} npc ${c.npcs} enem ${c.enemies}`;
   };
 
+  const acc = { game: 0, view: 0, n: 0, dt: 0, t: performance.now() };
+  /** Devuelve y reinicia las medias desde la última llamada (ms por frame de lógica y de vista, FPS reales). */
+  (window as unknown as { __perf: () => unknown }).__perf = () => {
+    const i = view.info();
+    const r = { frames: acc.n, fps: +((acc.n * 1000) / Math.max(performance.now() - acc.t, 1)).toFixed(1), gameMs: +(acc.game / Math.max(acc.n, 1)).toFixed(2), viewMs: +(acc.view / Math.max(acc.n, 1)).toFixed(2), calls: i.calls, tris: i.triangles, ...view.stats, ...view.counts(), geoms: view.renderer.info.memory.geometries };
+    acc.game = acc.view = acc.n = acc.dt = 0;
+    acc.t = performance.now();
+    return r;
+  };
+  /** Mide n frames seguidos sin esperar a requestAnimationFrame (útil con la pestaña oculta): ms por frame con la GPU sincronizada. */
+  (window as unknown as { __bench: (n: number) => unknown }).__bench = (n: number) => {
+    const gl = view.renderer.getContext();
+    let tg = 0;
+    let tv = 0;
+    const t0 = performance.now();
+    for (let i = 0; i < n; i++) {
+      const a = performance.now();
+      game.update(1 / 60);
+      if (bench) wiggle(game, i / 60);
+      const b = performance.now();
+      view.frame(1 / 60);
+      gl.finish();
+      tg += b - a;
+      tv += performance.now() - b;
+    }
+    const total = performance.now() - t0;
+    const i = view.info();
+    return { frames: n, msPerFrame: +(total / n).toFixed(2), fps: +((n * 1000) / total).toFixed(1), gameMs: +(tg / n).toFixed(2), viewMs: +(tv / n).toFixed(2), calls: i.calls, tris: i.triangles, ...view.stats, ...view.counts() };
+  };
   let last = performance.now();
   let botAcc = 0;
   let hudAcc = 0;
@@ -129,13 +170,21 @@ async function start() {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     flashT -= dt;
+    const t0 = performance.now();
     game.update(dt * speed);
+    if (bench) wiggle(game, now / 1000);
+    const t1 = performance.now();
     botAcc += dt * speed;
     if (auto && botAcc > 0.7) {
       botAcc = 0;
       botTick(game);
     }
     view.frame(dt);
+    const t2 = performance.now();
+    acc.game += t1 - t0;
+    acc.view += t2 - t1;
+    acc.n++;
+    acc.dt += dt;
     hudAcc += dt;
     if (hudAcc > 0.25) {
       hudAcc = 0;

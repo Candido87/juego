@@ -97,3 +97,24 @@ describe('rampas', () => {
     });
   });
 });
+
+describe('escenario de medición', () => {
+  it('coloca los edificios y enemigos pedidos y es determinista', async () => {
+    const { setupBench, wiggle } = await import('./bench');
+    const { Game } = await import('../game/game');
+    const { generateWorld } = await import('../game/world');
+    const mk = () => {
+      const g = new Game({ world: generateWorld(5, 60, 60), noWaves: true });
+      const r = setupBench(g, { objects: 300, enemies: 50, seed: 2 });
+      return { g, r };
+    };
+    const a = mk();
+    const b = mk();
+    expect(a.r.placed).toBeGreaterThan(250);
+    expect(a.r.placed).toBe(b.r.placed);
+    expect(a.g.enemies.length).toBe(50);
+    const x0 = a.g.enemies[0].x;
+    wiggle(a.g, 1);
+    expect(a.g.enemies[0].x).not.toBe(x0);
+  });
+});

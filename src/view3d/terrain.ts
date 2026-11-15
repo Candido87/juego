@@ -1,4 +1,4 @@
-/** Terreno 3D: losas, bloques y rampas del Nature Kit, árboles, rocas y menas, todo instanciado. */
+/** Terreno 3D: losas, bloques y rampas del Nature Kit, árboles, rocas y menas, instanciado y troceado en chunks. */
 import * as THREE from 'three';
 import { Ore } from '../game/types';
 import { World, heightAt, inBounds } from '../game/world';
@@ -32,30 +32,46 @@ export interface Terrain {
   group: THREE.Group;
   /** Esconde (escala 0) la decoración de una casilla cuando se construye encima. */
   hideDecor(x: number, y: number): void;
-  stats: { tiles: number; instancedMeshes: number; decor: number };
+  stats: { tiles: number; chunks: number; instancedMeshes: number; decor: number };
 }
 
-export function buildTerrain(world: World, coreTile: { x: number; y: number }, seed = 1): Terrain {
-  const flat: THREE.Matrix4[] = [];
-  const blocks: THREE.Matrix4[] = [];
-  const slopes: THREE.Matrix4[] = [];
-  const decor = new Map<string, { mats: THREE.Matrix4[]; colors: THREE.Color[]; keys: string[] }>();
-  const add = (model: string, key: string, m: THREE.Matrix4, color?: number) => {
-    let d = decor.get(model);
-    if (!d) decor.set(model, (d = { mats: [], colors: [], keys: [] }));
-    d.mats.push(m);
-    d.colors.push(new THREE.Color(color ?? 0xffffff));
-    d.keys.push(key);
+interface Chunk {
+  flat: THREE.Matrix4[];
+  blocks: THREE.Matrix4[];
+  slopes: THREE.Matrix4[];
+  decor: Map<string, { mats: THREE.Matrix4[]; colors: THREE.Color[]; keys: string[] }>;
+}
+
+/**
+ * `chunk` = lado (en casillas) de cada trozo. Cada trozo es un conjunto de InstancedMesh con su propia
+ * esfera de visión, así que Three descarta los que quedan fuera de la cámara. 0 = un solo trozo.
+ */
+export function buildTerrain(world: World, coreTile: { x: number; y: number }, seed = 1, chunk = 16): Terrain {
+  const size = chunk > 0 ? chunk : Math.max(world.w, world.h);
+  const chunks = new Map<number, Chunk>();
+  const chunkAt = (x: number, y: number): Chunk => {
+    const k = Math.floor(y / size) * 100000 + Math.floor(x / size);
+    let c = chunks.get(k);
+    if (!c) chunks.set(k, (c = { flat: [], blocks: [], slopes: [], decor: new Map() }));
+    return c;
   };
   const place = (px: number, py: number, pz: number, yaw = 0, sx = 1, sy = 1, sz = 1) =>
     new THREE.Matrix4().compose(new THREE.Vector3(px, py, pz), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(sx, sy, sz));
 
   for (let y = 0; y < world.h; y++) {
     for (let x = 0; x < world.w; x++) {
+      const c = chunkAt(x, y);
+      const add = (model: string, key: string, m: THREE.Matrix4, color?: number) => {
+        let d = c.decor.get(model);
+        if (!d) c.decor.set(model, (d = { mats: [], colors: [], keys: [] }));
+        d.mats.push(m);
+        d.colors.push(new THREE.Color(color ?? 0xffffff));
+        d.keys.push(key);
+      };
       const h = heightAt(world, x, y);
       const cx = x + 0.5;
       const cz = y + 0.5;
-      if (h <= 0) flat.push(place(cx, 0, cz));
+      if (h <= 0) c.flat.push(place(cx, 0, cz));
       else {
         // Rampa: una sola vecina más baja y las demás iguales o más altas.
         let lower = -1;
@@ -71,8 +87,8 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
             lowerCount++;
           } else if (nh < h) okOthers = false;
         }
-        if (lowerCount === 1 && okOthers && h === 1) slopes.push(place(cx, 0, cz, SLOPE_YAW[lower], 1, LEVEL_H, 1));
-        else blocks.push(place(cx, 0, cz, 0, 1, h * LEVEL_H, 1));
+        if (lowerCount === 1 && okOthers && h === 1) c.slopes.push(place(cx, 0, cz, SLOPE_YAW[lower], 1, LEVEL_H, 1));
+        else c.blocks.push(place(cx, 0, cz, 0, 1, h * LEVEL_H, 1));
       }
       const o = world.ore[y * world.w + x];
       const key = `${x},${y}`;
@@ -97,29 +113,32 @@ export function buildTerrain(world: World, coreTile: { x: number; y: number }, s
 
   const group = new THREE.Group();
   let meshes = 0;
+  let decorCount = 0;
+  const index = new Map<string, { g: THREE.Group; i: number }[]>();
   const addGroup = (g: THREE.Group) => {
     meshes += g.children.length;
+    for (const im of g.children) (im as THREE.InstancedMesh).computeBoundingSphere();
     group.add(g);
   };
-  addGroup(instanced(TERRAIN.flat, flat));
-  addGroup(instanced(TERRAIN.block, blocks));
-  addGroup(instanced(TERRAIN.slope, slopes));
-  const index = new Map<string, { g: THREE.Group; i: number }[]>();
-  let decorCount = 0;
-  for (const [model, d] of decor) {
-    const g = instanced(model, d.mats, d.colors);
-    addGroup(g);
-    decorCount += d.mats.length;
-    d.keys.forEach((k, i) => {
-      let l = index.get(k);
-      if (!l) index.set(k, (l = []));
-      l.push({ g, i });
-    });
+  for (const c of chunks.values()) {
+    addGroup(instanced(TERRAIN.flat, c.flat));
+    addGroup(instanced(TERRAIN.block, c.blocks));
+    addGroup(instanced(TERRAIN.slope, c.slopes));
+    for (const [model, d] of c.decor) {
+      const g = instanced(model, d.mats, d.colors);
+      addGroup(g);
+      decorCount += d.mats.length;
+      d.keys.forEach((k, i) => {
+        let l = index.get(k);
+        if (!l) index.set(k, (l = []));
+        l.push({ g, i });
+      });
+    }
   }
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   return {
     group,
-    stats: { tiles: world.w * world.h, instancedMeshes: meshes, decor: decorCount },
+    stats: { tiles: world.w * world.h, chunks: chunks.size, instancedMeshes: meshes, decor: decorCount },
     hideDecor(x, y) {
       for (const { g, i } of index.get(`${x},${y}`) ?? []) {
         for (const c of g.children) {

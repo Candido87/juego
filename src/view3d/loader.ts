@@ -48,15 +48,21 @@ export function instance(id: ModelId, fit?: number, scaleMul = 1): THREE.Group {
   return wrap;
 }
 
-/** Multiplica el color de todos los materiales (clonándolos para no teñir el resto). */
+const tintCache = new Map<string, THREE.Material>();
+/** Multiplica el color de los materiales; las copias teñidas se comparten (misma pieza + mismo color = mismo material), lo que permite agrupar. */
 export function tint(obj: THREE.Object3D, color: number): void {
   obj.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     const mats = Array.isArray(m.material) ? m.material : [m.material];
     const out = mats.map((mt) => {
-      const c = (mt as THREE.MeshStandardMaterial).clone();
-      c.color.multiply(new THREE.Color(color));
+      const key = `${mt.uuid}|${color}`;
+      let c = tintCache.get(key);
+      if (!c) {
+        c = (mt as THREE.MeshStandardMaterial).clone();
+        (c as THREE.MeshStandardMaterial).color.multiply(new THREE.Color(color));
+        tintCache.set(key, c);
+      }
       return c;
     });
     m.material = Array.isArray(m.material) ? out : out[0];

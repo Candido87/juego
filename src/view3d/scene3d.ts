@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../game/config';
 import { Building, Enemy, Game } from '../game/game';
-import { DX, DY, Dir, BuildKind, TurretKind } from '../game/types';
+import { DX, DY, Dir, BuildKind, EnemyKind, TurretKind } from '../game/types';
 import { heightAt, heightAtPoint } from '../game/world';
 import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, NPC_MODEL, TURRET_GUN, allModels } from './catalog';
 import { CameraRig } from './camera';
@@ -14,6 +14,23 @@ import { LEVEL_H, pickTile3D } from './pick';
 import { Terrain, buildTerrain } from './terrain';
 
 type Tile = { x: number; y: number };
+
+/** Interruptores de optimización (para medir con y sin ellos: `?opt=0` los apaga todos). */
+export interface ViewOptions {
+  /** Une en InstancedMesh los edificios estáticos (cintas, tuberías, muros, casas...). */
+  batch: boolean;
+  /** No anima ni actualiza personajes fuera de la cámara y baja la animación de los lejanos. */
+  cull: boolean;
+  /** Lado en casillas de cada trozo de terreno (0 = un solo trozo). */
+  chunk: number;
+  shadows: boolean;
+}
+export const OPT_ON: ViewOptions = { batch: true, cull: true, chunk: 32, shadows: true };
+export const OPT_OFF: ViewOptions = { batch: false, cull: false, chunk: 0, shadows: true };
+const MAX_ITEMS = 8192;
+/** Personajes con esqueleto a la vez (el resto va instanciado). */
+const ANIMATED_BUDGET = 250;
+const MAX_LOD = 4096;
 
 /** Giro Y (rad) del modelo de cinta/tubería para cada dirección del juego (0:+x 1:+z 2:-x 3:-z). Ajustado con la galería. */
 export const FLOW_YAW = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
@@ -35,6 +52,8 @@ interface BView {
   recoil: number;
   item?: THREE.Mesh;
   baseY: number;
+  /** Mallas del edificio en espacio de mundo, para agruparlas cuando es estático. */
+  statics?: { geo: THREE.BufferGeometry; mat: THREE.Material | THREE.Material[]; matrix: THREE.Matrix4 }[];
 }
 
 interface CView {
@@ -83,18 +102,30 @@ export class View3D {
   fps = 0;
   private fpsAcc = 0;
   private fpsN = 0;
+  private batchGroup: THREE.Group | null = null;
+  private batchDirty = false;
+  private batchAge = 0;
+  private belts: Building[] = [];
+  private itemMesh: THREE.InstancedMesh | null = null;
+  private frustum = new THREE.Frustum();
+  private lod = new Map<EnemyKind, { meshes: THREE.InstancedMesh[]; locals: THREE.Matrix4[] }>();
+  private frameNo = 0;
+  private inView = 0;
+  private inViewNext = 0;
+  /** Contadores para la interfaz y las mediciones. */
+  readonly stats = { batched: 0, loose: 0, rebuilds: 0, charsAnimated: 0, charsSkipped: 0, lodChars: 0 };
 
-  constructor(private host: HTMLElement, readonly game: Game) {
+  constructor(private host: HTMLElement, readonly game: Game, readonly opts: ViewOptions = OPT_ON) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = opts.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(this.renderer.domElement);
     this.scene.background = new THREE.Color(0x9fd0e8);
     this.scene.fog = new THREE.Fog(0x9fd0e8, 140, 300);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x7a8a9a, 1.7));
     this.sun = new THREE.DirectionalLight(0xfff2d8, 2.4);
-    this.sun.castShadow = true;
+    this.sun.castShadow = opts.shadows;
     this.sun.shadow.mapSize.set(2048, 2048);
     const sc = this.sun.shadow.camera;
     sc.left = sc.bottom = -26;
@@ -115,6 +146,12 @@ export class View3D {
     this.selMesh.visible = false;
     this.scene.add(this.hoverMesh, this.selMesh);
 
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), new THREE.MeshStandardMaterial({ color: 0xffffff }), MAX_ITEMS);
+    im.count = 0;
+    im.frustumCulled = false;
+    this.itemMesh = im;
+    this.scene.add(im);
+
     const c = game.core;
     this.rig.x = c.x + 1;
     this.rig.z = c.y + 1;
@@ -124,7 +161,7 @@ export class View3D {
 
   async init(onProgress?: (d: number, t: number) => void): Promise<void> {
     await preload(allModels(), onProgress);
-    this.terrain = buildTerrain(this.game.world, this.game.core, 7);
+    this.terrain = buildTerrain(this.game.world, this.game.core, 7, this.opts.chunk);
     this.terrain.group.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) m.receiveShadow = true;
@@ -291,7 +328,7 @@ export class View3D {
       });
     }
     // Objeto transportado por la cinta.
-    if (kind === 'belt' || kind === 'belt_fast') {
+    if (!this.opts.batch && (kind === 'belt' || kind === 'belt_fast')) {
       const it = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), new THREE.MeshStandardMaterial({ color: 0xffffff }));
       it.visible = false;
       group.add(it);
@@ -302,21 +339,38 @@ export class View3D {
 
   private syncBuildings(dt: number): void {
     const seen = new Set<number>();
+    const batch = this.opts.batch;
+    this.belts.length = 0;
+    let loose = 0;
     for (const b of this.game.buildings.values()) {
       seen.add(b.id);
       const sig = this.signature(b);
       let v = this.buildings.get(b.id);
       if (!v || v.sig !== sig) {
-        if (v) this.scene.remove(v.group);
-        else this.terrain.hideDecor(b.x, b.y);
+        if (v) {
+          this.scene.remove(v.group);
+          if (v.statics) this.batchDirty = true;
+        } else this.terrain.hideDecor(b.x, b.y);
         const old = v;
         v = this.makeBuilding(b, sig);
         if (old) v.yaw = old.yaw;
         this.buildings.set(b.id, v);
-        this.scene.add(v.group);
+        v.group.position.set(b.x + b.w / 2, this.levelTop(b), b.y + b.d / 2);
+        if (batch && b.built && !v.pivot && !v.spin.length && !v.bob.length) {
+          // Estático: se agrupa con los demás en InstancedMesh (no entra en la escena por separado).
+          v.group.updateMatrixWorld(true);
+          v.statics = [];
+          v.group.traverse((o) => {
+            const m = o as THREE.Mesh;
+            if (m.isMesh) v!.statics!.push({ geo: m.geometry, mat: m.material, matrix: m.matrixWorld.clone() });
+          });
+          this.batchDirty = true;
+        } else this.scene.add(v.group);
       }
-      const base = this.levelTop(b);
-      v.group.position.set(b.x + b.w / 2, base, b.y + b.d / 2);
+      if (b.kind === 'belt' || b.kind === 'belt_fast') if (batch && b.built) this.belts.push(b);
+      if (v.statics) continue;
+      loose++;
+      v.group.position.set(b.x + b.w / 2, this.levelTop(b), b.y + b.d / 2);
       v.group.scale.y = b.built ? 1 : 0.35 + 0.65 * Math.min(1, b.progress);
       for (const s of v.spin) s.rotation.y += dt * (b.running || b.built ? 1.5 : 0);
       for (const o of v.bob) o.position.y += Math.sin(this.time * 6) * 0.004 * (b.built ? 1 : 0);
@@ -334,9 +388,70 @@ export class View3D {
     for (const [id, v] of this.buildings) {
       if (!seen.has(id)) {
         this.scene.remove(v.group);
+        if (v.statics) this.batchDirty = true;
         this.buildings.delete(id);
       }
     }
+    this.stats.loose = loose;
+    this.stats.batched = this.buildings.size - loose;
+    if (batch) {
+      this.batchAge += dt;
+      if (this.batchDirty && this.batchAge > 0.3) this.rebuildBatch();
+      this.syncItems();
+    }
+  }
+
+  /** Reagrupa todas las mallas de los edificios estáticos: un InstancedMesh por (malla, material, trozo de 16x16). */
+  private rebuildBatch(): void {
+    this.batchDirty = false;
+    this.batchAge = 0;
+    this.stats.rebuilds++;
+    if (this.batchGroup) {
+      this.scene.remove(this.batchGroup);
+      for (const c of this.batchGroup.children) (c as THREE.InstancedMesh).dispose();
+    }
+    const groups = new Map<string, { geo: THREE.BufferGeometry; mat: THREE.Material | THREE.Material[]; mats: THREE.Matrix4[] }>();
+    const pos = new THREE.Vector3();
+    for (const view of this.buildings.values()) {
+      for (const s of view.statics ?? []) {
+        pos.setFromMatrixPosition(s.matrix);
+        const mid = Array.isArray(s.mat) ? s.mat.map((m) => m.uuid).join('+') : s.mat.uuid;
+        const key = `${s.geo.uuid}|${mid}|${Math.floor(pos.x / 16)},${Math.floor(pos.z / 16)}`;
+        let g = groups.get(key);
+        if (!g) groups.set(key, (g = { geo: s.geo, mat: s.mat, mats: [] }));
+        g.mats.push(s.matrix);
+      }
+    }
+    const out = new THREE.Group();
+    for (const g of groups.values()) {
+      const im = new THREE.InstancedMesh(g.geo, g.mat, g.mats.length);
+      g.mats.forEach((m, i) => im.setMatrixAt(i, m));
+      im.instanceMatrix.needsUpdate = true;
+      im.castShadow = im.receiveShadow = true;
+      im.computeBoundingSphere();
+      out.add(im);
+    }
+    this.batchGroup = out;
+    this.scene.add(out);
+  }
+
+  /** Objetos sobre las cintas: un solo InstancedMesh con color por instancia. */
+  private syncItems(): void {
+    const im = this.itemMesh!;
+    const m = new THREE.Matrix4();
+    const c = new THREE.Color();
+    let n = 0;
+    for (const b of this.belts) {
+      if (!b.item || n >= MAX_ITEMS) continue;
+      const t = Math.min(1, Math.max(0, b.beltProgress)) - 0.5;
+      m.makeTranslation(b.x + 0.5 + DX[b.dir] * t, this.levelTop(b) + 0.45, b.y + 0.5 + DY[b.dir] * t);
+      im.setMatrixAt(n, m);
+      im.setColorAt(n, c.setHex(ITEM_COLOR[b.item] ?? 0xffffff));
+      n++;
+    }
+    im.count = n;
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
   }
 
   private aimTurret(b: Building, v: BView, dt: number): void {
@@ -381,6 +496,15 @@ export class View3D {
   }
 
   private moveChar(v: CView, x: number, z: number, y: number, dt: number, sprint = false): void {
+    const sphere = new THREE.Sphere(new THREE.Vector3(x, y + 0.5, z), 1.6);
+    const visible = !this.opts.cull || this.frustum.intersectsSphere(sphere);
+    v.group.visible = visible;
+    if (!visible) {
+      // Fuera de cámara: sólo se coloca (sin animar ni girar).
+      v.group.position.set(x, y, z);
+      this.stats.charsSkipped++;
+      return;
+    }
     const dx = x - v.group.position.x;
     const dz = z - v.group.position.z;
     const moving = Math.hypot(dx, dz) > dt * 0.4 && v.group.position.lengthSq() > 0;
@@ -395,7 +519,12 @@ export class View3D {
       if (off) off.fadeOut(0.15);
     }
     if (v.walk && moving) v.walk.timeScale = sprint ? 1.4 : 1;
-    v.mixer.update(dt);
+    // Con muchos personajes a la vista la animación se actualiza a la mitad de frecuencia.
+    if (!this.opts.cull || this.inView < 150 || (this.frameNo + v.group.id) % 2 === 0) {
+      v.mixer.update(this.opts.cull && this.inView >= 150 ? dt * 2 : dt);
+      this.stats.charsAnimated++;
+    }
+    this.inViewNext++;
   }
 
   private syncChars(dt: number): void {
@@ -414,20 +543,71 @@ export class View3D {
     }
     for (const [id, v] of this.npcs) if (!seenN.has(id)) (this.scene.remove(v.group), this.npcs.delete(id));
     const seenE = new Set<number>();
-    for (const e of this.game.enemies) {
-      if (e.hp <= 0) continue;
-      seenE.add(e.id);
-      let v = this.enemies.get(e.id);
-      const def = ENEMY_MODEL[e.kind];
-      if (!v) {
-        v = this.makeChar(def.model, def.scale * CHAR_SCALE);
-        v.group.position.set(e.x, 0, e.y);
-        this.enemies.set(e.id, v);
-        this.scene.add(v.group);
-      }
-      this.moveChar(v, e.x, e.y, heightAtPoint(w, e.x, e.y) * LEVEL_H + def.lift, dt, e.kind === 'runner');
+    // Presupuesto de personajes animados (esqueleto): los más cercanos al centro de la cámara. El resto se dibuja
+    // como malla instanciada en su pose base (sin esqueleto), que cuesta unas pocas llamadas en total.
+    const alive = this.game.enemies.filter((en) => en.hp > 0);
+    const budget = this.opts.cull ? ANIMATED_BUDGET : Infinity;
+    let animated = alive;
+    if (alive.length > budget) {
+      const rx = this.rig.x;
+      const rz = this.rig.z;
+      animated = [...alive].sort((a, b) => (a.x - rx) ** 2 + (a.y - rz) ** 2 - ((b.x - rx) ** 2 + (b.y - rz) ** 2)).slice(0, budget);
     }
+    const anim = new Set(animated);
+    for (const lod of this.lod.values()) for (const im of lod.meshes) im.count = 0;
+    this.stats.lodChars = 0;
+    for (const en of alive) {
+      const def = ENEMY_MODEL[en.kind];
+      const y = heightAtPoint(w, en.x, en.y) * LEVEL_H + def.lift;
+      if (anim.has(en)) {
+        seenE.add(en.id);
+        let v = this.enemies.get(en.id);
+        if (!v) {
+          v = this.makeChar(def.model, def.scale * CHAR_SCALE);
+          v.group.position.set(en.x, 0, en.y);
+          this.enemies.set(en.id, v);
+          this.scene.add(v.group);
+        }
+        this.moveChar(v, en.x, en.y, y, dt, en.kind === 'runner');
+      } else if (this.frustum.intersectsSphere(new THREE.Sphere(new THREE.Vector3(en.x, y + 0.5, en.y), 1.6))) {
+        this.drawLod(en.kind, en.x, y, en.y, en.id);
+      }
+    }
+    for (const lod of this.lod.values()) for (const im of lod.meshes) im.instanceMatrix.needsUpdate = true;
     for (const [id, v] of this.enemies) if (!seenE.has(id)) (this.scene.remove(v.group), this.enemies.delete(id));
+  }
+
+  /** Dibuja un enemigo lejano como instancia estática (pose base, giro según su id). */
+  private drawLod(kind: EnemyKind, x: number, y: number, z: number, id: number): void {
+    let lod = this.lod.get(kind);
+    if (!lod) {
+      const def = ENEMY_MODEL[kind];
+      const g = instance(def.model, undefined, def.scale * CHAR_SCALE);
+      g.updateMatrixWorld(true);
+      const meshes: THREE.InstancedMesh[] = [];
+      const locals: THREE.Matrix4[] = [];
+      g.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const im = new THREE.InstancedMesh(m.geometry, m.material, MAX_LOD);
+        im.count = 0;
+        im.frustumCulled = false;
+        im.castShadow = true;
+        this.scene.add(im);
+        meshes.push(im);
+        locals.push(m.matrixWorld.clone());
+      });
+      lod = { meshes, locals };
+      this.lod.set(kind, lod);
+    }
+    const n = lod.meshes[0].count;
+    if (n >= MAX_LOD) return;
+    const base = new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (id * 2.399) % 6.283), new THREE.Vector3(1, 1, 1));
+    lod.meshes.forEach((im, i) => {
+      im.setMatrixAt(n, base.clone().multiply(lod!.locals[i]));
+      im.count = n + 1;
+    });
+    this.stats.lodChars++;
   }
 
   // ---------- eventos, resaltado y fantasma ----------
@@ -501,6 +681,17 @@ export class View3D {
     this.renderer.setSize(w, h);
   }
 
+  /** Enciende o apaga las sombras (las más caras de la escena). */
+  setShadows(on: boolean): void {
+    this.opts.shadows = on;
+    this.renderer.shadowMap.enabled = on;
+    this.sun.castShadow = on;
+    this.scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      if (m) for (const mt of Array.isArray(m) ? m : [m]) mt.needsUpdate = true;
+    });
+  }
+
   /** Estadísticas del renderizador (para medir rendimiento). */
   info(): { calls: number; triangles: number; fps: number } {
     return { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles, fps: this.fps };
@@ -533,6 +724,13 @@ export class View3D {
     this.camera.updateMatrixWorld();
     this.sun.position.set(this.rig.x + 25, 50, this.rig.z + 15);
     this.sun.target.position.set(this.rig.x, 0, this.rig.z);
+    this.camera.updateMatrixWorld();
+    this.frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));
+    this.frameNo++;
+    this.stats.charsAnimated = 0;
+    this.stats.charsSkipped = 0;
+    this.inView = this.inViewNext;
+    this.inViewNext = 0;
     this.syncBuildings(dt);
     this.syncChars(dt);
     this.handleEvents();
