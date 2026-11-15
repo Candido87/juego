@@ -17,7 +17,7 @@ Regla del proyecto: tras cada hito, **tests + tipos + build en verde**, commit y
 ## Dónde está cada cosa
 - `src/game/` — **lógica pura**, sin DOM ni Three. `config.ts` tiene **todos** los números; `game.ts` el estado y los
   sistemas; el resto son módulos pequeños con su test al lado (`power`, `recetas`, `puertos`, `savegame`, `tutorial`,
-  `guia-inicio`...). Nada de aquí puede importar de `src/view*`.
+  `guia-inicio`, `inicio` para el menú principal...). Nada de aquí puede importar de `src/view*`.
 - `src/view/` — **interfaz HTML/CSS compartida** y reglas puras de la vista: `ui.ts` (HUD, menú, paneles),
   `tooltip.ts`, `guia.ts`, `decor.ts` (decoración y zonas de terreno por semilla), `muros.ts`, `sprites.ts` (iconos
   de roles y trabajos), `itemColors.ts`. El nombre de la carpeta viene de la antigua vista 2D; ya no hay Phaser.
@@ -45,7 +45,7 @@ Regla del proyecto: tras cada hito, **tests + tipos + build en verde**, commit y
   qué equipo y qué **no** se midió.
 
 ## Parámetros de URL útiles (`vista3d.html`)
-`?seed=N` · `?demo=1|wave` (escena de prueba con de todo) · `?galeria=1` (todos los modelos y torretas por nivel) ·
+sin parámetros o `?menu=1` (menú principal) · `?seed=N` · `?demo=1|wave` (escena de prueba con de todo) · `?galeria=1` (todos los modelos y torretas por nivel) ·
 `?tutorial=1` · `?load=auto|manual` · `?quality=low|medium|high` · `?nowebgl=1|2` (simula el aviso) ·
 `?bench=1&map=120&objs=1500&enemies=300` · `?auto=1` (juega el bot) · `?speed=4` · `?waves=0`.
 En la consola: `__v3` (`view`, `game`, `ui`), `__perf()`, `__bench(n)`, `__benchQuality(n)`.
@@ -58,6 +58,6 @@ arrancó sin errores.
 ## Pendiente conocido
 - El árbol de tecnología está vacío (`CONFIG.tech = []`): muros, puerta, láser y hielo no se desbloquean en partida libre.
 - Las torretas de energía no disparan: `Game.turretPower` devuelve 0. Es lógica pendiente.
-- No hay sonido ni menú principal.
+- No hay sonido.
 - `npm run sim`: el bot pierde en las oleadas 7-8 (equilibrado pendiente, H5 en `PROGRESS.md`).
 - En la raíz quedan carpetas de packs descargados (`assets-juego/`, `Tiles/`, `Map/`, `Tilemap/`) que el juego no carga.

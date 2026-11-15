@@ -22,7 +22,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
 - [x] P7. Interfaz (población, comida, gasolina, taller) y equilibrado con simulaciones.
 
 ### Menús y árbol con población (después del rediseño; sustituye al antiguo 14 y parte del 16)
-- [ ] M1. Menú principal, pausa y opciones, con guardar y cargar partida.
+- [x] M1. Menú principal (`src/game/inicio.ts` con tests): al abrir sin parámetros sale sobre una partida de fondo que juega sola y no se guarda; Continuar, Nueva partida, Cargar la otra ranura, Tutorial, Opciones, Controles y Salir. Desde la pausa y desde el fin de partida se vuelve al menú (autoguardando). Pausa, opciones y guardado ya existían (M3D-1, M3D-5, M3D-6). Rama `menu-principal`.
 - [ ] M2. Menú de construcción por categorías, con bloqueo visual por tecnología.
 - [ ] M3. HUD y alertas.
 - [ ] M4. Laboratorio e investigador: investigación que avanza con un NPC asignado.

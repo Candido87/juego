@@ -6,7 +6,8 @@ import { botTick } from '../game/bot';
 import { HELP_CONTROLS } from '../game/ayuda';
 import { Game } from '../game/game';
 import type { GuiaState } from '../game/guia-inicio';
-import { AutoSaver, SaveFile, SaveSlot, gameFromSave, latestSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
+import { startMenu, startQuery, wantsMenu } from '../game/inicio';
+import { AutoSaver, SaveFile, SaveSlot, gameFromSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
 import { createTutorialGame } from '../game/tutorial';
 import { BUILD_KINDS, BuildKind, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { CONFIG } from '../game/config';
@@ -30,6 +31,7 @@ const HELP_3D: [string, string][] = [
   ['W A S D / flechas', 'Mover la cámara'],
   ...HELP_CONTROLS.slice(3),
   ['O', 'Opciones (calidad gráfica, sombras, velocidad, guardar y cargar, tutorial)'],
+  ['P', 'Pausa: desde ahí se vuelve al menú principal'],
 ];
 
 /** Escenario de pruebas visuales: cintas con curva, tuberías, torretas de cada tipo, muros y (opcional) una oleada. */
@@ -119,23 +121,6 @@ function showGallery(view: View3D, game: Game): void {
   document.getElementById('galclose')!.onclick = () => el.remove();
 }
 
-/** Pregunta si se continúa la partida guardada o se empieza otra. */
-function askContinue(s: SaveFile): Promise<'continue' | 'new'> {
-  return new Promise((resolve) => {
-    const el = $('cont');
-    $('load').style.display = 'none';
-    el.style.display = 'flex';
-    el.innerHTML = `<div>Hay una partida guardada</div><div class="csub">${saveSummary(s)}</div><div class="crow"><button data-c="continue">Continuar</button><button data-c="new">Nueva partida</button></div>`;
-    el.onclick = (ev) => {
-      const c = (ev.target as HTMLElement).closest<HTMLElement>('[data-c]')?.dataset.c as 'continue' | 'new' | undefined;
-      if (!c) return;
-      el.style.display = 'none';
-      $('load').style.display = '';
-      resolve(c);
-    };
-  });
-}
-
 /** Aviso a pantalla completa cuando la vista 3D no puede arrancar o pierde el contexto gráfico. */
 function showGlNotice(reason: Parameters<typeof glNotice>[0], detail = ''): void {
   const n = glNotice(reason);
@@ -169,14 +154,12 @@ async function start() {
       return null;
     }
   })();
-  // Partida guardada: con `?load=auto|manual`, o al abrir sin parámetros si hay una viva (se pregunta).
+  // Sin parámetros (o con `?menu=1`) se abre el menú principal sobre una partida de fondo que juega sola y no se guarda.
+  const menuMode = wantsMenu(location.search);
+  // Partida guardada: con `?load=auto|manual` (lo que eligen «Continuar» y «Cargar» en el menú).
   let loaded: SaveFile | null = null;
   const slot = q.get('load');
   if (slot === 'auto' || slot === 'manual') loaded = readSave(store, slot);
-  else if (!location.search) {
-    const last = latestSave(store);
-    if (last && !last.save.state.gameOver && (await askContinue(last.save)) === 'continue') loaded = last.save;
-  }
   const seed = loaded ? loaded.seed : Number(q.get('seed') ?? 7);
   const game = loaded
     ? gameFromSave(loaded)
@@ -227,6 +210,10 @@ async function start() {
   // La guía de inicio viaja con el guardado; en el tutorial se apaga (el tutorial hace su papel).
   if (loaded?.guia) hud.guia.state = loaded.guia as GuiaState;
   if (tutorialMode) hud.guia.state.disabled = true;
+  if (menuMode) {
+    hud.guia.persist = false;
+    hud.guia.state.disabled = true;
+  }
   hud.onRestart = () => {
     const p = new URLSearchParams(location.search);
     p.delete('load');
@@ -238,7 +225,7 @@ async function start() {
   const tut = tutorialMode ? new TutorialView(game, null, true, () => hud.onRestart()) : null;
   const camStart = { x: view.rig.x, z: view.rig.z, zoom: view.rig.zoom };
   // Guardado: manual desde las opciones y automático cada minuto (también al cerrar la pestaña). Sin guardar en pruebas.
-  const canSave = !bench && !tutorialMode && !q.get('demo');
+  const canSave = !bench && !tutorialMode && !q.get('demo') && !menuMode;
   const save = (s: SaveSlot) => writeSave(store, s, makeSave(game, seed, Date.now(), hud.guia.state));
   const autosaver = new AutoSaver();
   if (canSave) {
@@ -248,7 +235,7 @@ async function start() {
   view.onMessage = (t) => hud.flash(t);
   // Alto real del HUD: los paneles flotantes se colocan debajo y no lo pisan.
   new ResizeObserver(() => document.documentElement.style.setProperty('--hudh', `${$('hud').offsetHeight + 8}px`)).observe($('hud'));
-  const auto = q.get('auto') === '1';
+  const auto = q.get('auto') === '1' || menuMode;
   let speed = Number(q.get('speed') ?? options.speed);
 
   // ---------- construir, quitar y seleccionar (misma lógica que la 2D, todo vía Game) ----------
@@ -330,9 +317,10 @@ async function start() {
       `<div class="orow"><span>Contorno de objetos</span>${seg('outline', [['1', 'Sí'], ['0', 'No']], options.outline ? '1' : '0')}</div>` +
       `<div class="orow"><span>Velocidad del juego</span>${seg('speed', [['1', 'x1'], ['2', 'x2'], ['4', 'x4']], String(options.speed))}</div>` +
       `<div class="orow"><span>Mostrar rendimiento</span>${seg('perf', [['1', 'Sí'], ['0', 'No']], options.perf ? '1' : '0')}</div>` +
-      `<div class="orow"><span>Guía de inicio</span><button data-optguide>${hud.guia.disabled ? 'Activar' : 'Reiniciar'}</button></div>` +
+      // En el menú principal sólo se ajustan gráficos y velocidad: la guía y el tutorial son cosa de la partida.
+      (menuMode ? '' : `<div class="orow"><span>Guía de inicio</span><button data-optguide>${hud.guia.disabled ? 'Activar' : 'Reiniciar'}</button></div>`) +
       (canSave ? saveRows() : '') +
-      `<div class="orow"><span>Tutorial guiado</span><button data-tutorial>Empezar</button></div>`;
+      (menuMode ? '' : `<div class="orow"><span>Tutorial guiado</span><button data-tutorial>Empezar</button></div>`);
   };
   const optionsOpen = () => $('options').style.display === 'block';
   const toggleOptions = (open = !optionsOpen()) => {
@@ -389,14 +377,53 @@ async function start() {
   $('pauseOpt').onclick = () => toggleOptions(true);
   $('pauseHelp').onclick = () => (toggleOptions(false), hud.toggleHelp());
   $('pauseNew').onclick = () => hud.onRestart();
+  // Volver al menú principal: se autoguarda antes (si la partida se puede guardar) y se abre la página sin parámetros.
+  const toMenu = () => {
+    if (canSave && !game.gameOver) save('auto');
+    location.search = '';
+  };
+  $('pauseMenu').onclick = toMenu;
+  $('overMenu').onclick = toMenu;
   $('helpBtn').addEventListener('click', () => toggleOptions(false));
   applyOptions();
   if (softwareNote) hud.flash('Sin aceleración por hardware: calidad gráfica baja');
+
+  // ---------- menú principal ----------
+  if (menuMode) {
+    document.body.classList.add('menu');
+    view.rig.zoom = 0.9;
+    const el = $('mainmenu');
+    const entries = startMenu({ manual: readSave(store, 'manual'), auto: readSave(store, 'auto') });
+    el.innerHTML =
+      `<h1>Fábrica Isométrica</h1><p class="sub">Construye la fábrica, alimenta a tu gente y defiende el núcleo</p>` +
+      entries.map((e, i) => `<button data-start="${i}" class="${e.primary ? 'active' : ''}">${e.label}${e.detail ? `<small>${e.detail}</small>` : ''}</button>`).join('') +
+      `<p class="note" id="menunote"></p>`;
+    el.style.display = 'flex';
+    el.addEventListener('click', (ev) => {
+      const i = (ev.target as HTMLElement).closest<HTMLElement>('[data-start]')?.dataset.start;
+      if (i === undefined) return;
+      const e = entries[Number(i)];
+      const query = startQuery(e, Math.random() * 1e9);
+      if (query) return void (location.search = query);
+      if (e.action === 'options') toggleOptions();
+      else if (e.action === 'help') (toggleOptions(false), hud.toggleHelp());
+      else if (e.action === 'quit') {
+        // En la aplicación de escritorio cierra la ventana; un navegador no deja cerrar una pestaña que no abrió el script.
+        window.close();
+        $('menunote').textContent = 'Ya puedes cerrar esta pestaña.';
+      }
+    });
+  }
 
   // ---------- teclado (igual que la 2D; la cámara gira con Z/C) ----------
   window.addEventListener('keydown', (ev) => {
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes((ev.target as HTMLElement)?.tagName)) return;
     const k = ev.key.toLowerCase();
+    // En el menú principal sólo vale Esc, para cerrar las opciones o la ayuda.
+    if (menuMode) {
+      if (k === 'escape' && !(optionsOpen() && (toggleOptions(false), true))) hud.closeHelp();
+      return;
+    }
     if (k === 'r') hud.rotate();
     else if (k === 'h') (toggleOptions(false), hud.toggleHelp());
     else if (k === 'o') toggleOptions();
@@ -510,6 +537,8 @@ async function start() {
   let botAcc = 0;
   let perfAcc = 0;
   const loop = (now: number) => {
+    // La partida de fondo del menú vuelve a empezar si la colonia cae.
+    if (menuMode && game.gameOver) return location.reload();
     const real = (now - last) / 1000;
     const dt = Math.min(0.1, real);
     last = now;

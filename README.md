@@ -7,7 +7,7 @@ WebGL2) y como aplicación de escritorio para Windows (Electron).
 | Comando | Qué hace |
 |---|---|
 | `npm install` | Instala las dependencias (una sola vez). |
-| `npm run dev` | Servidor de desarrollo en http://localhost:5173 (el juego es `vista3d.html`; la raíz redirige) |
+| `npm run dev` | Servidor de desarrollo en http://localhost:5173 (el juego es `vista3d.html`; la raíz redirige). Sin parámetros abre el menú principal |
 | `npm run build` | Comprueba tipos y genera `dist/` |
 | `npm test` | Tests (Vitest) |
 | `npm run sim` | Simulación sin gráficos con el bot |

@@ -647,3 +647,31 @@ Alta coincide con la cifra de la Fase 2 (13,7 ms), así que mover el suavizado a
 - El aviso de "sin conexión a la red" y el de desgaste están cubiertos por tests y el desgaste se vio en pantalla forzando el valor; no se han visto aparecer en una partida larga.
 - Las carpetas de packs descargados de la raíz (`assets-juego/`, `Tiles/`, `Map/`, `Tilemap/`) no se han tocado: el juego no las carga, pero borrarlas es decisión aparte.
 - Siguen pendientes de lógica (no de vista): árbol de tecnología vacío, torretas de energía que no disparan, sonido y menú principal.
+
+## Menú principal (fase M1)
+
+**Cuándo sale.** Al abrir el juego sin parámetros en la dirección (o con `?menu=1`). Con cualquier otro parámetro (`?seed=`, `?load=`, `?tutorial=1`, `?demo=`...) se entra directo a la partida, como antes. Sustituye a la pregunta "Continuar o Nueva partida" que salía al arrancar.
+
+**Qué ofrece** (`src/game/inicio.ts`, puro y con tests):
+- **Continuar**: la partida viva más reciente de las dos ranuras, con su resumen (oleada, tiempo, personas) y la fecha. Es el botón destacado. Si no hay ninguna, el destacado es Nueva partida.
+- **Nueva partida**: semilla al azar.
+- **Cargar** la otra ranura (guardado manual o autoguardado), sólo si también tiene una partida viva.
+- **Tutorial**, **Opciones** (el mismo panel del juego, sin las filas de guía y tutorial), **Controles y ayuda** y **Salir**.
+- Las partidas terminadas (núcleo caído) no se ofrecen.
+
+**Cómo funciona.** Cada entrada es una dirección: el menú navega a `?load=auto`, `?seed=N` o `?tutorial=1`. Así no hay dos maneras de arrancar una partida y lo que ya funcionaba por dirección sigue igual.
+
+**Fondo.** Detrás del menú corre una partida de verdad (semilla 7) en la que juega el bot, oscurecida y con el resto de la interfaz escondida. Esa partida no se guarda, no toca el progreso de la guía de inicio y vuelve a empezar sola si la colonia cae. El panel va a la izquierda para que se vea la colonia (centrado en pantallas estrechas).
+
+**Volver al menú.** Botón "Menú principal" en el aviso de pausa y en la pantalla de fin de partida. Antes de salir autoguarda si la partida se puede guardar, de modo que "Continuar" la recupera donde estaba.
+
+**Salir.** En la aplicación de escritorio cierra la ventana. En un navegador una página no puede cerrar una pestaña que no abrió ella, así que se muestra "Ya puedes cerrar esta pestaña".
+
+**Teclado.** En el menú sólo vale Esc (cierra opciones o ayuda); el resto de atajos del juego está apagado.
+
+**Decisiones simples.**
+- No hay pantalla aparte de "elegir ranura": con dos ranuras basta con Continuar más un botón para la otra.
+- No se pide confirmación al empezar Nueva partida aunque haya una guardada: el guardado manual no se pisa y el autoguardado sólo se sobrescribe cuando la partida nueva lleva un minuto o se cierra.
+- Lo que pedía el diseño original y no entra aquí: volumen (no hay sonido), cuadrícula y velocidad x3 (hay x1, x2 y x4).
+
+**Sin comprobar.** "Salir" no se ha probado dentro de Electron (cerrar la ventana); el resto del menú se probó en el navegador pulsando cada botón. En una de las primeras cargas de prueba la página saltó sola a una partida nueva y no se ha vuelto a repetir en las siguientes; no se ha encontrado la causa.

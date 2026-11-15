@@ -7,7 +7,7 @@ Rama de trabajo: `vista-3d`. Entrada: `vista3d.html` + `src/view3d/` (`index.htm
 **Estados:** `hecho` (funciona en 3D) · `parcial` (existe pero le falta lo indicado) · `pendiente` · `no existe` (tampoco lo tiene la 2D hoy; se anota para no perderlo).
 
 
-Resumen: **98 hecho · 0 parcial · 0 pendiente · 3 no existe** (101 líneas). Paridad alcanzada.
+Resumen: **99 hecho · 0 parcial · 0 pendiente · 2 no existe** (101 líneas). Paridad alcanzada.
 
 ## Hallazgos al inventariar (cambian el plan)
 - **(Fase 1 hecha)** La interfaz es una sola para las dos vistas: `vista3d.html` usa `src/view/ui.ts`, `tooltip.ts` y `guia.ts`, que ya no importan Phaser (hay un test que lo vigila).
@@ -27,7 +27,7 @@ Resumen: **98 hecho · 0 parcial · 0 pendiente · 3 no existe** (101 líneas). 
 | 1.2 | Pausa (botón y tecla P) | hecho | botón, tecla P y aviso con Reanudar/Opciones/Ayuda/Nueva partida |
 | 1.3 | Pantalla "El núcleo ha caído" + Nueva partida | hecho | recarga con semilla nueva |
 | 1.4 | Adelantar oleada (con aviso si no hay torretas) | hecho |  |
-| 1.5 | Menú principal | no existe | |
+| 1.5 | Menú principal | hecho | nuevo en 3D (fase M1): ver SPEC.md |
 | 1.6 | Opciones (calidad, sombras) | hecho | calidad gráfica (auto, baja, media, alta), sombras, contorno, velocidad y rendimiento, guardadas. El volumen pasa a la línea 1.8: el juego no tiene sonido |
 | 1.7 | Guardado/carga y autoguardado | hecho | guardado manual y autoguardado (cada minuto y al cerrar); desde las opciones o con `?load=auto|manual`; al abrir con una partida viva se pregunta Continuar o Nueva; la guía viaja con el guardado |
 | 1.8 | Sonido y volumen | no existe | ni la 2D ni la 3D tienen sonido; cuando lo haya, el volumen va en Opciones |

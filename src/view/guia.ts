@@ -56,7 +56,11 @@ export class GuiaView {
     }
   }
 
+  /** Si es false, el progreso no se escribe (partida de fondo del menú principal). */
+  persist = true;
+
   private save(): void {
+    if (!this.persist) return;
     try {
       saveGuia(localStorage, this.state);
     } catch {

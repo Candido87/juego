@@ -83,9 +83,18 @@
       #tutorial .g-foot button { font-size: 11px; padding: 2px 6px; background: transparent; }
       .tut-hl { outline: 2px solid #7dd3fc; outline-offset: 1px; animation: thl 1s ease-in-out infinite; }
       @keyframes thl { 50% { outline-color: rgba(125, 211, 252, 0.25); box-shadow: 0 0 8px #7dd3fc; } }
-      #cont { top: 38%; left: 50%; transform: translate(-50%, -50%); z-index: 12; padding: 18px 26px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-      #cont .crow { display: flex; gap: 8px; }
-      #cont .csub { color: #8b95a5; font-size: 12px; }
+      /* Menú principal: columna de botones sobre la partida de fondo; el resto de la interfaz se esconde. */
+      body.menu #leftcol, body.menu #rightcol, body.menu #toolbar, body.menu #msg, body.menu #pausebanner, body.menu #over, body.menu #recipes, body.menu #tip { display: none !important; }
+      body.menu #v { filter: brightness(0.62) saturate(0.85); }
+      body.menu #help, body.menu #options { top: 50%; transform: translate(-50%, -50%); max-height: calc(100% - 48px); z-index: 13; }
+      /* A la izquierda, para que la colonia de fondo (centrada en el núcleo) se vea a su lado; en pantallas estrechas, centrado. */
+      #mainmenu { top: 50%; left: max(196px, 24%); transform: translate(-50%, -50%); z-index: 12; display: none; flex-direction: column; gap: 8px; width: min(340px, calc(100% - 32px)); box-sizing: border-box; padding: 22px 26px; text-align: center; max-height: calc(100% - 32px); overflow: auto; }
+      @media (max-width: 760px) { #mainmenu { left: 50%; } }
+      #mainmenu h1 { margin: 0; font-size: 26px; color: #ffd166; }
+      #mainmenu .sub { margin: 0 0 8px; font-size: 12px; color: #8b95a5; }
+      #mainmenu button { font-size: 15px; padding: 9px 12px; }
+      #mainmenu button small { display: block; font-size: 11px; color: #3a4350; margin-top: 2px; font-family: system-ui, sans-serif; }
+      #mainmenu .note { margin: 4px 0 0; min-height: 16px; font-size: 12px; color: #ffd166; }
       #guide { flex: none; display: none; width: 270px; box-sizing: border-box; background: rgba(24, 30, 40, 0.72); border-color: #ffd166; font-size: 12px; line-height: 1.4; transition: opacity 0.2s; }
       #guide:hover { background: rgba(24, 30, 40, 0.95); }
       #guide .g-head { display: flex; gap: 6px; align-items: baseline; margin-bottom: 3px; }
@@ -191,7 +200,7 @@
     </div>
     <div id="help" class="panel"></div>
     <div id="options" class="panel"></div>
-    <div id="pausebanner" class="panel"><div>Pausa</div><div class="prow"><button id="resume">Reanudar (P)</button><button id="pauseOpt">Opciones</button><button id="pauseHelp">Ayuda</button><button id="pauseNew">Nueva partida</button></div></div>
+    <div id="pausebanner" class="panel"><div>Pausa</div><div class="prow"><button id="resume">Reanudar (P)</button><button id="pauseOpt">Opciones</button><button id="pauseHelp">Ayuda</button><button id="pauseNew">Nueva partida</button><button id="pauseMenu">Menú principal</button></div></div>
     <div id="recipes" class="panel"></div>
     <div id="msg" class="panel"></div>
     <div id="tech" class="panel"></div>
@@ -199,8 +208,9 @@
     <div id="over" class="panel">
       <div id="overText">El núcleo ha caído</div>
       <button id="restart">Nueva partida</button>
+      <button id="overMenu">Menú principal</button>
     </div>
-    <div id="cont" class="panel" style="display:none"></div>
+    <div id="mainmenu" class="panel"></div>
     <div id="load">Cargando modelos…</div>
     <script type="module" src="/src/view3d/main3d.ts"></script>
   </body>
