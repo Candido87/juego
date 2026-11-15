@@ -12,6 +12,15 @@ describe('UI Pack', () => {
     for (const u of urls) expect(existsSync(resolve(dir, u)), u).toBe(true);
   });
   it('la página del juego enlaza la hoja de estilos', () => {
-    expect(readFileSync(resolve(__dirname, '../../vista3d.html'), 'utf8')).toContain('assets/ui-pack/ui-pack.css');
+    const html = readFileSync(resolve(__dirname, '../../vista3d.html'), 'utf8');
+    for (const f of ['ui-pack.css', 'ds/ds.css', 'ds/game.css']) expect(html).toContain(`assets/ui-pack/${f}`);
+  });
+  it('el sistema de diseño (ds.css y game.css) sólo usa archivos que existen', () => {
+    for (const f of ['ds/ds.css', 'ds/game.css']) {
+      const css = readFileSync(resolve(dir, f), 'utf8');
+      const urls = [...css.matchAll(/url\('([^'#]+\.(?:png|ttf))'\)/g)].map((m) => m[1]);
+      expect(urls.length).toBeGreaterThan(5);
+      for (const u of urls) expect(existsSync(resolve(dir, 'ds', u)), `${f}: ${u}`).toBe(true);
+    }
   });
 });

@@ -430,14 +430,14 @@ export class Hud {
     const labs = sim.labs().length;
     const science =
       labs || sim.researchPoints >= 1
-        ? `<span title="Puntos de investigación. Los produce el laboratorio con energía y sus Investigadores (${res}/${sim.researchSlots()} puestos)">Investigación <b>${Math.floor(sim.researchPoints)}</b> pts <span class="${ppm > 0 ? 'good' : 'muted'}">+${ppm.toFixed(1)}/min</span></span>`
+        ? `<span title="Puntos de investigación. Los produce el laboratorio con energía y sus Investigadores (${res}/${sim.researchSlots()} puestos)"><i class="ds-ico" data-i="flask"></i>Investigación <b>${Math.floor(sim.researchPoints)}</b> pts <span class="${ppm > 0 ? 'good' : 'muted'}">+${ppm.toFixed(1)}/min</span></span>`
         : '';
     this.set(
       'colony',
-      `<span data-tip="hud:population">Población <b>${sim.population}</b>/${sim.housingCapacity()} <span class="muted">(${free} libres, ${busy} trabajando, ${mech} taller${res ? `, ${res} investigan` : ''})</span></span>
-      <span class="${foodCls}" data-tip="hud:food">Comida <b>${food}</b> <span class="muted">−${perMin.toFixed(0)}/min</span>${foodState}</span>
-      <span data-tip="hud:gasoline">Gasolina <b>${count(sim.storage, 'gasoline')}</b></span>
-      <span data-tip="hud:energy">Energía <b class="${dem > prod ? 'bad' : ''}">${prod.toFixed(0)}/${dem.toFixed(0)}</b></span>
+      `<span data-tip="hud:population"><i class="ds-ico" data-i="people"></i>Población <b>${sim.population}</b>/${sim.housingCapacity()} <span class="muted">(${free} libres, ${busy} trabajando, ${mech} taller${res ? `, ${res} investigan` : ''})</span></span>
+      <span class="${foodCls}" data-tip="hud:food"><i class="ds-ico food" data-i="box"></i>Comida <b>${food}</b> <span class="muted">−${perMin.toFixed(0)}/min</span>${foodState}</span>
+      <span data-tip="hud:gasoline"><i class="ds-ico food" data-i="drop"></i>Gasolina <b>${count(sim.storage, 'gasoline')}</b></span>
+      <span data-tip="hud:energy"><i class="ds-ico energy" data-i="bolt"></i>Energía <b class="${dem > prod ? 'bad' : ''}">${prod.toFixed(0)}/${dem.toFixed(0)}</b></span>
       <span>${shop}</span>
       ${science}`,
       true,

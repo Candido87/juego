@@ -1,0 +1,139 @@
+/*
+ * A2: aplica el sistema de diseño (ds.css) a la interfaz del juego sin cambiar su HTML: se carga después de los estilos de
+ * vista3d.html y de ui-pack.css y los sustituye. Paneles de cristal claro con tinta oscura, botones del pack, pestañas, barras,
+ * tooltips con esquinas cortadas e iconos de estado.
+ */
+:root { --ds-link: #0b6d9e; --ds-bad: #c8173a; --ds-warnc: #946500; --ds-goodc: #0c7f4f; }
+
+body { color: var(--ds-ink); font-size: 13px; }
+#v { background: #1d2330; }
+
+/* ---------- Paneles ---------- */
+.panel {
+  background: transparent; color: var(--ds-ink); font-size: 13px;
+  border: 10px solid transparent; border-image: url('panel_glass.png') 22 fill / 10px stretch; border-radius: 0;
+  padding: 0 3px; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));
+}
+.panel h3 { margin: 2px 0 5px; font: 14px/1.1 var(--ds-font); letter-spacing: 0.04em; color: #0b5d86; }
+.panel h3.collapsible { white-space: nowrap; }
+.panel h3.collapsible:hover { color: var(--ds-blue); }
+h3 .sum { font-family: var(--ds-font-text); color: var(--ds-ink-soft); }
+b { color: var(--ds-link); font-weight: 700; }
+.muted { color: var(--ds-ink-soft); }
+.bad { color: var(--ds-bad); } .warn { color: var(--ds-warnc); } .good { color: var(--ds-goodc); }
+b.bad { color: var(--ds-bad); }
+.gt { color: var(--ds-ink-soft); font-family: var(--ds-font); }
+.dot { border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+.kbd { background: var(--ds-night); color: var(--ds-yellow); font-family: var(--ds-font); border-radius: 3px; }
+#msg { color: var(--ds-ink); font: 15px var(--ds-font); border-image-source: url('panel_glass_notches.png'); }
+#msg b { color: var(--ds-link); }
+#over { background: rgba(10, 12, 18, 0.7); border: 0; border-image: none; filter: none; color: #fff; font-family: var(--ds-font); }
+#over #overText { text-shadow: 0 2px 4px #000; }
+#pausebanner { font-family: var(--ds-font); border-image-source: url('panel_glass_notches.png'); }
+#pausebanner > div:first-child { color: #0b5d86; letter-spacing: 0.1em; text-transform: uppercase; }
+#hud { border-image-source: url('panel_glass_screws.png'); }
+#toolbar { border-image-source: url('panel_glass_screws.png'); }
+
+/* ---------- Botones ---------- */
+button {
+  font: 12px/1.15 var(--ds-font); letter-spacing: 0.03em; color: var(--ds-ink); background: transparent; border-radius: 0;
+  border: 9px solid transparent; border-bottom-width: 11px;
+  border-image: url('button_rectangle.png') 20 20 22 20 fill / 9px 9px 11px 9px stretch;
+  padding: 0 3px; min-height: 28px; cursor: url('../cursor_b.png') 0 0, pointer;
+}
+button:hover:not(:disabled) { border-image-source: url('button_rectangle.png'); filter: brightness(1.08) saturate(1.2); border-color: transparent; }
+button:active:not(:disabled) { border-image-source: url('button_rectangle_depth.png'); transform: translateY(1px); }
+button:disabled { opacity: 1; filter: grayscale(1) opacity(0.5); cursor: url('../cursor_a.png') 0 0, not-allowed; }
+button.active, .tab.active, #recipes .rrow.sel { border-image-source: url('button_rectangle_depth.png'); color: #0b5d86; filter: drop-shadow(0 0 3px var(--ds-blue)); background: transparent; border-color: transparent; }
+#callWave, button.danger, #restart { color: var(--ds-bad); }
+#techBtn { color: #0b5d86; }
+#resume, #guideReopen { color: var(--ds-goodc); }
+#callWave:hover:not(:disabled), button.danger:hover:not(:disabled) { color: #fff; text-shadow: 0 1px 1px #800; }
+.tab { border-radius: 0; background: transparent; padding: 0 2px; }
+.step { border-image: none; border: 0; background: transparent; color: var(--ds-ink-soft); min-height: 0; padding: 3px 6px; }
+.step:hover:not(:disabled) { color: var(--ds-link); filter: none; }
+.tbtn.locked, .tab.locked { opacity: 1; filter: grayscale(1) opacity(0.55); }
+.tbtn.locked:hover { filter: grayscale(1) opacity(0.55); }
+.job button { min-height: 22px; border-width: 6px; border-bottom-width: 8px; border-image-width: 6px 6px 8px 6px; }
+#help h3 button, #recipes h3 button, #options h3 button { min-height: 24px; }
+#tutorial .g-foot button, #guide .g-foot button, #guide .g-head button { background: transparent; }
+
+/* ---------- Barras ---------- */
+.bar { height: 11px; width: 74px; background: var(--ds-night-2); border-radius: 6px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 0 0 1px #aab0c4; overflow: hidden; vertical-align: -1px; }
+.bar > i { background: linear-gradient(to bottom, #62c8f2, var(--ds-blue) 55%, #1380b3); border-radius: 6px; }
+
+/* ---------- Controles de formulario ---------- */
+select, input[type='search'], #tech .th input[type='search'], #tech .th select {
+  background: #f4f6fb; color: var(--ds-ink); border: 2px solid #aab0c4; border-radius: 5px; padding: 2px 6px; font: 12px var(--ds-font-text); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+select:focus, input[type='search']:focus { outline: 2px solid var(--ds-blue); }
+input[type='range'] { accent-color: var(--ds-blue); }
+input[type='checkbox'] { accent-color: var(--ds-green); width: 16px; height: 16px; vertical-align: -3px; }
+
+/* ---------- Tooltip ---------- */
+#tip { border-image-source: url('panel_glass_notches.png'); font-size: 12px; max-width: 330px; }
+#tip .tt-title, #tech .ttip .tt-title { font: 14px var(--ds-font); letter-spacing: 0.04em; color: #0b5d86; text-transform: uppercase; }
+#tip .tt-stats { color: var(--ds-ink-soft); }
+#tech .ttip { background: transparent; color: var(--ds-ink); border: 10px solid transparent; border-image: url('panel_glass_notches.png') 22 fill / 10px stretch; border-radius: 0; box-shadow: none; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45)); padding: 0 3px; }
+#tech .ttip .tt-title em { color: var(--ds-warnc); }
+#tech .ttip .tt-state { border-top-color: #aab0c4; }
+#tech .ttip .s-available { color: var(--ds-warnc); } #tech .ttip .s-done { color: var(--ds-goodc); } #tech .ttip .s-locked, #tech .ttip .s-nopoints { color: var(--ds-bad); }
+
+/* ---------- Pantalla de investigación ---------- */
+#tech { background: transparent; }
+#tech .th input[type='search'] { width: 220px; }
+#tech .tpts { color: var(--ds-ink-soft); }
+#tech .thint { color: var(--ds-warnc); font-weight: 600; }
+#tech .tview { background: var(--ds-night-2); border-radius: 6px; box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), 0 0 0 2px #aab0c4; }
+#tech .tlane { background: rgba(255, 255, 255, 0.05); border-top-color: #3a4152; }
+#tech .tlane span { color: #9ad4f0; font-family: var(--ds-font); letter-spacing: 0.03em; font-weight: normal; }
+#tech .tlines path { stroke: #5b6579; }
+#tech .tlines path.on { stroke: var(--ds-green); }
+#tech .tnode { background: #e6e9f2; color: var(--ds-ink); border: 2px solid #aab0c4; border-radius: 6px; box-shadow: 0 2px 0 #8a90a6; }
+#tech .tnode .tname { color: var(--ds-ink); font-family: var(--ds-font); font-weight: normal; letter-spacing: 0.02em; }
+#tech .tnode .tcost { color: var(--ds-ink-soft); } #tech .tnode .tcost b { color: var(--ds-link); }
+#tech .tnode .tbar { background: var(--ds-blue); }
+#tech .tnode .tstar { color: #c98a00; }
+#tech .tnode.rec { outline-color: var(--ds-yellow); }
+#tech .tnode.s-done { border-color: var(--ds-green); background: #cdeedd; } #tech .tnode.s-done .tcost { color: var(--ds-goodc); }
+#tech .tnode.s-available { border-color: #e0a800; background: #fff1c2; box-shadow: 0 2px 0 #b98a00, 0 0 12px rgba(255, 200, 0, 0.55); }
+#tech .tnode.s-available:hover { background: #ffe58a; }
+#tech .tnode.s-nopoints { border-color: var(--ds-blue); }
+#tech .tnode.s-locked { opacity: 0.5; filter: grayscale(0.9); }
+
+/* ---------- Listas del panel lateral y recetas ---------- */
+.npcrow, #inventory .it { border-radius: 3px; padding: 0 3px; }
+#inventory .it:nth-child(even) { background: rgba(35, 42, 54, 0.06); }
+#inventory .it:hover { background: rgba(31, 160, 220, 0.16); }
+#recipes .rrow .rmeta, #recipes .rrow .rname { color: inherit; }
+#recipes .rrow .rmeta { color: var(--ds-ink-soft); }
+#recipes .rrow .why { color: var(--ds-bad); }
+#recipes .rrow { border-image-slice: 20 20 22 20 fill; }
+#help td:first-child { color: var(--ds-link); font-weight: 700; }
+#help table td { border-bottom: 1px solid rgba(35, 42, 54, 0.1); }
+
+/* ---------- Guía y tutorial ---------- */
+#guide, #tutorial { background: transparent; }
+#guide { border-image-source: url('panel_glass_notches.png'); }
+#guide:hover { background: transparent; }
+#guide .g-title, #tutorial .g-title { color: #0b5d86; font: 14px var(--ds-font); letter-spacing: 0.03em; }
+#guide .g-miss { color: var(--ds-bad); } #guide .g-done { color: var(--ds-goodc); }
+#guide .g-n, #tutorial .g-n { color: var(--ds-ink-soft); }
+.guide-hl { outline-color: var(--ds-yellow); } .tut-hl { outline-color: var(--ds-blue); }
+#cont { border-image-source: url('panel_glass_notches.png'); }
+#cont .csub { color: var(--ds-ink-soft); }
+
+/* ---------- Iconos de estado (verdadero / falso / aviso) en los textos de estado ---------- */
+#selected span.good::before, #selected span.bad::before, #guide span.good::before, #guide span.bad::before, .npcrow span.bad::before {
+  content: ''; display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px; background: currentColor;
+  -webkit-mask: var(--ds-ico-check) center / contain no-repeat; mask: var(--ds-ico-check) center / contain no-repeat;
+}
+#selected span.bad::before, #guide span.bad::before, .npcrow span.bad::before { -webkit-mask-image: var(--ds-ico-warn); mask-image: var(--ds-ico-warn); }
+.ds-ico { margin-right: 3px; }
+#hud .ds-ico { width: 15px; height: 15px; vertical-align: -3px; color: var(--ds-link); }
+#hud .ds-ico.food { color: #b3601b; } #hud .ds-ico.energy { color: #c98a00; } #hud .ds-ico.danger { color: var(--ds-bad); }
+
+/* ---------- Avisos de WebGL y carga ---------- */
+#glwarn .panel { color: var(--ds-ink); } #glwarn h2 { color: #0b5d86; font-family: var(--ds-font); }
+#load { font-family: var(--ds-font); letter-spacing: 0.1em; color: #98c1d9; }
+#tech .tnode .tname { font-size: 11px; letter-spacing: 0; }

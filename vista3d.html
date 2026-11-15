@@ -172,14 +172,16 @@
       #load { position: fixed; inset: 0; display: grid; place-items: center; background: #1d2330; font-size: 18px; z-index: 20; }
     </style>
     <link rel="stylesheet" href="assets/ui-pack/ui-pack.css" />
+    <link rel="stylesheet" href="assets/ui-pack/ds/ds.css" />
+    <link rel="stylesheet" href="assets/ui-pack/ds/game.css" />
   </head>
   <body>
     <div id="v"></div>
     <div id="leftcol" class="col">
       <div id="hud" class="panel">
         <div class="row">
-          <span data-tip="hud:core">Núcleo <b id="core">0</b></span>
-          <span data-tip="hud:wave">Oleada <b id="wave">0</b></span>
+          <span data-tip="hud:core"><i class="ds-ico danger" data-i="box"></i>Núcleo <b id="core">0</b></span>
+          <span data-tip="hud:wave"><i class="ds-ico danger" data-i="wave"></i>Oleada <b id="wave">0</b></span>
           <span data-tip="hud:wave">Siguiente en <b id="next">0:00</b></span>
           <span id="researchWrap">Investigando <b id="research">—</b></span>
         </div>
