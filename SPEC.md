@@ -510,3 +510,13 @@ Estimación gruesa, ordenada por tamaño:
 
 ### Recomendación
 No sustituir la 2D de golpe. Opciones, de menor a mayor riesgo: (a) quedarse con la 2D y usar los modelos 3D como sprites pre-renderizados (reaprovecha el arte, cero cambio de motor); (b) mantener la 3D como modo opcional "vista 3D" y llevarla a paridad por fases, empezando por la interfaz compartida; (c) migrar del todo, sólo si el giro de cámara y los personajes animados son prioridad de diseño. Mi lectura: el salto de aspecto es real y barato de conseguir (esta rama lo muestra en pocas horas), pero el coste está en la interfaz y el pulido, no en el motor.
+
+---
+
+# Migración a 3D (decisión del 15-11-2026)
+
+El juego pasa a 3D con Three.js; la vista 2D de Phaser se retira cuando `PARIDAD.md` esté completo. Plan por fases en `PROGRESS.md`.
+- **Vista 2D congelada:** `src/view/` e `index.html` sólo reciben correcciones graves hasta el final de la migración.
+- **Estados de PARIDAD.md:** además de pendiente/hecho se usan `parcial` (existe pero incompleto) y `no existe` (la 2D tampoco lo tiene), para no dar por hecho lo que está a medias.
+- **Hallazgos que cambian el plan:** la interfaz 2D ya es HTML/CSS (la Fase 1 es desacoplarla de `shapes.ts`/`sprites.ts`, no reescribirla); no hay guardado de partida, ni menú principal, ni opciones, ni sonido; el árbol de tecnología está vacío (`CONFIG.tech = []`); el tutorial tiene lógica y tests pero no vista en esta rama.
+- **No hay `CLAUDE.md`** en el repositorio: se creará en la Fase 7.

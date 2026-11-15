@@ -120,3 +120,13 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] 3D-1. Three.js (`vista3d.html`, `src/view3d/`): cámara isométrica con giro de 90°, zoom y arrastre; terreno con bloques/rampas/rocas/árboles (Nature Kit); edificios, cintas y tuberías con conexión por vecinos; NPC y enemigos animados; torretas con cañón que apunta. Lee el mismo `Game`.
 - [x] 3D-2. Rendimiento: terreno por chunks, edificios estáticos y objetos de cinta instanciados, descarte y presupuesto de personajes animados; mediciones en SPEC.md (1500 edificios + 300 enemigos: 47 → 73 FPS; 1500 enemigos: 15 → 43 FPS).
 - [x] 3D-3. Comparación honesta con la vista 2D en `SPEC.md` (aspecto, rendimiento, trabajo que queda, qué se reaprovecha y riesgos).
+
+## Migración a 3D (rama `vista-3d`; la 2D se retira al llegar a paridad, ver `PARIDAD.md`)
+- [x] M3D-0. `PARIDAD.md` con todo lo que hace la 2D y su estado en 3D; vista 2D congelada. **Parado para enseñar PARIDAD.md.**
+- [ ] M3D-1. Interfaz HTML/CSS desacoplada de Phaser (menús, HUD, construcción por categorías, paneles, recetas, ayuda, pausa).
+- [ ] M3D-2. Aspecto y legibilidad (paleta, contornos, semitransparencia de lo que tapa).
+- [ ] M3D-3. Construcción y logística (murallas, cruces de cinta, tuberías, cables, puertos, estados).
+- [ ] M3D-4. Unidades y efectos (NPCs por rol, torretas con niveles/estados, proyectiles, humo, explosiones, barras de vida).
+- [ ] M3D-5. Tutorial, guía de inicio, guardado/carga, autoguardado y Electron.
+- [ ] M3D-6. Rendimiento y compatibilidad (calidad baja/media/alta, aviso sin WebGL2, mediciones).
+- [ ] M3D-7. Cierre: eliminar Phaser y la 2D, CLAUDE.md y SPEC.md, pull request.
