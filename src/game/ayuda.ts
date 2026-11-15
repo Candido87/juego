@@ -11,6 +11,7 @@ export const HELP_CONTROLS: [string, string][] = [
   ['Q / E', 'Categoría anterior / siguiente del menú (también la rueda sobre el menú)'],
   ['R', 'Girar el edificio (dirección de cintas, taladros, fábricas...)'],
   ['X', 'Quitar: marcar un edificio para desmontarlo o cancelar una obra'],
+  ['V', 'Conectar: pulsa una salida libre y luego una entrada (o una línea) y se traza la cinta o tubería sola, esquivando obstáculos. Esc cancela'],
   ['P', 'Pausa'],
   ['H', 'Mostrar u ocultar esta ayuda'],
   ['Esc', 'Cerrar la ayuda, soltar la herramienta y deseleccionar'],

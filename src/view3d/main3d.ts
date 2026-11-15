@@ -4,13 +4,15 @@
  */
 import { botTick } from '../game/bot';
 import { HELP_CONTROLS } from '../game/ayuda';
-import { isLineTool, previewLine, snapDir } from '../game/conectar';
+import { isLineTool, portsAt, previewLine, snapDir } from '../game/conectar';
+import { Port, canLink } from '../game/puertos';
+import { RouteResult, RouteTarget, buildRoute, canAffordRoute, findRoute, freeInPorts, freeOutPorts } from '../game/ruta';
 import { pipeJoinConflict } from '../game/tuberias';
 import { Game } from '../game/game';
 import type { GuiaState } from '../game/guia-inicio';
 import { AutoSaver, SaveFile, SaveSlot, gameFromSave, latestSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
 import { createTutorialGame } from '../game/tutorial';
-import { BUILD_KINDS, BuildKind, Ore, Tile, TurretKind, dirBetween } from '../game/types';
+import { BUILD_KINDS, BuildKind, ItemId, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { CONFIG } from '../game/config';
 import { generateWorld, heightAt, oreAt } from '../game/world';
 import { getHud, itemName, setToolIcons, ui } from '../view/ui';
@@ -255,8 +257,58 @@ async function start() {
   let speed = Number(q.get('speed') ?? options.speed);
 
   // ---------- construir, quitar y seleccionar (misma lógica que la 2D, todo vía Game) ----------
+  // ---------- herramienta Conectar (V): salida libre → entrada o línea; la ruta se traza sola con A* ----------
+  let conn: { from: Port } | null = null;
+  let connCache: { key: string; result: RouteResult | null } = { key: '', result: null };
+  const isLineB = (b: { kind: string }) => b.kind === 'belt' || b.kind === 'belt_fast' || b.kind === 'pipeline';
+  const sourceAt = (t: Tile): Port | null => {
+    const free = !game.buildingAt(t.x, t.y);
+    const onPort = free ? portsAt(game, t.x, t.y).find((c) => c.port.io === 'out')?.port : undefined;
+    if (onPort) return onPort;
+    const b = game.buildingAt(t.x, t.y);
+    return b && b.built ? (freeOutPorts(game, b)[0] ?? null) : null;
+  };
+  const targetAt = (t: Tile): RouteTarget | null => {
+    if (!conn) return null;
+    const from = conn.from;
+    const b = game.buildingAt(t.x, t.y);
+    if (!b) {
+      const ins = portsAt(game, t.x, t.y).filter((c) => c.port.io === 'in');
+      const pick = ins.find((c) => canLink(from, c.port).ok) ?? ins[0];
+      return pick ? { port: pick.port } : null;
+    }
+    if (!b.built) return null;
+    if (isLineB(b)) return { line: b };
+    const ins = freeInPorts(game, b);
+    const pick = ins.find((p) => canLink(from, p).ok) ?? ins[0];
+    return pick ? { port: pick } : null;
+  };
+  const connectRoute = (t: Tile): RouteResult | null => {
+    const tgt = targetAt(t);
+    if (!conn || !tgt) return null;
+    const key = `${conn.from.x},${conn.from.y}>${t.x},${t.y}|${game.buildings.size}`;
+    if (connCache.key !== key) connCache = { key, result: findRoute(game, conn.from, tgt) };
+    return connCache.result;
+  };
+  const connectClick = (t: Tile) => {
+    if (!conn) {
+      const from = sourceAt(t);
+      if (!from) return hud.flash(game.buildingAt(t.x, t.y) ? 'Ese edificio no tiene salidas libres' : 'Pulsa un edificio con una salida libre (flecha llena)');
+      conn = { from };
+      return hud.flash('Ahora pulsa la entrada donde acabar (o una línea del mismo tipo). Esc cancela');
+    }
+    const r = connectRoute(t);
+    if (!r) return hud.flash('Pulsa un edificio con una entrada libre o una línea del mismo tipo');
+    if (!r.ok) return hud.flash(`${r.reason}. ${r.fix ?? ''}`);
+    const n = buildRoute(game, r.route);
+    hud.flash(canAffordRoute(game, r.route) ? `Conectado: ${n} piezas, ${r.route.curves} curvas` : `Conectado: ${n} piezas. Las obras esperan los materiales`);
+    conn = null;
+    connCache = { key: '', result: null };
+  };
+
   const placeAt = (t: Tile) => {
     if (ui.tool === 'remove') return void game.remove(t.x, t.y);
+    if (ui.tool === 'connect') return connectClick(t);
     if (!ui.tool) return;
     const check = game.canPlace(ui.tool, t.x, t.y);
     if (!check.ok) return hud.flash(check.reason ?? 'No se puede construir');
@@ -413,6 +465,7 @@ async function start() {
       hud.setTool(null);
       ui.selected = null;
     } else if (k === 'x') hud.setTool('remove');
+    else if (k === 'v') hud.setTool(ui.tool === 'connect' ? null : 'connect');
     else if (k === 't') hud.toggleTech();
     else if (k === 'p') hud.togglePause();
     else if (k === 'q') hud.cycleCategory(-1);
@@ -458,7 +511,16 @@ async function start() {
     if (b && beltStopped(b)) parts.push('⚠ Cinta parada: sin energía');
     const st = b ? statusIcon(game, b) : null;
     if (st && st.type !== 'producing') parts.push(`⚠ ${STATUS_STYLE[st.type].title}`);
-    if (ui.tool && ui.tool !== 'remove') {
+    if (ui.tool === 'connect') {
+      if (!conn) parts.push('Conectar: pulsa una salida libre');
+      else {
+        const r = connectRoute(t);
+        if (!r) parts.push('Elige una entrada libre o una línea');
+        else if (!r.ok) parts.push(`✗ ${r.reason}`);
+        else parts.push(`✓ Ruta: ${r.route.pieces.length} piezas, ${r.route.curves} curvas${r.route.slopes ? `, ${r.route.slopes} desniveles` : ''} · coste ${Object.entries(r.route.cost).map(([k, v]) => `${v} ${itemName(k as ItemId)}`).join(', ')}${canAffordRoute(game, r.route) ? '' : ' (faltan materiales)'}`);
+      }
+    }
+    if (ui.tool && ui.tool !== 'remove' && ui.tool !== 'connect') {
       const c = game.canPlace(ui.tool, t.x, t.y);
       if (!c.ok) parts.push(`✗ ${c.reason}`);
     }
@@ -552,7 +614,16 @@ async function start() {
       }
     }
     const t1 = performance.now();
-    view.buildKind = ui.tool && ui.tool !== 'remove' ? ui.tool : null;
+    if (ui.tool !== 'connect') conn = null;
+    view.connect =
+      ui.tool === 'connect'
+        ? (() => {
+            const h = view.hover;
+            const r = conn && h ? connectRoute(h) : null;
+            return { from: conn?.from ?? null, route: r?.ok ? r.route.pieces : null, liquid: conn?.from.medium === 'liquid' };
+          })()
+        : null;
+    view.buildKind = ui.tool && ui.tool !== 'remove' && ui.tool !== 'connect' ? ui.tool : null;
     view.buildDir = ui.dir;
     view.removeMode = ui.tool === 'remove';
     view.selectedId = ui.selected;

@@ -14,7 +14,7 @@ import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
 import { animations, instance, preload, tint } from './loader';
 import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
-import { GuideAids, Overlay } from './overlay3d';
+import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { ITEM_SHAPES, ItemShape, armsFor, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
 import { ITEM_COLORS } from '../view/itemColors';
@@ -249,6 +249,8 @@ export class View3D {
   simPaused = false;
   /** Ayudas de la guía sobre el mapa (las pone la interfaz cada fotograma). */
   guide: GuideAids | null = null;
+  /** Herramienta Conectar (null = no activa). */
+  connect: ConnectAids | null = null;
   private hoverMesh: THREE.Group;
   private selMesh: THREE.LineSegments;
   private ghost: THREE.Group | null = null;
@@ -1397,7 +1399,7 @@ export class View3D {
     this.syncBuildingFx(sdt);
     this.updateHighlights();
     this.threat.update();
-    this.overlay.update({ guide: this.guide, selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
+    this.overlay.update({ connect: this.connect, guide: this.guide, selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
     this.fx.update(sdt, this.camera);
     this.updateHoles();
     this.markers.count = this.markerN;

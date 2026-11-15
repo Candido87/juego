@@ -34,7 +34,15 @@ export interface GuideAids {
   poleRange?: boolean;
 }
 
+/** Herramienta Conectar: modo activo, salida elegida y ruta de la vista previa. */
+export interface ConnectAids {
+  from: Port | null;
+  route: { x: number; y: number; dir: Dir }[] | null;
+  liquid: boolean;
+}
+
 export interface OverlayState {
+  connect?: ConnectAids | null;
   guide?: GuideAids | null;
   selectedId: number | null;
   hoverBuildingId: number | null;
@@ -380,6 +388,25 @@ export class Overlay {
         this.portsOf(s.tool, s.hover.x, s.hover.y, s.dir, 0.9, pulse);
         if (s.tool === 'pole') poleRange(s.hover.x, s.hover.y, true);
         if (s.tool in CONFIG.turrets) turretRing(s.hover.x, s.hover.y, g.turretRange(s.tool as TurretKind), ok ? 0x7dff8a : 0xff5555);
+      }
+    }
+    if (s.connect) {
+      const c = s.connect;
+      // Sin salida elegida: todas las salidas libres; con salida elegida: las entradas libres del mismo medio.
+      for (const b of g.buildings.values()) {
+        if (!b.built) continue;
+        for (const { port, status } of portsWithStatus(g, b)) {
+          if (status.state !== 'free' || g.buildingAt(port.x, port.y)) continue;
+          if (!c.from ? port.io === 'out' : port.io === 'in' && port.medium === c.from.medium) this.arrow(port.x, port.y, port.dir, FLOW_COLOR[port.flow], port.io === 'out', 0.6 + 0.4 * pulse);
+        }
+      }
+      if (c.from) this.range(c.from.x + 0.5, c.from.y + 0.5, this.ground(c.from.x, c.from.y), 1.1, 0xffffff, 0.35 + 0.3 * pulse);
+      if (c.route) {
+        const col = c.from ? FLOW_COLOR[c.from.flow] : SOLID;
+        for (const r of c.route) {
+          this.range(r.x + 0.5, r.y + 0.5, this.ground(r.x, r.y), 0.96, 0x2ee27a, 0.28);
+          this.arrow(r.x, r.y, r.dir, col, true, 0.9);
+        }
       }
     }
     if (isLineTool(s.tool)) {

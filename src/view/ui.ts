@@ -79,7 +79,7 @@ export function toolIcon(kind: BuildKind, size = 20): string {
   return `<img src="${url}" width="${size}" height="${size}" style="image-rendering:pixelated;vertical-align:middle;margin-right:4px">`;
 }
 
-export type Tool = BuildKind | 'remove' | null;
+export type Tool = BuildKind | 'remove' | 'connect' | null;
 
 export const ui = {
   tool: 'belt' as Tool,
@@ -143,7 +143,7 @@ export class Hud {
       const btn = target.closest<HTMLButtonElement>('button[data-tool]');
       if (!btn) return;
       const tool = btn.dataset.tool as Tool;
-      if (tool && tool !== 'remove') return this.pick(tool as BuildKind);
+      if (tool && tool !== 'remove' && tool !== 'connect') return this.pick(tool as BuildKind);
       this.setTool(ui.tool === tool ? null : tool);
     });
     // La rueda sobre el menú cambia de categoría.
