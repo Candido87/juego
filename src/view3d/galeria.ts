@@ -144,8 +144,8 @@ async function main(): Promise<void> {
       const mu = c.rig.muzzle;
       const from = new THREE.Vector3(c.x + Math.sin(yaw) * mu.fwd, c.rig.head.position.y + mu.y, c.z + Math.cos(yaw) * mu.fwd);
       const to = new THREE.Vector3(c.x + Math.sin(yaw) * 4.2, 0.5, c.z + Math.cos(yaw) * 4.2);
-      // El misil no existe en la lógica: sin efecto propio hasta el hito 5.
-      if (c.kind !== 'turret_missile') fx.shot(c.kind, from, to, CONFIG.turrets[c.kind].area);
+      // El misil no existe en la lógica (no hay `CONFIG.turrets.turret_missile`): área de explosión fija.
+      fx.shot(c.kind, from, to, c.kind === 'turret_missile' ? 0.8 : CONFIG.turrets[c.kind].area);
     }
   };
 
@@ -238,8 +238,10 @@ async function main(): Promise<void> {
       l.el.style.top = `${((1 - v.y) / 2) * h + 4}px`;
     }
   };
+  // En pausa el bucle no avanza (las capturas dan los fotogramas a mano con `__gal.render()`).
+  let paused = false;
   const frame = (): void => {
-    draw();
+    if (!paused) draw();
     requestAnimationFrame(frame);
   };
 
@@ -264,6 +266,7 @@ async function main(): Promise<void> {
     accent: BULLET_ACCENT,
     /** Dibuja un fotograma ya (para las capturas con la ventana oculta). */
     render: draw,
+    pause: (p: boolean) => (paused = p),
     info: () => ({ zoom: camera.zoom, target: controls.target.toArray(), pos: camera.position.toArray(), size: [w, h] }),
   };
   requestAnimationFrame(frame);

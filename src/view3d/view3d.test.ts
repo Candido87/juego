@@ -762,3 +762,65 @@ describe('torretas 3D: estados y animaciones', () => {
     expect(fases).toContain(false);
   });
 });
+
+describe('efectos de disparo por tipo', () => {
+  const setup = async () => {
+    const THREE = await import('three');
+    const { Effects } = await import('./effects3d');
+    const fx = new Effects();
+    const cam = new THREE.PerspectiveCamera();
+    return { THREE, fx, cam, from: new THREE.Vector3(0, 0.6, 0), to: new THREE.Vector3(0, 0.5, 4) };
+  };
+  const colors = (fx: InstanceType<Awaited<typeof import('./effects3d')>['Effects']>) => fx.pool.list.map((p) => p.color);
+
+  it('cada tipo deja una huella distinta: casquillo, haz con onda, llamas, niebla helada o estela de humo', async () => {
+    const { fx, from, to } = await setup();
+    fx.shot('turret_bullet', from, to, 0);
+    expect(colors(fx)).toContain(0xe6b84a); // casquillo de latón
+    const l = await setup();
+    l.fx.shot('turret_laser', l.from, l.to, 0);
+    expect(l.fx.pool.count(2)).toBe(1); // anillo en el impacto
+    expect(l.fx.pool.list.some((p) => p.color === 0xffffff)).toBe(true); // núcleo del destello de la boca
+    const f = await setup();
+    f.fx.shot('turret_fire', f.from, f.to, 1);
+    expect(f.fx.pool.count(1)).toBeGreaterThan(12); // chorro de llamas y bola de fuego
+    const h = await setup();
+    h.fx.shot('turret_frost', h.from, h.to, 1.5);
+    expect(colors(h.fx).filter((c) => c === 0xe8fbff).length).toBeGreaterThanOrEqual(4); // niebla en la boca
+    expect(h.fx.pool.count(2)).toBe(2); // dos anillos en el área
+  });
+
+  it('el misil vuela en arco con estela de humo y explota al llegar', async () => {
+    const { fx, cam, from, to } = await setup();
+    fx.shot('turret_missile', from, to, 0.8);
+    // Lanzamiento: nube de humo y destello.
+    expect(fx.pool.count(0)).toBeGreaterThanOrEqual(6);
+    // En vuelo: cada fotograma suma humo (estela) y se dibujan dos cajas (cuerpo y cabeza).
+    const before = fx.pool.count(0);
+    fx.update(0.1, cam);
+    expect(fx.stats.bolts).toBe(2);
+    expect(fx.pool.count(0)).toBeGreaterThan(before - 6);
+    let maxY = 0;
+    for (let i = 0; i < 20; i++) {
+      fx.update(0.03, cam);
+      for (const p of fx.pool.list) if (p.color === 0xdadade) maxY = Math.max(maxY, p.y);
+    }
+    // El arco sube bastante por encima de la recta (de 0,6 a 0,5 de altura).
+    expect(maxY).toBeGreaterThan(1.2);
+    // Al llegar (≈ 0,55 s) no queda misil dibujado y hay escombros y fuego de la explosión.
+    let boom = false;
+    for (let i = 0; i < 10; i++) {
+      fx.update(0.03, cam);
+      boom ||= fx.pool.list.some((p) => p.color === 0xffb040);
+    }
+    expect(fx.stats.bolts).toBe(0);
+    expect(boom).toBe(true);
+  });
+
+  it('el misil tiene su propio color de estela y no es un tipo de la lógica', async () => {
+    const { MISSILE_COLOR, TURRET_COLOR } = await import('./actors');
+    expect(Object.keys(TURRET_COLOR)).not.toContain('turret_missile');
+    expect(Object.values(TURRET_COLOR)).not.toContain(MISSILE_COLOR);
+    expect(new Set(Object.values(TURRET_COLOR)).size).toBe(4);
+  });
+});

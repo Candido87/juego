@@ -5,7 +5,10 @@
  */
 import * as THREE from 'three';
 import type { TurretKind } from '../game/types';
-import { TURRET_COLOR } from './actors';
+
+/** Tipos con efecto de disparo: los del juego y el misil (sólo galería). */
+export type ShotKind = TurretKind | 'turret_missile';
+import { MISSILE_COLOR, TURRET_COLOR } from './actors';
 import { ParticlePool, particleSize } from './particles';
 
 const MAX_PARTICLES = 2400;
@@ -28,6 +31,16 @@ interface Bolt {
   spark: boolean;
 }
 
+/** Misil en vuelo: sale de `from`, sube en arco y cae sobre `to` dejando una estela de humo. */
+interface Missile {
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  life: number;
+  max: number;
+  /** Altura máxima del arco sobre la recta. */
+  arc: number;
+}
+
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class Effects {
@@ -40,6 +53,7 @@ export class Effects {
   private barBack: THREE.InstancedMesh;
   private barFill: THREE.InstancedMesh;
   private bolts: Bolt[] = [];
+  private missiles: Missile[] = [];
   private barN = 0;
   /** Brillos de un solo fotograma (luces piloto de las torretas). */
   private flashes: { x: number; y: number; z: number; s: number; color: number }[] = [];
@@ -126,8 +140,8 @@ export class Effects {
   }
 
   /** Disparo de una torreta: cada tipo tiene su proyectil. `area` es el radio de efecto en el objetivo (0 = un solo blanco). */
-  shot(kind: TurretKind, from: THREE.Vector3, to: THREE.Vector3, area: number): void {
-    const col = TURRET_COLOR[kind];
+  shot(kind: ShotKind, from: THREE.Vector3, to: THREE.Vector3, area: number): void {
+    const col = kind === 'turret_missile' ? MISSILE_COLOR : TURRET_COLOR[kind];
     const dir = this.v.copy(to).sub(from);
     const len = Math.max(0.001, dir.length());
     dir.divideScalar(len);
@@ -136,14 +150,21 @@ export class Effects {
       this.pool.spawn({ kind: 1, x: from.x, y: from.y, z: from.z, max: 0.07, s0: 0.34, s1: 0.12, color: 0xfff0a0 });
       this.pool.spawn({ kind: 0, x: from.x, y: from.y, z: from.z, vx: dir.x * 0.5, vy: 0.3, vz: dir.z * 0.5, max: 0.45, s0: 0.06, s1: 0.18, color: 0xc8c8c8 });
       this.bolts.push({ a: from.clone(), b: to.clone(), life: Math.min(0.16, len / 38), max: Math.min(0.16, len / 38), color: col, thick: 0.07, travel: true, spark: true });
+      // Casquillo de latón que sale de lado y cae.
+      this.pool.spawn({ kind: 0, x: from.x - dir.x * 0.3, y: from.y + 0.05, z: from.z - dir.z * 0.3, vx: dir.z * 1.3 + rnd(-0.2, 0.2), vy: rnd(0.9, 1.5), vz: -dir.x * 1.3 + rnd(-0.2, 0.2), max: 0.55, s0: 0.055, s1: 0.045, color: 0xe6b84a, gravity: -9 });
     } else if (kind === 'turret_laser') {
       // Rayo continuo que se afina: núcleo blanco dentro de un haz de color.
       this.bolts.push({ a: from.clone(), b: to.clone(), life: 0.2, max: 0.2, color: col, thick: 0.13, travel: false, spark: false });
       this.bolts.push({ a: from.clone(), b: to.clone(), life: 0.12, max: 0.12, color: 0xffffff, thick: 0.05, travel: false, spark: false });
-      this.pool.spawn({ kind: 1, x: from.x, y: from.y, z: from.z, max: 0.12, s0: 0.3, s1: 0.1, color: col });
+      this.pool.spawn({ kind: 1, x: from.x, y: from.y, z: from.z, max: 0.16, s0: 0.5, s1: 0.1, color: col });
+      this.pool.spawn({ kind: 1, x: from.x, y: from.y, z: from.z, max: 0.1, s0: 0.22, s1: 0.06, color: 0xffffff });
       this.pool.spawn({ kind: 1, x: to.x, y: to.y, z: to.z, max: 0.2, s0: 0.25, s1: 0.5, color: col });
+      this.ring(to.x, to.y - 0.42, to.z, 0.1, 0.5, col, 0.25);
       for (let i = 0; i < 3; i++) this.spark(to.x, to.y, to.z, col, 1.4, 0.07);
     } else if (kind === 'turret_fire') {
+      // Bola de fuego en la boquilla y ascuas que saltan.
+      this.pool.spawn({ kind: 1, x: from.x, y: from.y, z: from.z, max: 0.18, s0: 0.3, s1: 0.65, color: 0xffb040 });
+      for (let i = 0; i < 3; i++) this.spark(from.x, from.y, from.z, 0xff7a20, 1.8, 0.07);
       // Chorro de llamas que se abre hacia el objetivo y deja humo.
       for (let i = 0; i < 9; i++) {
         const sp = len / rnd(0.22, 0.34);
@@ -155,7 +176,15 @@ export class Effects {
         this.flame(to.x + Math.cos(a) * r, to.y - 0.3, to.z + Math.sin(a) * r, 0.3);
       }
       this.smoke(to.x, to.y, to.z, 0x3a3a40, 0.16);
+    } else if (kind === 'turret_missile') {
+      // Lanzamiento: nube de humo y destello en el rack; el misil sube en arco y su estela se dibuja cada fotograma.
+      for (let i = 0; i < 6; i++) this.pool.spawn({ kind: 0, x: from.x + rnd(-0.1, 0.1), y: from.y, z: from.z + rnd(-0.1, 0.1), vx: rnd(-0.5, 0.5) - dir.x * 0.8, vy: rnd(0.2, 0.9), vz: rnd(-0.5, 0.5) - dir.z * 0.8, max: rnd(0.7, 1.1), s0: 0.14, s1: 0.45, color: 0xe3e3e8, drag: 1.2 });
+      this.pool.spawn({ kind: 1, x: from.x, y: from.y, z: from.z, max: 0.18, s0: 0.5, s1: 0.2, color: 0xffd080 });
+      const dur = Math.min(1.5, Math.max(0.55, len / 9));
+      this.missiles.push({ from: from.clone(), to: to.clone(), life: dur, max: dur, arc: Math.min(1.8, len * 0.22) });
     } else {
+      // Niebla helada en la boca.
+      for (let i = 0; i < 4; i++) this.pool.spawn({ kind: 0, x: from.x, y: from.y, z: from.z, vx: dir.x * rnd(0.4, 1) + rnd(-0.2, 0.2), vy: rnd(0.05, 0.3), vz: dir.z * rnd(0.4, 1) + rnd(-0.2, 0.2), max: rnd(0.4, 0.7), s0: 0.1, s1: 0.28, color: 0xe8fbff, drag: 1.5 });
       // Pulso de hielo: haz pálido, anillo que se abre en el área y esquirlas.
       this.bolts.push({ a: from.clone(), b: to.clone(), life: 0.22, max: 0.22, color: col, thick: 0.16, travel: false, spark: false });
       this.ring(to.x, to.y - 0.42, to.z, 0.2, Math.max(0.6, area), col, 0.45);
@@ -223,6 +252,32 @@ export class Effects {
     this.flashes.length = 0;
     // Proyectiles y rayos: cajas alargadas orientadas de origen a destino.
     let nb = 0;
+    // Misiles: cuerpo blanco con cabeza roja, llama y humo detrás; al llegar, explosión pequeña.
+    this.missiles = this.missiles.filter((m) => {
+      m.life -= dt;
+      const at = (k: number, out: THREE.Vector3) => out.lerpVectors(m.from, m.to, k).setY(THREE.MathUtils.lerp(m.from.y, m.to.y, k) + m.arc * Math.sin(Math.PI * k));
+      const k = Math.min(1, 1 - m.life / m.max);
+      if (m.life <= 0) {
+        this.explosion(m.to.x, m.to.y - 0.45, m.to.z, 0.55);
+        return false;
+      }
+      const p = at(k, this.v.clone());
+      const dir = at(Math.min(1, k + 0.03), this.d.clone()).sub(p).normalize();
+      this.pool.spawn({ kind: 0, x: p.x - dir.x * 0.18, y: p.y - dir.y * 0.18, z: p.z - dir.z * 0.18, vx: rnd(-0.08, 0.08), vy: rnd(0.05, 0.2), vz: rnd(-0.08, 0.08), max: rnd(0.7, 1.0), s0: 0.1, s1: 0.32, color: 0xdadade, drag: 0.8 });
+      this.pool.spawn({ kind: 1, x: p.x - dir.x * 0.16, y: p.y - dir.y * 0.16, z: p.z - dir.z * 0.16, max: 0.1, s0: 0.2, s1: 0.08, color: 0xffa040 });
+      if (nb + 2 <= MAX_BOLTS) {
+        this.q.setFromUnitVectors(Z, dir);
+        this.m.compose(p, this.q, this.s.set(0.1, 0.1, 0.3));
+        this.boltMesh.setMatrixAt(nb, this.m);
+        this.boltMesh.setColorAt(nb, this.c.setHex(0xe9e9ee));
+        nb++;
+        this.m.compose(this.v.copy(p).addScaledVector(dir, 0.18), this.q, this.s.set(0.105, 0.105, 0.1));
+        this.boltMesh.setMatrixAt(nb, this.m);
+        this.boltMesh.setColorAt(nb, this.c.setHex(0xc0392b));
+        nb++;
+      }
+      return true;
+    });
     this.bolts = this.bolts.filter((b) => {
       b.life -= dt;
       if (b.life <= 0) {

@@ -140,7 +140,8 @@ function makeBase(accent: number, level: number): { base: THREE.Group; neck: num
   const acc = solid(accent);
   const base = new THREE.Group();
   put(base, bevelBox(0.92, 0.08, 0.92, 0.03), solid(STEEL_DARK), 0, 0, 0);
-  put(base, bevelBox(0.86, 0.018, 0.86, 0.006), acc, 0, 0.07, 0);
+  // Franja de acento ancha y gruesa: es lo que da el color del tipo a zoom alejado.
+  put(base, bevelBox(0.9, 0.034, 0.9, 0.008), acc, 0, 0.07, 0);
   put(base, bevelBox(0.78, 0.06, 0.78, 0.025), solid(STEEL), 0, 0.08, 0);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(base, post(0.032, 0.03, 6), solid(STEEL_LIGHT), sx * 0.32, 0.14, sz * 0.32);
   put(base, post(0.15, 0.17, 10), solid(STEEL_DARK), 0, 0.14, 0);

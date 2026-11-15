@@ -62,6 +62,9 @@ export const TURRET_COLOR: Record<TurretKind, number> = {
   turret_frost: 0x9fe8ff,
 };
 
+/** Color del misil (la lógica no tiene esta torreta; sólo se ve en la galería): fuego de su estela. */
+export const MISSILE_COLOR = 0xffb060;
+
 export interface TurretLook {
   level: number;
   /** Anillos de color apilados bajo el cañón (uno por nivel por encima del primero). */
