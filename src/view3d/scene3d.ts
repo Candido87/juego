@@ -58,7 +58,7 @@ const BELT_OFF_TINT = 0x6f7480;
 /** Segundos de temblor de cámara cuando golpean el núcleo. */
 const SHAKE_TIME = 0.14;
 /** Geometría de cada forma de objeto sobre las cintas y altura de su centro sobre la cinta. */
-const ITEM_GEO: Record<ItemShape, { geo: THREE.BufferGeometry; y: number }> = {
+export const ITEM_GEO: Record<ItemShape, { geo: THREE.BufferGeometry; y: number }> = {
   lump: { geo: new THREE.DodecahedronGeometry(0.13, 0), y: 0.47 },
   log: { geo: new THREE.CylinderGeometry(0.065, 0.065, 0.28, 8).rotateZ(Math.PI / 2), y: 0.425 },
   slab: { geo: new THREE.BoxGeometry(0.28, 0.07, 0.2), y: 0.395 },

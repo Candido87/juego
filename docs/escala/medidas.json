@@ -1,0 +1,1029 @@
+[
+ {
+  "cat": "cinta",
+  "name": "cinta recta",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta recta",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta recta",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "curva",
+  "key": "belt_curve",
+  "w": 1,
+  "d": 1,
+  "h": 0.54,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta rápida",
+  "key": "belt_fast",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "rampa (sube 1)",
+  "key": "belt_ramp",
+  "w": 1.073,
+  "d": 1,
+  "h": 0.921,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (nivel 1)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (nivel 1)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "ascensor",
+  "key": "elevator",
+  "w": 0.8,
+  "d": 0.8,
+  "h": 1.3,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (nivel 4)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "tubería",
+  "name": "tubería recta",
+  "key": "pipeline",
+  "w": 1.01,
+  "d": 0.65,
+  "h": 0.618,
+  "minY": -0.059,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "tubería",
+  "name": "tubería recta",
+  "key": "pipeline",
+  "w": 1.01,
+  "d": 0.65,
+  "h": 0.618,
+  "minY": -0.059,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "tubería",
+  "name": "tubería curva",
+  "key": "pipeline_curve",
+  "w": 0.83,
+  "d": 0.83,
+  "h": 0.618,
+  "minY": -0.059,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "tubería",
+  "name": "tubería T",
+  "key": "pipeline_t",
+  "w": 1.01,
+  "d": 0.83,
+  "h": 0.618,
+  "minY": -0.059,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "poste",
+  "name": "poste",
+  "key": "pole",
+  "w": 0.74,
+  "d": 0.26,
+  "h": 1.45,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (objetos)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "objeto",
+  "name": "objeto lump",
+  "key": "item_lump",
+  "w": 0.243,
+  "d": 0.243,
+  "h": 0.243,
+  "minY": 0.349,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (objetos)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "objeto",
+  "name": "objeto log",
+  "key": "item_log",
+  "w": 0.28,
+  "d": 0.13,
+  "h": 0.13,
+  "minY": 0.36,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (objetos)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "objeto",
+  "name": "objeto slab",
+  "key": "item_slab",
+  "w": 0.28,
+  "d": 0.2,
+  "h": 0.07,
+  "minY": 0.36,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (objetos)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "objeto",
+  "name": "objeto disc",
+  "key": "item_disc",
+  "w": 0.24,
+  "d": 0.24,
+  "h": 0.07,
+  "minY": 0.36,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (objetos)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "objeto",
+  "name": "objeto shell",
+  "key": "item_shell",
+  "w": 0.12,
+  "d": 0.12,
+  "h": 0.2,
+  "minY": 0.36,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "cinta",
+  "name": "cinta (objetos)",
+  "key": "belt",
+  "w": 1,
+  "d": 1,
+  "h": 0.49,
+  "minY": -0.09,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "objeto",
+  "name": "objeto crate",
+  "key": "item_crate",
+  "w": 0.22,
+  "d": 0.22,
+  "h": 0.18,
+  "minY": 0.36,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "persona",
+  "name": "NPC constructor",
+  "key": "npc_constructor",
+  "w": 0.898,
+  "d": 0.543,
+  "h": 0.964,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "persona",
+  "name": "NPC transporter",
+  "key": "npc_transporter",
+  "w": 0.898,
+  "d": 0.398,
+  "h": 0.785,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "persona",
+  "name": "NPC operator",
+  "key": "npc_operator",
+  "w": 1.257,
+  "d": 0.571,
+  "h": 0.887,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "persona",
+  "name": "NPC mechanic",
+  "key": "npc_mechanic",
+  "w": 0.918,
+  "d": 0.708,
+  "h": 0.903,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "persona",
+  "name": "NPC researcher",
+  "key": "npc_researcher",
+  "w": 0.898,
+  "d": 0.398,
+  "h": 0.785,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "enemigo",
+  "name": "enemigo grunt",
+  "key": "enemy_grunt",
+  "w": 0.997,
+  "d": 0.442,
+  "h": 0.873,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "enemigo",
+  "name": "enemigo runner",
+  "key": "enemy_runner",
+  "w": 0.947,
+  "d": 0.651,
+  "h": 0.885,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "enemigo",
+  "name": "enemigo armored",
+  "key": "enemy_armored",
+  "w": 1.148,
+  "d": 0.481,
+  "h": 1.263,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "enemigo",
+  "name": "enemigo flyer",
+  "key": "enemy_flyer",
+  "w": 0.898,
+  "d": 0.398,
+  "h": 0.816,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "enemigo",
+  "name": "enemigo tank",
+  "key": "enemy_tank",
+  "w": 1.496,
+  "d": 0.946,
+  "h": 1.587,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "torreta",
+  "name": "torreta bullet",
+  "key": "turret_bullet",
+  "w": 0.92,
+  "d": 1.3,
+  "h": 0.672,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "torreta",
+  "name": "torreta laser",
+  "key": "turret_laser",
+  "w": 0.92,
+  "d": 1.355,
+  "h": 1.015,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "torreta",
+  "name": "torreta fire",
+  "key": "turret_fire",
+  "w": 0.92,
+  "d": 1.25,
+  "h": 0.81,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "torreta",
+  "name": "torreta frost",
+  "key": "turret_frost",
+  "w": 0.92,
+  "d": 1.3,
+  "h": 1.01,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Taladro",
+  "key": "drill",
+  "w": 0.68,
+  "d": 0.85,
+  "h": 1.133,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Almacén",
+  "key": "storage",
+  "w": 0.43,
+  "d": 0.95,
+  "h": 0.402,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Fábrica",
+  "key": "factory",
+  "w": 0.72,
+  "d": 0.9,
+  "h": 2.38,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Granja",
+  "key": "farm",
+  "w": 0.8,
+  "d": 0.8,
+  "h": 0.939,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Bomba de petróleo",
+  "key": "pump",
+  "w": 0.8,
+  "d": 0.5,
+  "h": 0.884,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Refinería",
+  "key": "refinery",
+  "w": 0.912,
+  "d": 0.95,
+  "h": 1.711,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Taller",
+  "key": "workshop",
+  "w": 0.845,
+  "d": 0.95,
+  "h": 0.563,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Laboratorio",
+  "key": "laboratory",
+  "w": 0.95,
+  "d": 0.738,
+  "h": 1.026,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Casa",
+  "key": "house",
+  "w": 0.95,
+  "d": 0.623,
+  "h": 0.67,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Generador",
+  "key": "generator",
+  "w": 0.5,
+  "d": 0.8,
+  "h": 0.909,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Panel solar",
+  "key": "solar",
+  "w": 0.557,
+  "d": 0.95,
+  "h": 0.082,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Turbina",
+  "key": "turbine",
+  "w": 0.483,
+  "d": 0.9,
+  "h": 1.848,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Batería",
+  "key": "accumulator",
+  "w": 0.82,
+  "d": 0.6,
+  "h": 0.69,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "Alimentador",
+  "key": "feeder",
+  "w": 0.62,
+  "d": 0.62,
+  "h": 0.832,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "edificio",
+  "name": "núcleo (2×2)",
+  "key": "core",
+  "w": 1.8,
+  "d": 1.784,
+  "h": 0.999,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Taladro 2×2",
+  "key": "drill",
+  "w": 0.68,
+  "d": 0.85,
+  "h": 1.133,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Generador 2×2",
+  "key": "generator",
+  "w": 0.5,
+  "d": 0.8,
+  "h": 0.909,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Casa 2×2",
+  "key": "house",
+  "w": 0.95,
+  "d": 0.623,
+  "h": 0.67,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Almacén 2×2",
+  "key": "storage",
+  "w": 0.43,
+  "d": 0.95,
+  "h": 0.402,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Bomba de petróleo 2×2",
+  "key": "pump",
+  "w": 0.8,
+  "d": 0.5,
+  "h": 0.884,
+  "minY": 0,
+  "cell": [
+   2,
+   2
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Fábrica 3×3",
+  "key": "factory",
+  "w": 0.72,
+  "d": 0.9,
+  "h": 2.38,
+  "minY": 0,
+  "cell": [
+   3,
+   3
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Taller 3×3",
+  "key": "workshop",
+  "w": 0.845,
+  "d": 0.95,
+  "h": 0.563,
+  "minY": 0,
+  "cell": [
+   3,
+   3
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Laboratorio 3×3",
+  "key": "laboratory",
+  "w": 0.95,
+  "d": 0.738,
+  "h": 1.026,
+  "minY": 0,
+  "cell": [
+   3,
+   3
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Refinería 3×4",
+  "key": "refinery",
+  "w": 0.912,
+  "d": 0.95,
+  "h": 1.711,
+  "minY": 0,
+  "cell": [
+   3,
+   4
+  ]
+ },
+ {
+  "cat": "huella",
+  "name": "Granja 4×4",
+  "key": "farm",
+  "w": 0.8,
+  "d": 0.8,
+  "h": 0.939,
+  "minY": 0,
+  "cell": [
+   4,
+   4
+  ]
+ },
+ {
+  "cat": "decoración",
+  "name": "árbol",
+  "key": "tree_default",
+  "w": 0.755,
+  "d": 0.654,
+  "h": 1.708,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "decoración",
+  "name": "roble",
+  "key": "tree_oak",
+  "w": 0.641,
+  "d": 0.74,
+  "h": 1.226,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "decoración",
+  "name": "pino",
+  "key": "tree_pineTallA",
+  "w": 0.367,
+  "d": 0.372,
+  "h": 1.453,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "decoración",
+  "name": "árbol grueso",
+  "key": "tree_fat",
+  "w": 0.868,
+  "d": 0.752,
+  "h": 1.323,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "decoración",
+  "name": "pino grande",
+  "key": "tree_cone",
+  "w": 0.662,
+  "d": 0.662,
+  "h": 1.788,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "decoración",
+  "name": "roca",
+  "key": "rock_largeA",
+  "w": 0.628,
+  "d": 0.812,
+  "h": 0.208,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "decoración",
+  "name": "roca alta",
+  "key": "rock_tallA",
+  "w": 0.737,
+  "d": 0.512,
+  "h": 0.747,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "decoración",
+  "name": "arbusto",
+  "key": "plant_bush",
+  "w": 0.475,
+  "d": 0.475,
+  "h": 0.293,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "muro",
+  "name": "Muro de madera",
+  "key": "wall_wood",
+  "w": 0.6,
+  "d": 0.52,
+  "h": 0.892,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "muro",
+  "name": "Muro de piedra",
+  "key": "wall_stone",
+  "w": 0.6,
+  "d": 0.52,
+  "h": 1.182,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "muro",
+  "name": "Muro de metal",
+  "key": "wall_metal",
+  "w": 0.6,
+  "d": 0.52,
+  "h": 1.472,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "muro",
+  "name": "Puerta",
+  "key": "wall_gate",
+  "w": 1,
+  "d": 0.615,
+  "h": 1.44,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ },
+ {
+  "cat": "persona",
+  "name": "NPC (referencia junto al árbol)",
+  "key": "npc_constructor",
+  "w": 0.898,
+  "d": 0.543,
+  "h": 0.964,
+  "minY": 0,
+  "cell": [
+   1,
+   1
+  ]
+ }
+]

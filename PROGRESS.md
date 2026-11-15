@@ -161,3 +161,11 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] CON-B3. Tuberías más finas (0,5 de casilla) con bridas en las juntas, color del líquido en bridas y tubo, curvas/T/cruz por auto-tile, y **un solo líquido por red** (`tuberias.ts`: `pipeNetworks`, `pipeConflicts`, `pipeJoinConflict`; se rechaza una tubería que mezclaría y se marcan en rojo las redes ya mezcladas); 4 tests. **Pendiente:** subidas y bajadas por desnivel (llegan con CIN3/CIN4, rampas y ascensores) y nivel de llenado visible.
 - [x] CON-B4. Herramienta Conectar (tecla V, botón en el menú): `ruta.ts` con A* (casillas libres, sin atravesar puertos ajenos, menos curvas y menos desniveles, empalme de lado en una línea existente, coste y comprobación de materiales, mensajes con solución), vista previa verde con flechas y texto de ruta/coste, clic para aceptar y Esc/clic derecho para cancelar; 7 tests en `ruta.test.ts` (incluye que el material llega por un empalme). **Pendiente:** ajustar arrastrando puntos intermedios y rampas/ascensores en la ruta (dependen de CIN3/CIN4).
 - [x] CON-B5. Resaltado de cadenas (`cadena.ts`: aguas arriba y abajo con flechas que corren), vista de logística (tecla L: mapa atenuado, todas las flechas de puertos y líneas por colores), texto de cada puerto bajo el ratón (tipo, sentido, estado, qué conectar), ayuda y guía actualizadas, y 3 tests (cadenas, empalme y guardado/carga de puertos y redes). **No hecho:** el bot de la guía sigue con su propio trazado (`guia-bot.ts connect`); no usa Conectar porque el núcleo aún no tiene puertos en `ports()`.
+
+## Escala de la vista 3D (reglas en SPEC.md; sólo capa visual)
+- [x] ESC-0. Auditoría: unidad única (`CONFIG.scale`), medidas de todos los modelos (`docs/escala/medidas.json`), tabla objetivo y informe `docs/escala/informe.md`. **Parado: esperando visto bueno del informe.**
+- [x] ESC-1. Galería de escala `/galeria-escala.html` (isométrica fija y orbital) y capturas en `docs/escala/`. **Parado: esperando visto bueno.**
+- [ ] ESC-2. Cintas, tuberías, postes y objetos transportados con el tamaño objetivo.
+- [ ] ESC-3. Hundimiento en el terreno (causa, regla de base y test con desniveles).
+- [ ] ESC-4. Escala del resto (registro de aspectos con un factor por modelo, y tests de proporciones).
+- [ ] ESC-5. Revisión final con capturas.
