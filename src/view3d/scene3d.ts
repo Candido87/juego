@@ -17,6 +17,7 @@ import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
 import { GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { armsFor, beltPiece, maskOf, quarterYaw, yawToDir } from './pieces';
+import { QUALITY, QualityPreset } from './quality';
 import { Terrain, buildTerrain } from './terrain';
 
 type Tile = { x: number; y: number };
@@ -96,8 +97,6 @@ const HOLE_RADIUS = 0.95;
 const HOLE_MARGIN = 1.25;
 const NPC_MARK = new THREE.Color(0x6fd3ff);
 const ENEMY_MARK = new THREE.Color(0xff5a5a);
-/** Personajes con esqueleto a la vez (el resto va instanciado). */
-const ANIMATED_BUDGET = 250;
 const MAX_LOD = 4096;
 
 /** Giro Y (rad) del modelo de cinta/tubería para cada dirección del juego (0:+x 1:+z 2:-x 3:-z). Ajustado con la galería. */
@@ -241,10 +240,13 @@ export class View3D {
   private inViewNext = 0;
   /** Contadores para la interfaz y las mediciones. */
   readonly stats = { batched: 0, loose: 0, rebuilds: 0, charsAnimated: 0, charsSkipped: 0, lodChars: 0 };
+  /** Nivel de calidad aplicado (ver `setQuality`). */
+  quality: QualityPreset = QUALITY.high;
 
   constructor(private host: HTMLElement, readonly game: Game, readonly opts: ViewOptions = OPT_ON) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // El suavizado de bordes lo pone el pase de contorno (según la calidad), no el lienzo: así se cambia sin recargar.
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.quality.pixelRatio));
     this.renderer.info.autoReset = false;
     this.outline = new OutlinePass(this.renderer);
     this.outline.enabled = opts.outline;
@@ -254,7 +256,7 @@ export class View3D {
     this.markers.renderOrder = 10;
     this.scene.add(this.markers);
     this.renderer.shadowMap.enabled = opts.shadows;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     host.appendChild(this.renderer.domElement);
     this.scene.background = new THREE.Color(0x9fd0e8);
     this.scene.fog = new THREE.Fog(0x9fd0e8, 140, 300);
@@ -863,7 +865,7 @@ export class View3D {
     // Presupuesto de personajes animados (esqueleto): los más cercanos al centro de la cámara. El resto se dibuja
     // como malla instanciada en su pose base (sin esqueleto), que cuesta unas pocas llamadas en total.
     const alive = this.game.enemies.filter((en) => en.hp > 0);
-    const budget = this.opts.cull ? ANIMATED_BUDGET : Infinity;
+    const budget = this.opts.cull ? this.quality.animated : Infinity;
     let animated = alive;
     if (alive.length > budget) {
       const rx = this.rig.x;
@@ -1122,6 +1124,29 @@ export class View3D {
     this.renderer.setSize(w, h);
   }
 
+  /** Aplica un nivel de calidad en caliente: resolución, suavizado, mapa de sombras, partículas y personajes animados. */
+  setQuality(q: QualityPreset): void {
+    const prev = this.quality;
+    this.quality = q;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, q.pixelRatio));
+    if (this.lastW) this.renderer.setSize(this.lastW, this.lastH);
+    this.outline.setSamples(q.samples);
+    this.fx.pool.density = q.particles;
+    if (prev.shadowMap !== q.shadowMap) {
+      this.sun.shadow.mapSize.set(q.shadowMap, q.shadowMap);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+      this.refreshMaterials();
+    }
+  }
+
+  private refreshMaterials(): void {
+    this.scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      if (m) for (const mt of Array.isArray(m) ? m : [m]) mt.needsUpdate = true;
+    });
+  }
+
   setOutline(on: boolean): void {
     this.opts.outline = on;
     this.outline.enabled = on;
@@ -1132,10 +1157,7 @@ export class View3D {
     this.opts.shadows = on;
     this.renderer.shadowMap.enabled = on;
     this.sun.castShadow = on;
-    this.scene.traverse((o) => {
-      const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
-      if (m) for (const mt of Array.isArray(m) ? m : [m]) mt.needsUpdate = true;
-    });
+    this.refreshMaterials();
   }
 
   /** Estadísticas del renderizador (para medir rendimiento). */

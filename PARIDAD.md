@@ -7,7 +7,7 @@ Rama de trabajo: `vista-3d`. Entrada 3D: `vista3d.html` + `src/view3d/`. Entrada
 
 **Vista 2D congelada:** desde hoy `src/view/` sólo recibe correcciones graves. Todo lo nuevo que se vea va a `src/view3d/`.
 
-Resumen: **81 hecho · 10 parcial · 7 pendiente · 2 no existe** (100 líneas).
+Resumen: **83 hecho · 10 parcial · 5 pendiente · 2 no existe** (100 líneas).
 
 ## Hallazgos al inventariar (cambian el plan)
 - **(Fase 1 hecha)** La interfaz es una sola para las dos vistas: `vista3d.html` usa `src/view/ui.ts`, `tooltip.ts` y `guia.ts`, que ya no importan Phaser (hay un test que lo vigila).
@@ -28,7 +28,7 @@ Resumen: **81 hecho · 10 parcial · 7 pendiente · 2 no existe** (100 líneas).
 | 1.3 | Pantalla "El núcleo ha caído" + Nueva partida | hecho | recarga con semilla nueva |
 | 1.4 | Adelantar oleada (con aviso si no hay torretas) | hecho |  |
 | 1.5 | Menú principal | no existe | |
-| 1.6 | Opciones (calidad, sombras, volumen) | parcial | panel de opciones 3D: sombras, velocidad y rendimiento, guardadas; faltan calidad y volumen |
+| 1.6 | Opciones (calidad, sombras, volumen) | parcial | panel de opciones 3D: calidad gráfica (auto, baja, media, alta), sombras, contorno, velocidad y rendimiento, guardadas; falta volumen (el juego no tiene sonido) |
 | 1.7 | Guardado/carga y autoguardado | hecho | guardado manual y autoguardado (cada minuto y al cerrar); desde las opciones o con `?load=auto|manual`; al abrir con una partida viva se pregunta Continuar o Nueva; la guía viaja con el guardado |
 
 ## 2. HUD
@@ -168,8 +168,8 @@ Resumen: **81 hecho · 10 parcial · 7 pendiente · 2 no existe** (100 líneas).
 | 13.1 | Electron: ventana, F11, empaquetado e instalador | parcial | `electron/main.cjs` abre `vista3d.html` (variable `ELECTRON_PAGE` para volver a la 2D); F11 y empaquetado sin cambios; no probado en una ventana de Electron |
 | 13.2 | Build de Vite con varias páginas | hecho | `vista3d` ya es una entrada |
 | 13.3 | Galerías de pruebas (`galeria-torretas.html`, `terreno-prueba.html`, `tools/`) | parcial | existe `tools/galeria3d.html` |
-| 13.4 | Aviso si no hay WebGL2 | pendiente | pedido para la 3D |
-| 13.5 | Niveles de calidad (bajo, medio, alto) | pendiente | pedido para la 3D |
+| 13.4 | Aviso si no hay WebGL2 | hecho | aviso a pantalla completa con qué hacer (sin WebGL, sólo WebGL1, fallo al arrancar o contexto perdido); `?nowebgl=1` lo simula; sin aceleración por hardware se arranca en calidad baja |
+| 13.5 | Niveles de calidad (bajo, medio, alto) | hecho | `quality.ts`: resolución, suavizado, sombras, contorno, partículas y personajes animados; se cambia en caliente; el modo automático baja un nivel si los FPS se quedan por debajo de 30 durante 5 s |
 | 13.6 | Bot y simulación sin gráficos (`npm run sim`) | hecho | no depende de la vista |
 
 ## Qué se reutiliza tal cual

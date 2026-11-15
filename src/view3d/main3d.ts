@@ -14,6 +14,7 @@ import { getHud, itemName, ui } from '../view/ui';
 import { setupBench, wiggle } from './bench';
 import { Options, loadOptions, saveOptions } from './options';
 import type { GuideAids } from './overlay3d';
+import { QUALITY, QUALITY_LEVELS, QUALITY_NAME, QualityChoice, QualityGovernor, QualityLevel, detectGl, effectiveLevel, glNotice, lowerLevel } from './quality';
 import { OPT_OFF, OPT_ON, View3D } from './scene3d';
 import { TutorialView } from './tutorial3d';
 
@@ -26,7 +27,7 @@ const HELP_3D: [string, string][] = [
   ['Z / C', 'Girar la cámara 90° (también los botones ⟲ ⟳)'],
   ['W A S D / flechas', 'Mover la cámara'],
   ...HELP_CONTROLS.slice(3),
-  ['O', 'Opciones (sombras, velocidad, guardar y cargar, tutorial)'],
+  ['O', 'Opciones (calidad gráfica, sombras, velocidad, guardar y cargar, tutorial)'],
 ];
 
 /** Escenario de pruebas visuales: cintas con curva, tuberías, torretas de cada tipo, muros y (opcional) una oleada. */
@@ -108,9 +109,29 @@ function askContinue(s: SaveFile): Promise<'continue' | 'new'> {
   });
 }
 
+/** Aviso a pantalla completa cuando la vista 3D no puede arrancar o pierde el contexto gráfico. */
+function showGlNotice(reason: Parameters<typeof glNotice>[0], detail = ''): void {
+  const n = glNotice(reason);
+  document.getElementById('load')?.remove();
+  let el = document.getElementById('glwarn');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'glwarn';
+    document.body.appendChild(el);
+  }
+  el.innerHTML =
+    `<div class="panel"><h2>${n.title}</h2>${n.lines.map((l, i) => (i === 0 ? `<p>${l}</p>` : `<li>${l}</li>`)).join('')}` +
+    (detail ? `<p class="muted">${detail}</p>` : '') +
+    `<button id="glretry">Volver a intentarlo</button></div>`;
+  document.getElementById('glretry')!.onclick = () => location.reload();
+}
+
 async function start() {
   if (!innerWidth || !innerHeight) return requestAnimationFrame(start);
   const q = new URLSearchParams(location.search);
+  // Compatibilidad: sin WebGL2 no hay juego; se explica en vez de dejar la pantalla de carga colgada. `?nowebgl=1|2` lo simula.
+  const gl = q.get('nowebgl') ? ({ ok: false, reason: q.get('nowebgl') === '2' ? 'webgl1' : 'none' } as const) : detectGl(document.createElement('canvas'));
+  if (!gl.ok) return showGlNotice(gl.reason);
   const map = Number(q.get('map') ?? 0);
   const bench = q.get('bench') === '1';
   const tutorialMode = q.get('tutorial') === '1';
@@ -135,12 +156,32 @@ async function start() {
     : tutorialMode
       ? createTutorialGame()
       : new Game({ seed, noWaves: q.get('waves') === '0' || bench, world: map ? generateWorld(seed, map, map) : undefined });
-  const options: Options = loadOptions(localStorage);
+  const options: Options = loadOptions(store);
+  // Calidad: `?quality=low|medium|high` la fuerza sin guardarla (para medir). Sin aceleración por hardware se empieza en baja.
+  const forced = QUALITY_LEVELS.includes(q.get('quality') as QualityLevel) ? (q.get('quality') as QualityLevel) : null;
+  let softwareNote = false;
+  if (gl.software && options.quality === 'auto' && options.autoLevel !== 'low' && !forced) {
+    options.autoLevel = 'low';
+    options.shadows = QUALITY.low.shadows;
+    options.outline = QUALITY.low.outline;
+    softwareNote = true;
+  }
+  const level = (): QualityLevel => forced ?? effectiveLevel(options);
   const opts = q.get('opt') === '0' ? { ...OPT_OFF } : { ...OPT_ON };
   opts.shadows = q.get('shadows') === '0' ? false : options.shadows;
   if (q.get('chunk')) opts.chunk = Number(q.get('chunk'));
   opts.outline = q.get('outline') === '0' || q.get('opt') === '0' ? false : options.outline;
-  const view = new View3D($('v'), game, opts);
+  let view: View3D;
+  try {
+    view = new View3D($('v'), game, opts);
+  } catch (err) {
+    return showGlNotice('error', String((err as Error)?.message ?? err));
+  }
+  view.renderer.domElement.addEventListener('webglcontextlost', (ev) => {
+    ev.preventDefault();
+    ui.paused = true;
+    showGlNotice('lost');
+  });
   await view.init((d, t) => ($('load').textContent = `Cargando modelos… ${d}/${t}`));
   $('load').remove();
   (window as unknown as { __v3: unknown }).__v3 = { view, game, ui };
@@ -229,8 +270,10 @@ async function start() {
   window.addEventListener('pointerup', () => (painting = null));
 
   // ---------- opciones y pausa ----------
+  const governor = new QualityGovernor();
   const applyOptions = () => {
-    saveOptions(localStorage, options);
+    saveOptions(store, options);
+    if (view.quality !== QUALITY[level()]) view.setQuality(QUALITY[level()]);
     if (view.opts.shadows !== options.shadows) view.setShadows(options.shadows);
     if (view.opts.outline !== options.outline) view.setOutline(options.outline);
     speed = options.speed;
@@ -251,6 +294,7 @@ async function start() {
       `<span class="oseg">${vals.map(([v, n]) => `<button data-opt="${key}:${v}" class="${v === cur ? 'active' : ''}">${n}</button>`).join('')}</span>`;
     $('options').innerHTML =
       `<h3>Opciones <button data-optclose title="Cerrar (O o Esc)">✕</button></h3>` +
+      `<div class="orow"><span>Calidad gráfica${options.quality === 'auto' ? ` <span class="muted">(ahora: ${QUALITY_NAME[level()].toLowerCase()})</span>` : ''}</span>${seg('quality', (['auto', ...QUALITY_LEVELS] as QualityChoice[]).map((c): [string, string] => [c, QUALITY_NAME[c]]), options.quality)}</div>` +
       `<div class="orow"><span>Sombras</span>${seg('shadows', [['1', 'Sí'], ['0', 'No']], options.shadows ? '1' : '0')}</div>` +
       `<div class="orow"><span>Contorno de objetos</span>${seg('outline', [['1', 'Sí'], ['0', 'No']], options.outline ? '1' : '0')}</div>` +
       `<div class="orow"><span>Velocidad del juego</span>${seg('speed', [['1', 'x1'], ['2', 'x2'], ['4', 'x4']], String(options.speed))}</div>` +
@@ -292,6 +336,14 @@ async function start() {
     const o = t.closest<HTMLElement>('[data-opt]')?.dataset.opt;
     if (!o) return;
     const [k, v] = o.split(':');
+    if (k === 'quality') {
+      // Elegir un nivel pone sus sombras y su contorno (luego se pueden cambiar sueltos); `auto` vuelve a probar desde alta.
+      options.quality = v as QualityChoice;
+      if (v === 'auto') options.autoLevel = 'high';
+      options.shadows = QUALITY[effectiveLevel(options)].shadows;
+      options.outline = QUALITY[effectiveLevel(options)].outline;
+      governor.reset();
+    }
     if (k === 'shadows') options.shadows = v === '1';
     if (k === 'outline') options.outline = v === '1';
     if (k === 'speed') options.speed = Number(v);
@@ -308,6 +360,7 @@ async function start() {
   $('pauseNew').onclick = () => hud.onRestart();
   $('helpBtn').addEventListener('click', () => toggleOptions(false));
   applyOptions();
+  if (softwareNote) hud.flash('Sin aceleración por hardware: calidad gráfica baja');
 
   // ---------- teclado (igual que la 2D; la cámara gira con Z/C) ----------
   window.addEventListener('keydown', (ev) => {
@@ -400,13 +453,43 @@ async function start() {
     return { frames: n, msPerFrame: +(total / n).toFixed(2), fps: +((n * 1000) / total).toFixed(1), gameMs: +(tg / n).toFixed(2), viewMs: +(tv / n).toFixed(2), calls: i.calls, tris: i.triangles, ...view.stats, ...view.counts() };
   };
 
+  /** Mide n frames en cada nivel de calidad (con sus sombras y contorno) y devuelve una fila por nivel; al acabar deja el nivel que había. */
+  (window as unknown as { __benchQuality: (n: number) => unknown }).__benchQuality = (n: number) => {
+    const run = (window as unknown as { __bench: (n: number) => Record<string, unknown> }).__bench;
+    const rows = QUALITY_LEVELS.map((l) => {
+      view.setQuality(QUALITY[l]);
+      view.setShadows(QUALITY[l].shadows);
+      view.setOutline(QUALITY[l].outline);
+      run(20);
+      const c = view.renderer.domElement;
+      return { level: l, buffer: `${c.width}x${c.height}`, ...run(n) };
+    });
+    view.setQuality(QUALITY[level()]);
+    view.setShadows(options.shadows);
+    view.setOutline(options.outline);
+    return rows;
+  };
+
   // ---------- bucle ----------
   let last = performance.now();
   let botAcc = 0;
   let perfAcc = 0;
   const loop = (now: number) => {
-    const dt = Math.min(0.1, (now - last) / 1000);
+    const real = (now - last) / 1000;
+    const dt = Math.min(0.1, real);
     last = now;
+    // Calidad automática: si los FPS se quedan por debajo de 30 durante 5 s, baja un nivel (nunca sube sola).
+    if (options.quality === 'auto' && !forced && !bench && governor.sample(real, document.visibilityState === 'visible' && !ui.paused && speed === 1)) {
+      const down = lowerLevel(options.autoLevel);
+      if (down) {
+        options.autoLevel = down;
+        options.shadows = QUALITY[down].shadows;
+        options.outline = QUALITY[down].outline;
+        applyOptions();
+        if (optionsOpen()) renderOptions();
+        hud.flash(`Calidad gráfica bajada a ${QUALITY_NAME[down].toLowerCase()} para ir más fluido (se cambia en Opciones)`);
+      }
+    }
     const t0 = performance.now();
     if (!ui.paused && !game.gameOver) {
       game.update(dt * speed);
@@ -443,7 +526,8 @@ async function start() {
     if (options.perf && perfAcc > 0.5) {
       perfAcc = 0;
       const i = view.info();
-      $('perf').textContent = `${i.fps.toFixed(0)} FPS · ${i.calls} llamadas · ${(i.triangles / 1000).toFixed(0)}k triángulos`;
+      const sz = view.renderer.domElement;
+      $('perf').textContent = `${i.fps.toFixed(0)} FPS · ${(1000 / Math.max(i.fps, 1)).toFixed(1)} ms · ${i.calls} llamadas · ${(i.triangles / 1000).toFixed(0)}k triángulos · ${sz.width}×${sz.height} · calidad ${QUALITY_NAME[level()].toLowerCase()}`;
     }
     requestAnimationFrame(loop);
   };

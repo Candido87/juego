@@ -149,9 +149,13 @@ describe('opciones de la vista 3D', () => {
     const store = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
     expect(loadOptions(store)).toEqual(DEFAULT_OPTIONS);
     expect(loadOptions(null)).toEqual(DEFAULT_OPTIONS);
-    saveOptions(store, { shadows: false, outline: false, speed: 4, perf: true });
-    expect(loadOptions(store)).toEqual({ shadows: false, outline: false, speed: 4, perf: true });
-    data.set(OPTIONS_KEY, '{"speed":7,"shadows":"x"}');
+    const custom = { shadows: false, outline: false, speed: 4, perf: true, quality: 'medium' as const, autoLevel: 'low' as const };
+    saveOptions(store, custom);
+    expect(loadOptions(store)).toEqual(custom);
+    // Opciones guardadas antes de existir la calidad: se conservan y la calidad entra en automático.
+    data.set(OPTIONS_KEY, '{"shadows":false,"outline":true,"speed":2,"perf":false}');
+    expect(loadOptions(store)).toEqual({ shadows: false, outline: true, speed: 2, perf: false, quality: 'auto', autoLevel: 'high' });
+    data.set(OPTIONS_KEY, '{"speed":7,"shadows":"x","quality":"ultra","autoLevel":3}');
     expect(loadOptions(store)).toEqual(DEFAULT_OPTIONS);
     data.set(OPTIONS_KEY, 'no es json');
     expect(loadOptions(store)).toEqual(DEFAULT_OPTIONS);
@@ -392,5 +396,80 @@ describe('personajes, torretas y humo', () => {
     const site = g.place('house', 10, 3)!;
     site.hp = 1;
     expect(smokeSources(site)).toEqual([]);
+  });
+});
+
+describe('calidad gráfica y compatibilidad', () => {
+  it('los niveles van de menos a más coste y sólo la baja quita sombras y contorno', async () => {
+    const { QUALITY, QUALITY_LEVELS, lowerLevel, effectiveLevel } = await import('./quality');
+    expect(QUALITY_LEVELS).toEqual(['low', 'medium', 'high']);
+    for (let i = 1; i < QUALITY_LEVELS.length; i++) {
+      const a = QUALITY[QUALITY_LEVELS[i - 1]];
+      const b = QUALITY[QUALITY_LEVELS[i]];
+      for (const k of ['pixelRatio', 'samples', 'shadowMap', 'particles', 'animated'] as const) expect(b[k], k).toBeGreaterThanOrEqual(a[k]);
+    }
+    expect([QUALITY.low.shadows, QUALITY.low.outline, QUALITY.low.samples]).toEqual([false, false, 0]);
+    expect(QUALITY.medium.shadows && QUALITY.medium.outline && QUALITY.high.shadows && QUALITY.high.outline).toBe(true);
+    expect([lowerLevel('high'), lowerLevel('medium'), lowerLevel('low')]).toEqual(['medium', 'low', null]);
+    expect(effectiveLevel({ quality: 'auto', autoLevel: 'medium' })).toBe('medium');
+    expect(effectiveLevel({ quality: 'high', autoLevel: 'low' })).toBe('high');
+  });
+
+  it('la calidad automática baja sólo con FPS bajos sostenidos', async () => {
+    const { QualityGovernor } = await import('./quality');
+    const run = (g: InstanceType<typeof QualityGovernor>, fps: number, seconds: number, counts = true) => {
+      let hits = 0;
+      for (let i = 0; i < fps * seconds; i++) if (g.sample(1 / fps, counts)) hits++;
+      return hits;
+    };
+    // A 60 FPS no baja nunca.
+    expect(run(new QualityGovernor(), 60, 60)).toBe(0);
+    // A 20 FPS baja una vez tras el calentamiento (3 s) y la ventana (5 s), y vuelve a esperar antes de la siguiente.
+    const g = new QualityGovernor();
+    expect(run(g, 20, 7)).toBe(0);
+    expect(run(g, 20, 1.5)).toBe(1);
+    expect(run(g, 20, 7)).toBe(0);
+    expect(run(g, 20, 2)).toBe(1);
+    // Un bache corto entre fotogramas fluidos no cuenta.
+    const h = new QualityGovernor();
+    run(h, 60, 4);
+    expect(run(h, 10, 1) + run(h, 60, 10)).toBe(0);
+    // Pestaña oculta, pausa o parones largos: no se mide.
+    expect(run(new QualityGovernor(), 5, 60, false)).toBe(0);
+    const p = new QualityGovernor();
+    let hits = 0;
+    for (let i = 0; i < 100; i++) if (p.sample(1)) hits++;
+    expect(hits).toBe(0);
+  });
+
+  it('detecta WebGL2, WebGL1, nada y el dibujo por software', async () => {
+    const { detectGl, isSoftwareRenderer, glNotice } = await import('./quality');
+    const ctx = (name: string) => ({ RENDERER: 1, getParameter: (p: number) => (p === 9 ? name : 'WebKit WebGL'), getExtension: (e: string) => (e === 'WEBGL_debug_renderer_info' ? { UNMASKED_RENDERER_WEBGL: 9 } : null) });
+    const canvas = (kinds: Record<string, unknown>) => ({ getContext: (k: string) => kinds[k] ?? null });
+    expect(detectGl(canvas({ webgl2: ctx('ANGLE (NVIDIA GeForce GTX 1060)') }))).toEqual({ ok: true, renderer: 'ANGLE (NVIDIA GeForce GTX 1060)', software: false });
+    expect(detectGl(canvas({ webgl2: ctx('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device))') }))).toMatchObject({ ok: true, software: true });
+    expect(detectGl(canvas({ webgl: {} }))).toEqual({ ok: false, reason: 'webgl1' });
+    expect(detectGl(canvas({}))).toEqual({ ok: false, reason: 'none' });
+    expect(detectGl(null)).toEqual({ ok: false, reason: 'none' });
+    expect(detectGl({ getContext: () => { throw new Error('bloqueado'); } })).toEqual({ ok: false, reason: 'none' });
+    expect(['llvmpipe (LLVM 15)', 'Microsoft Basic Render Driver', 'Intel(R) UHD Graphics 620'].map(isSoftwareRenderer)).toEqual([true, true, false]);
+    for (const r of ['webgl1', 'none', 'lost', 'error'] as const) {
+      const n = glNotice(r);
+      expect(n.title.length).toBeGreaterThan(10);
+      expect(n.lines.length).toBeGreaterThan(1);
+    }
+    expect(glNotice('none').title).toContain('WebGL2');
+  });
+
+  it('la densidad de partículas recorta humo y brillos pero no los anillos', async () => {
+    const { ParticlePool } = await import('./particles');
+    let i = 0;
+    const pool = new ParticlePool(1000, () => (i++ % 10) / 10);
+    pool.density = 0.4;
+    for (let n = 0; n < 100; n++) pool.spawn({ kind: 0, x: 0, y: 0, z: 0, color: 0 });
+    for (let n = 0; n < 10; n++) pool.spawn({ kind: 2, x: 0, y: 0, z: 0, color: 0 });
+    expect(pool.count(0)).toBe(40);
+    expect(pool.count(2)).toBe(10);
+    expect(pool.dropped).toBe(0);
   });
 });

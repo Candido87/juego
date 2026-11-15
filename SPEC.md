@@ -524,7 +524,7 @@ El juego pasa a 3D con Three.js; la vista 2D de Phaser se retira cuando `PARIDAD
 ## Migración, Fase 1: interfaz
 - **Una sola interfaz.** No se reescribió: `vista3d.html` copia el DOM y el CSS de `index.html` y usa el mismo `Hud` (`src/view/ui.ts`), `TooltipManager` y `GuiaView`. Para quitarles Phaser bastó mover `ITEM_COLORS` de `shapes.ts` a `src/view/itemColors.ts` (lo reexporta `shapes.ts`, así la 2D no cambia). Un test recorre los imports desde `main3d.ts` y falla si aparece `phaser`, `GameScene` o `shapes`.
 - **Teclas.** Q/E siguen cambiando de categoría (como dice la ayuda); **la cámara gira con Z/C** y con los botones ⟲ ⟳. O abre las opciones. El resto igual que en 2D (R, X, P, H, Esc, 1–9, Mayús + arrastrar).
-- **Opciones** (nuevo, `options.ts` con test): sombras, velocidad x1/x2/x4, mostrar rendimiento y reiniciar la guía. Se guardan en `localStorage`. Calidad y volumen quedan para las fases 6 y posteriores (no hay sonido en el juego).
+- **Opciones** (nuevo, `options.ts` con test): sombras, velocidad x1/x2/x4, mostrar rendimiento y reiniciar la guía. Se guardan en `localStorage`. La calidad gráfica llegó en la Fase 6 (ver más abajo); volumen no hay porque el juego no tiene sonido.
 - **Pausa:** aviso central con Reanudar, Opciones, Ayuda y Nueva partida; se aparta si hay un panel flotante abierto.
 - **Nueva partida:** recarga la página con otra semilla (lo más simple; no hay estado que conservar hasta que exista el guardado).
 - **Sin solapamientos:** los paneles flotantes (recetas, ayuda, opciones, avisos) se colocan debajo del alto real del HUD (`--hudh`) y entre las dos columnas. Comprobado por script con todos abiertos a 967×853 y 1024×640.
@@ -577,3 +577,42 @@ El juego pasa a 3D con Three.js; la vista 2D de Phaser se retira cuando `PARIDAD
 - **Tutorial** (`view3d/tutorial3d.ts`): `?tutorial=1` o botón en las opciones. Panel propio con "Paso N de M", saltar paso o tutorial y resalte azul de la herramienta o panel. Gestos que anota la vista: mover la cámara (> 0,5 casillas), zoom y elegir herramienta. La guía de inicio se apaga mientras dura. Decisión simple: el tutorial siempre empieza desde cero y no se guarda (su partida no es persistente).
 - **Electron:** `electron/main.cjs` abre `vista3d.html` por defecto (`ELECTRON_PAGE=index.html` para la 2D) y activa `ignore-gpu-blocklist` para WebGL2 en gráficas antiguas. `localStorage` persiste porque se sirve por `app://` (ya estaba). **No lo he podido probar en una ventana de Electron en esta sesión.**
 - **Sin hacer:** menú principal con pantalla propia; las casillas de ruta y del problema se tapan detrás de árboles altos (sólo las flechas y la flecha rebotando se ven siempre).
+
+## Migración, Fase 6: rendimiento y compatibilidad
+
+**Niveles de calidad** (`src/view3d/quality.ts`, puro y con tests). En Opciones: Auto, Baja, Media o Alta. Se aplican en caliente con `View3D.setQuality`, sin recargar.
+
+| | Baja | Media | Alta |
+|---|---|---|---|
+| Tope de píxeles por píxel de pantalla | 1 | 1,5 | 2 |
+| Suavizado de bordes (muestras) | 0 | 2 | 4 |
+| Sombras | no | sí, mapa de 1024 | sí, mapa de 2048 |
+| Contorno de objetos | no | sí | sí |
+| Partículas que se crean | 40 % | 70 % | 100 % |
+| Personajes con esqueleto animado | 80 | 150 | 250 |
+
+- Elegir un nivel pone sus sombras y su contorno; después se pueden cambiar sueltos (p. ej. Baja con contorno).
+- **Auto** (por defecto) empieza en Alta y **sólo baja**: si la media de FPS reales se queda por debajo de 30 durante 5 s seguidos baja un nivel y avisa con un mensaje. Espera 3 s tras arrancar y tras cada bajada; no mide con la pestaña oculta, en pausa, a velocidad x2/x4 ni en el banco de pruebas. El nivel alcanzado se guarda, así que no se repite la prueba en cada arranque; volver a pulsar Auto empieza otra vez desde Alta.
+- Si el navegador dibuja por software (SwiftShader, llvmpipe, "Basic Render Driver"), Auto arranca directamente en Baja.
+- El suavizado ya no lo pone el lienzo sino la textura intermedia del pase de contorno (así se cambia sin recrear el contexto). Sin contorno y sin suavizado se dibuja directo a pantalla, que es lo más barato.
+- Los anillos de efecto (hielo, explosiones) no se recortan con la densidad de partículas porque marcan zonas de juego.
+- Se quitó `PCFSoftShadowMap`: three 0.187 ya no lo tiene y avisaba en consola en cada arranque; las sombras son PCF en todos los niveles.
+- `?quality=low|medium|high` fuerza un nivel sin guardarlo. Con "Mostrar rendimiento" el HUD enseña FPS, ms por fotograma, llamadas, triángulos, tamaño del búfer y nivel.
+
+**Compatibilidad.** Antes de crear la escena, `detectGl` prueba a abrir WebGL2. Si no se puede, en lugar de quedarse en "Cargando modelos…" sale un aviso a pantalla completa que distingue "no hay WebGL" de "sólo hay WebGL1", con tres pasos (actualizar navegador, activar aceleración por hardware, actualizar controlador) y un botón para reintentar. El mismo aviso cubre un fallo al crear el renderizador y la pérdida del contexto gráfico a mitad de partida (pausa el juego y pide recargar; el autoguardado es de cada minuto). `?nowebgl=1` y `?nowebgl=2` simulan los dos primeros casos.
+
+**Mediciones** (`__benchQuality(n)` en la consola: `n` fotogramas por nivel con la GPU sincronizada). Equipo del usuario, Radeon RX 570, navegador integrado, búfer de 1280×800:
+
+| Escena | Baja | Media | Alta |
+|---|---|---|---|
+| Mapa 120x120, 1500 edificios, 300 enemigos | 9,8 ms (102 FPS), 595 llamadas, 0,57 M tris | 12,3 ms (81 FPS), 1187 llamadas, 1,07 M tris | 13,6 ms (74 FPS), 1187 llamadas, 1,07 M tris |
+| Mapa 80x80, 300 edificios, 1500 enemigos | 12,2 ms (82 FPS), 478 llamadas | 14,3 ms (70 FPS), 1242 llamadas | 17,1 ms (58 FPS), 1642 llamadas |
+| Partida normal 40x40 (demo con oleada) | 2,5 ms (405 FPS), 166 llamadas | 3,9 ms (259 FPS), 336 llamadas | 3,7 ms (272 FPS), 336 llamadas |
+
+Alta coincide con la cifra de la Fase 2 (13,7 ms), así que mover el suavizado al pase de contorno no ha costado nada. Baja es entre 1,4x y 1,5x más rápida que Alta; casi todo viene de quitar las sombras (la mitad de llamadas y de triángulos). En la partida normal Media y Alta empatan: la diferencia está dentro del ruido.
+
+**Lo que estas cifras no dicen.**
+- La pantalla de la prueba tiene 1 píxel real por píxel, así que **el tope de resolución no ha actuado**: en un portátil de pantalla densa la diferencia entre niveles será mayor que la de la tabla, pero no está medida.
+- Sólo hay un equipo, con gráfica dedicada. **No se ha probado en gráfica integrada, ni en Electron, ni en otro navegador.**
+- La bajada automática está cubierta por tests, pero no se ha visto actuar en el juego porque este equipo nunca baja de 30 FPS. Tampoco se ha provocado una pérdida real de contexto gráfico.
+- La calidad Baja pierde el contorno, que ayuda a leer el mapa; se puede volver a activar suelto.

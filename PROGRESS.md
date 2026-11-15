@@ -128,5 +128,5 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] M3D-3. Construcción y logística: murallas con esquinas, T, cruces, daño y puerta (edificio nuevo `wall_gate`); cintas con T y cruce; tuberías con codos; cables y alcance de postes; alcance de torretas; flechas de puertos; iconos de estado.
 - [x] M3D-4. Unidades y efectos: NPCs por rol que andan, esperan, trabajan y enseñan su carga; enemigos que atacan, se ralentizan, arden y caen al morir; torretas con niveles, estados y accesorio propio; un proyectil por tipo; humo de chimeneas y de daño, explosiones y barras de vida.
 - [x] M3D-5. Guía y tutorial en 3D con ayudas sobre el mapa, guardado/carga y autoguardado, Electron abre la vista 3D.
-- [ ] M3D-6. Rendimiento y compatibilidad (calidad baja/media/alta, aviso sin WebGL2, mediciones).
+- [x] M3D-6. Rendimiento y compatibilidad: calidad auto/baja/media/alta en las opciones (`quality.ts`, se aplica en caliente; la automática baja sola con FPS bajos), aviso si no hay WebGL2 o se pierde el contexto gráfico, mediciones por nivel en SPEC.md (`__benchQuality`). Sin probar en gráfica integrada ni en Electron.
 - [ ] M3D-7. Cierre: eliminar Phaser y la 2D, CLAUDE.md y SPEC.md, pull request.

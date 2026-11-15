@@ -43,6 +43,8 @@ export function patchMaterial(m: THREE.Material): void {
   m.customProgramCacheKey = () => 'hole';
 }
 
+const OUTLINE_STRENGTH = 0.85;
+
 /** Dibuja la escena a una textura con profundidad y la compone con el contorno. */
 export class OutlinePass {
   enabled = true;
@@ -62,7 +64,7 @@ export class OutlinePass {
         texel: { value: new THREE.Vector2(1, 1) },
         range: { value: 1 },
         lineColor: { value: new THREE.Color(OUTLINE_COLOR) },
-        strength: { value: 0.85 },
+        strength: { value: OUTLINE_STRENGTH },
         edge: { value: new THREE.Vector2(0.13, 0.36) },
         uHoleA: HOLES.a,
         uHoleB: HOLES.b,
@@ -93,9 +95,18 @@ export class OutlinePass {
     this.quadScene.add(quad);
   }
 
+  /** Muestras de suavizado de bordes (0 = ninguno). Rehace la textura intermedia. */
+  setSamples(n: number): void {
+    if (this.target.samples === n) return;
+    this.target.samples = n;
+    this.target.dispose();
+  }
+
   render(scene: THREE.Scene, camera: THREE.OrthographicCamera): void {
     const r = this.renderer;
-    if (!this.enabled) {
+    // Sin contorno y sin suavizado se dibuja directo a pantalla; con suavizado se pasa por la textura (el lienzo no lo tiene).
+    this.mat.uniforms.strength.value = this.enabled ? OUTLINE_STRENGTH : 0;
+    if (!this.enabled && this.target.samples === 0) {
       r.setRenderTarget(null);
       r.render(scene, camera);
       return;

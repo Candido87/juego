@@ -125,6 +125,11 @@
       #pausebanner { top: 40%; left: 50%; transform: translate(-50%, -50%); display: none; flex-direction: column; align-items: center; gap: 10px; z-index: 6; padding: 16px 28px; font-size: 20px; }
       #pausebanner .prow { display: flex; gap: 6px; }
       #hud #perf { font: 11px monospace; color: #8b95a5; display: none; }
+      #glwarn { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(29, 35, 48, 0.96); z-index: 30; }
+      #glwarn .panel { position: static; max-width: min(520px, calc(100% - 48px)); padding: 18px 24px; font-size: 14px; line-height: 1.5; user-select: text; }
+      #glwarn h2 { margin: 0 0 8px; font-size: 18px; color: #ffd166; }
+      #glwarn li { margin-left: 18px; }
+      #glwarn button { margin-top: 12px; }
       #load { position: fixed; inset: 0; display: grid; place-items: center; background: #1d2330; font-size: 18px; z-index: 20; }
     </style>
     <link rel="stylesheet" href="assets/ui-pack/ui-pack.css" />

@@ -40,9 +40,12 @@ export class ParticlePool {
   readonly list: Particle[] = [];
   /** Partículas que no cupieron (para medir). */
   dropped = 0;
-  constructor(readonly cap: number) {}
+  /** Fracción de humo y brillos que se crea (calidad gráfica); los anillos, que marcan zonas de efecto, salen siempre. */
+  density = 1;
+  constructor(readonly cap: number, private rand: () => number = Math.random) {}
 
   spawn(p: ParticleInit): boolean {
+    if (this.density < 1 && p.kind !== 2 && this.rand() >= this.density) return false;
     if (this.list.length >= this.cap) {
       this.dropped++;
       return false;

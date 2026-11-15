@@ -1,4 +1,6 @@
 /** Opciones de la vista 3D, guardadas en `localStorage` (módulo puro, con tests). */
+import { QUALITY_CHOICES, QUALITY_LEVELS, QualityChoice, QualityLevel } from './quality';
+
 export interface Options {
   shadows: boolean;
   /** Multiplicador de velocidad del juego: 1, 2 o 4. */
@@ -7,10 +9,14 @@ export interface Options {
   outline: boolean;
   /** Mostrar FPS y llamadas de dibujo en el HUD. */
   perf: boolean;
+  /** Calidad gráfica elegida; con `auto` el nivel real es `autoLevel`. */
+  quality: QualityChoice;
+  /** Nivel al que ha llegado el modo automático (sólo baja; se guarda para no repetir la prueba en cada arranque). */
+  autoLevel: QualityLevel;
 }
 
 export const OPTIONS_KEY = 'iso-factory-td:options3d';
-export const DEFAULT_OPTIONS: Options = { shadows: true, outline: true, speed: 1, perf: false };
+export const DEFAULT_OPTIONS: Options = { shadows: true, outline: true, speed: 1, perf: false, quality: 'auto', autoLevel: 'high' };
 const SPEEDS = [1, 2, 4];
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
@@ -29,6 +35,8 @@ export function loadOptions(store: Store | null): Options {
     outline: typeof raw.outline === 'boolean' ? raw.outline : DEFAULT_OPTIONS.outline,
     speed: SPEEDS.includes(raw.speed as number) ? (raw.speed as number) : DEFAULT_OPTIONS.speed,
     perf: typeof raw.perf === 'boolean' ? raw.perf : DEFAULT_OPTIONS.perf,
+    quality: QUALITY_CHOICES.includes(raw.quality as QualityChoice) ? (raw.quality as QualityChoice) : DEFAULT_OPTIONS.quality,
+    autoLevel: QUALITY_LEVELS.includes(raw.autoLevel as QualityLevel) ? (raw.autoLevel as QualityLevel) : DEFAULT_OPTIONS.autoLevel,
   };
 }
 
