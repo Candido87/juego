@@ -153,7 +153,7 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [ ] HUE6. Guía de inicio, tooltips y equilibrado con simulaciones.
 
 ## Estética de interfaz con pack de UI y conexión de transporte (después de la parte C; reglas en SPEC.md)
-- [ ] UI-A0. Inventario del pack de UI (el más reciente por fecha en `assets-juego/`).
+- [x] UI-A0. Inventario del pack de UI: elegido el UI Pack Sci-Fi (el más reciente por fecha); contenido, tamaños, estados y lo que falta en ASSETS.md; hoja en `docs/ui-pack-inventario.png`.
 - [ ] UI-A1. Sistema de diseño HTML/CSS y galería de interfaz (`/galeria-ui`). **Parar y enseñar capturas para aprobar el estilo.**
 - [ ] UI-A2. Aplicación a todos los menús, HUD, paneles y tooltips, con iconos de estado.
 - [ ] CON-B1. Puertos tipados con aspecto y estados, y tests.

@@ -259,3 +259,32 @@ Las **naves 2D de Space Shooter Redux** (`assets-juego/PNG/Enemies`, `playerShip
   - **Pesado y blindado:** `craft_cargoB` (ancho y plano, mucho casco) con más escala y tinte oscuro.
   - Sobran `speederB`, `racer` y `miner` para tipos nuevos o jefes.
 - **Escala:** a ajustar a la huella de cada tipo (ligero ≈ 0,8 casillas, bombardero ≈ 1,3, pesado ≈ 1,8) y elevarlas sobre el suelo.
+
+## A0 — Inventario del pack de interfaz (15-11-2026)
+
+**Qué pack se ha elegido y por qué.** El encargo traía la ruta como marcador (`[CARPETA-UI]`). En `assets-juego/` hay **tres** juegos de interfaz mezclados:
+1. **UI Pack Sci-Fi** (Kenney): `PNG/{Blue,Green,Grey,Red,Yellow,Extra}/{Default,Double}` y su copia en `Vector/` (SVG). **Es el de fecha más reciente** (todos sus archivos son del 15-11-2026 00:28) y **es el elegido**.
+2. **UI Pack RPG extension** (Kenney, 2014): los 87 PNG sueltos de la raíz de `PNG/` (`panel_beige`, `buttonLong_*`, `iconCheck_*`, `iconCross_*`, `arrow*`, `bar*_horizontal*`, cursores de guantelete, mano y espada) más `Spritesheet/uipack_rpg_sheet.*` y `Vector/uipack_rpg_vector.*`. Es el dueño del `License.txt` de la raíz (los demás packs lo han ido pisando). Estética beige y marrón de fantasía: no encaja con un juego de fábricas; se descarta, salvo sus iconos de check, cruz y flecha como referencia.
+3. Interfaz de **Space Shooter Redux** (`PNG/UI`: `buttonBlue`, `numeral*`, `playerLife*`): descartada.
+Las fuentes están en `Font/` (`Kenney Future.ttf`, `Kenney Future Narrow.ttf`) y `Bonus/` (`kenvector_future*.ttf`). No hay ZIP original del Sci-Fi en Descargas, así que lo que se copie a `public/assets/` saldrá de `assets-juego/` (sin tocarlo). Hoja de contacto: `docs/ui-pack-inventario.png`.
+
+**Qué contiene el UI Pack Sci-Fi** (cada archivo existe en `Default` y en `Double` a 2×; todos con transparencia):
+| Grupo | Piezas | Tamaño (Default) |
+|---|---|---|
+| **Paneles** (`Extra`) | `panel_glass` (cuadrado con borde claro), `_notches` (esquinas cortadas), `_notches_top`, `_notch_tl/tr/bl/br` (una esquina cortada), `_screws` (con tornillos), `_tab` y `_tab_blade` (con pestaña), `panel_rectangle(_screws)` (gris), `panel_square(_screws)` | 64×64 (`panel_rectangle` 192×64) |
+| **Botones base** (`Extra`) | `button_rectangle`, `button_square` y sus variantes `_depth` (con relieve/sombra inferior) | 192×64 y 64×64 |
+| **Botones con cabecera** (uno por color: `Blue`, `Green`, `Grey`, `Red`, `Yellow`) | `button_square_header_{blade,large,notch,small}_{rectangle,square}` con y sin `_screws` (16 por color): cuerpo claro con franja superior de color | 192×64 y 64×64 |
+| **Barras** (por color y `Extra`) | `bar_{round,square}_{large,small}` enteras y en tres tramos `_l` / `_m` / `_r` (más `_square`), versión `gloss` con brillo, y fondos `bar_shadow_*` (con y sin contorno) para la parte vacía | 96×24 (large) y 96×16 (small); tramos de 12 o 24 de ancho |
+| **Cursores y miras** | `cursor_a`…`cursor_h` (8 flechas y cursores), `crosshair_a`…`d`, `crosshair_color_a`…`d` (en cada color) | 21×21 y 30×30 |
+| **Tipografías** | `Kenney Future` y `Kenney Future Narrow` (TTF, 34 KB) | — |
+En total, por color: 60 imágenes por tamaño (barras 40, botones 16, miras 4); `Extra`: 70.
+
+**Estados.** El pack **no trae un dibujo distinto por estado** (hover, pulsado, desactivado): sólo hay botón normal y `_depth` (con relieve) y la variante de color. Se resolverán en CSS: normal = cuerpo + franja de color, hover = más brillo, pulsado = versión `_depth` y desplazamiento de 2 px, desactivado = gris (`Grey`) y menor opacidad, seleccionado = franja `Yellow` o `Blue`. **Variantes de color:** sí, cinco (azul, verde, gris, rojo, amarillo) para botones, barras y miras; los paneles sólo en claro y en gris.
+
+**Qué falta** (se construye en CSS o por código con la misma paleta):
+- **Iconos**: no hay ninguno (ni aviso, error, check, flecha, rayo, gota, engranaje...). Se dibujan por código (SVG en línea, trazo blanco o gris oscuro sobre un círculo o recuadro de color).
+- **Casilla, deslizador, pestaña, separador, lista, tooltip y ranura de icono**: no existen como imagen. Se hacen en CSS: la pestaña con `panel_glass_tab`, el tooltip con `panel_glass_notches`, la ranura con `button_square_depth` invertida, la casilla y el deslizador con las barras y un recuadro `button_square`.
+- **Fondo oscuro**: todo el pack es claro (panel gris claro sobre mapa oscuro). Para paneles oscuros hay que teñir con CSS o usar los grises `panel_rectangle` y `Grey`.
+- **Hoja de sprites y atlas**: no hay; cada pieza es un PNG suelto, así que en la práctica se usan `border-image` (9-slice) para paneles y botones y se cargan sólo los que se usen.
+
+**Ya aplicado en el juego (fase G3, 2026):** `public/assets/ui-pack/` contiene un subconjunto de este mismo pack (barras, cinco botones, dos cursores, tres paneles y la fuente Kenney Future Narrow). La nueva estética (A1/A2) lo amplía y lo ordena en un sistema de componentes.
