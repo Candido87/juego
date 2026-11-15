@@ -56,6 +56,19 @@ const ZONES: Record<string, { x: number; z: number; zoom: number }> = {
   decoracion: { x: 10, z: 30, zoom: 2.4 },
 };
 
+/** Caja envolvente sólo de las mallas visibles (las cintas llevan una pieza oculta para el modo sin agrupar). */
+function visibleBox(root: THREE.Object3D): THREE.Box3 {
+  const box = new THREE.Box3();
+  root.updateMatrixWorld(true);
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    for (let p: THREE.Object3D | null = m; p; p = p.parent) if (!p.visible) return;
+    box.union(new THREE.Box3().setFromObject(m));
+  });
+  return box;
+}
+
 export async function startScaleGallery(host: HTMLElement): Promise<void> {
   const world = createFlatWorld(48, 40);
   const game = new Game({ world, noWaves: true });
@@ -259,7 +272,7 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
     const t = CONFIG.scale.targets[e.key];
     if (!t || e.cat === 'huella') continue;
     e.group.updateMatrixWorld(true);
-    const bb = new THREE.Box3().setFromObject(e.group);
+    const bb = visibleBox(e.group);
     const size = bb.getSize(new THREE.Vector3());
     const c = bb.getCenter(new THREE.Vector3());
     const linear = /^(belt|pipeline)/.test(e.key);
@@ -339,7 +352,7 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
   const report = (): ScaleRow[] =>
     entries.map((e) => {
       e.group.updateMatrixWorld(true);
-      const b = new THREE.Box3().setFromObject(e.group);
+      const b = visibleBox(e.group);
       const s = b.getSize(new THREE.Vector3());
       return { cat: e.cat, name: e.name, key: e.key, w: +s.x.toFixed(3), d: +s.z.toFixed(3), h: +s.y.toFixed(3), minY: +(b.min.y - e.baseY).toFixed(3), cell: e.cell };
     });
@@ -364,6 +377,23 @@ export async function startScaleGallery(host: HTMLElement): Promise<void> {
       render();
     },
     report,
+    dump: (key: string) => {
+      const e = entries.find((x) => x.key === key)!;
+      const out: unknown[] = [];
+      e.group.updateMatrixWorld(true);
+      e.group.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const b = new THREE.Box3().setFromObject(m);
+        out.push([m.name || m.type, +b.min.y.toFixed(3), +b.max.y.toFixed(3), +(b.max.x - b.min.x).toFixed(2), +(b.max.z - b.min.z).toFixed(2)]);
+      });
+      return out;
+    },
+    native: (id: string) => {
+      const b = new THREE.Box3().setFromObject(instance(id, undefined, 1));
+      const v = b.getSize(new THREE.Vector3());
+      return [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)];
+    },
     render,
     pitch: PITCH,
   };

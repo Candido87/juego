@@ -20,7 +20,7 @@ const RAMP_ANGLE = Math.atan(LEVEL_H);
  * chevrones `>` por tira en u (apuntan a +u) y dos en v: se enseña un chevrón a lo ancho de la cinta (v de 0 a 0,5).
  */
 export const FLOW_TILE = 1.2;
-const WIDTH = 0.44;
+const WIDTH = CONFIG.scale.beltLane;
 const MAX = 8192;
 export const FLOW_COLOR = { normal: 0xbfeaff, fast: 0xffe9a0, stopped: 0x2f3540 };
 

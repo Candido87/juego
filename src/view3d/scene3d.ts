@@ -47,25 +47,35 @@ export const OPT_ON: ViewOptions = { batch: true, cull: true, chunk: 32, shadows
 export const OPT_OFF: ViewOptions = { batch: false, cull: false, chunk: 0, shadows: true, outline: false };
 /** Grosor de las tuberías respecto al modelo (1 = ocupa la casilla entera). */
 /** Grosor de la tubería (la cinta ocupa casi toda la casilla; la tubería es más fina y lleva bridas en las juntas). */
-const PIPE_T = 0.5;
+const PIPE_T = CONFIG.scale.pipeDiameter;
+/** Elevación del tubo para que las bridas (más anchas) apoyen en el suelo: radio de la brida menos radio del tubo. */
+const PIPE_LIFT = Math.max(0, (CONFIG.scale.pipeFlange - CONFIG.scale.pipeDiameter) / 2);
 /** Tinte de la tubería según el líquido que lleva (sin líquido: sin tinte). */
 const PIPE_LIQUID_TINT: Record<string, number> = { oil: 0x6b4a2a, gasoline: 0xe3cf3a };
 const FAST_TINT = 0xbfe0ff;
 /** Altura de la cara superior de una cinta sobre su casilla (donde va la textura de dirección). */
-const BELT_TOP = 0.4;
+const BELT_TOP = CONFIG.scale.beltHeight;
 /** Cinta parada por falta de energía: se ve apagada. */
 const BELT_OFF_TINT = 0x6f7480;
 /** Segundos de temblor de cámara cuando golpean el núcleo. */
 const SHAKE_TIME = 0.14;
 /** Geometría de cada forma de objeto sobre las cintas y altura de su centro sobre la cinta. */
+export /** Cada objeto descansa sobre la superficie de la cinta: `y` = alto de la cinta + la mitad de su propia altura (lado máximo 0,15–0,25). */
+const rests = (half: number) => CONFIG.scale.beltHeight + half;
 export const ITEM_GEO: Record<ItemShape, { geo: THREE.BufferGeometry; y: number }> = {
-  lump: { geo: new THREE.DodecahedronGeometry(0.13, 0), y: 0.47 },
-  log: { geo: new THREE.CylinderGeometry(0.065, 0.065, 0.28, 8).rotateZ(Math.PI / 2), y: 0.425 },
-  slab: { geo: new THREE.BoxGeometry(0.28, 0.07, 0.2), y: 0.395 },
-  disc: { geo: new THREE.CylinderGeometry(0.12, 0.12, 0.07, 12), y: 0.395 },
-  shell: { geo: new THREE.CylinderGeometry(0.06, 0.06, 0.2, 8), y: 0.46 },
-  crate: { geo: new THREE.BoxGeometry(0.22, 0.18, 0.22), y: 0.45 },
+  lump: { geo: new THREE.DodecahedronGeometry(0.11, 0), y: rests(0.11) },
+  log: { geo: new THREE.CylinderGeometry(0.055, 0.055, 0.25, 8).rotateZ(Math.PI / 2), y: rests(0.055) },
+  slab: { geo: new THREE.BoxGeometry(0.25, 0.06, 0.18), y: rests(0.03) },
+  disc: { geo: new THREE.CylinderGeometry(0.11, 0.11, 0.06, 12), y: rests(0.03) },
+  shell: { geo: new THREE.CylinderGeometry(0.05, 0.05, 0.18, 8), y: rests(0.09) },
+  crate: { geo: new THREE.BoxGeometry(0.2, 0.16, 0.2), y: rests(0.08) },
 };
+const RAIL_MAT = new THREE.MeshStandardMaterial({ color: 0xc9cdd9, flatShading: true, roughness: 0.9 });
+const RAIL_OFF_MAT = new THREE.MeshStandardMaterial({ color: 0x8a8f9c, flatShading: true, roughness: 1 });
+const BELT_HUB_MAT = new THREE.MeshStandardMaterial({ color: 0x3a3b4d, flatShading: true, roughness: 1 });
+patchMaterial(RAIL_MAT);
+patchMaterial(RAIL_OFF_MAT);
+patchMaterial(BELT_HUB_MAT);
 const HUB_GEO = new THREE.SphereGeometry(0.5, 8, 6);
 const HUB_MAT = new THREE.MeshStandardMaterial({ color: 0x5f5d78, flatShading: true, roughness: 1, metalness: 0 });
 patchMaterial(HUB_MAT);
@@ -563,23 +573,48 @@ export class View3D {
     const flags = sig.slice(-4);
     const on = (c: string) => [0, 1, 2, 3].filter((d) => flags[d] === c);
     if (kind === 'belt' || kind === 'belt_fast') {
-      // Cinta: recta, curva, empalme en T o cruce según por dónde le entran otras cintas.
-      const pc = beltPiece(b.dir, on('i'));
-      const o = instance(pc.piece === 'straight' ? parts[0].model! : pc.model, 1);
-      if (sig.includes('|off')) tint(o, BELT_OFF_TINT);
-      else if (kind === 'belt_fast' && pc.piece !== 'straight') tint(o, FAST_TINT);
-      o.rotation.y = quarterYaw(pc.k);
+      // Cinta baja y estrecha (CONFIG.scale: 0,65 × 0,18, 1 de largo): tramos del modelo recto estirados a la medida, con bordes
+      // laterales más claros. Recta = un tramo entero; curva, T o cruce = medio tramo hacia cada lado abierto y un cubo central.
+      const sc = CONFIG.scale;
+      const model = parts[0].model!;
+      const off = sig.includes('|off');
+      const seg = (len: number, cx: number, rails = true): THREE.Group => {
+        const holder = new THREE.Group();
+        const o = instance(model, undefined, 1);
+        if (off) tint(o, BELT_OFF_TINT);
+        o.scale.set(len, sc.beltHeight / 0.4, sc.beltWidth);
+        o.position.x = cx;
+        holder.add(o);
+        for (const side of rails ? [-1, 1] : []) {
+          const rail = new THREE.Mesh(BOX_GEO, off ? RAIL_OFF_MAT : RAIL_MAT);
+          rail.scale.set(len, sc.beltHeight + 0.03, sc.beltRail);
+          rail.position.set(cx, (sc.beltHeight + 0.03) / 2, side * (sc.beltWidth / 2 - sc.beltRail / 2));
+          holder.add(rail);
+        }
+        return holder;
+      };
+      const incoming = on('i');
+      const only = incoming.every((d) => d === (b.dir + 2) % 4);
       const slope = Number(/\|s(-?\d)/.exec(sig)?.[1] ?? 0);
-      if (slope && pc.piece === 'straight') {
-        // Rampa: la pieza recta se inclina para unir los dos niveles (sube LEVEL_H a lo largo de la casilla).
-        const pivot = new THREE.Group();
-        pivot.rotation.set(0, yawToDir(b.dir), slope * Math.atan(LEVEL_H), 'XYZ');
-        pivot.position.y = (slope * LEVEL_H) / 2;
-        o.rotation.y = quarterYaw(pc.k) - yawToDir(b.dir);
-        pivot.add(o);
-        group.add(pivot);
-      } else group.add(o);
-      top = 0.4;
+      if (only) {
+        const holder = seg(1, 0);
+        holder.rotation.set(0, yawToDir(b.dir), slope * Math.atan(LEVEL_H), 'XYZ');
+        // Rampa: la pieza se inclina para unir los dos niveles (sube LEVEL_H a lo largo de la casilla).
+        holder.position.y = (slope * LEVEL_H) / 2;
+        group.add(holder);
+      } else {
+        const arms = new Set<number>([b.dir, ...incoming]);
+        for (const d of arms) {
+          const holder = seg(0.5, 0.25, false);
+          holder.rotation.y = yawToDir(d);
+          group.add(holder);
+        }
+        const hub = new THREE.Mesh(BOX_GEO, off ? RAIL_OFF_MAT : BELT_HUB_MAT);
+        hub.scale.set(sc.beltWidth, sc.beltHeight, sc.beltWidth);
+        hub.position.y = sc.beltHeight / 2;
+        group.add(hub);
+      }
+      top = sc.beltHeight;
     } else if (kind === 'pipeline') {
       // Tubería: tramo recto, o medios tramos hacia cada vecino con un codo central.
       const a = armsFor(maskOf(on('p')), (b.dir % 2) as 0 | 1);
@@ -596,20 +631,26 @@ export class View3D {
         for (const sx of half ? [0.47] : [0.47, -0.47]) {
           const f = new THREE.Mesh(FLANGE_GEO, FLANGE_BY_LIQUID[liquid] ?? FLANGE_MAT);
           f.position.set(sx, PIPE_T * 0.5, 0);
-          f.scale.set(1, PIPE_T * 1.3, PIPE_T * 1.3);
+          f.scale.set(1, CONFIG.scale.pipeFlange, CONFIG.scale.pipeFlange);
           holder.add(f);
         }
+        holder.position.y = PIPE_LIFT;
         group.add(holder);
       };
       if (a.straightAxis !== null) seg(a.straightAxis, false);
       else {
         a.arms.forEach((d) => seg(d, true));
         const hub = new THREE.Mesh(HUB_GEO, HUB_MAT);
-        hub.position.y = PIPE_T * 0.5;
+        hub.position.y = PIPE_T * 0.5 + PIPE_LIFT;
         hub.scale.setScalar(PIPE_T);
         group.add(hub);
       }
-      top = PIPE_T;
+      // Soporte pequeño: las bridas (más gruesas que el tubo) descansan sobre el suelo sin hundirse.
+      const saddle = new THREE.Mesh(BOX_GEO, FLANGE_MAT);
+      saddle.scale.set(0.2, PIPE_LIFT + 0.01, 0.26);
+      saddle.position.y = (PIPE_LIFT + 0.01) / 2;
+      group.add(saddle);
+      top = PIPE_T + PIPE_LIFT;
     } else if (isWallKind(kind)) {
       // Muro macizo: medios tramos hacia cada vecino y un poste central (esquina, T, cruz, extremo o suelto). El daño lo baja y lo oscurece.
       const st = WALL_STYLE[kind];
@@ -863,7 +904,7 @@ export class View3D {
     for (const b of this.belts) {
       if (beltStopped(b) && lamps < MAX_ITEMS) {
         // El piloto va en el borde derecho de la cinta según su sentido.
-        m.makeTranslation(b.x + 0.5 - DY[b.dir] * 0.4, this.levelTop(b) + 0.42, b.y + 0.5 + DX[b.dir] * 0.4);
+        m.makeTranslation(b.x + 0.5 - DY[b.dir] * 0.36, this.levelTop(b) + BELT_TOP + 0.1, b.y + 0.5 + DX[b.dir] * 0.36);
         this.beltLamps.setMatrixAt(lamps++, m);
       }
       if (!b.item) continue;

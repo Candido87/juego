@@ -243,7 +243,14 @@ export const CONFIG = {
     tree: { minHeight: 1.0, maxHeight: 1.3, maxCanopy: 0.8 },
     maxBuildingHeight: 1.8,
     maxWidth: 1,
+    /** Cinta: ancho y alto del cuerpo (1 casilla de largo), borde lateral y carril útil para los objetos. */
+    beltWidth: 0.65,
+    beltHeight: 0.18,
+    beltRail: 0.04,
     beltLane: 0.5,
+    /** Tubería: diámetro del tubo y de las bridas de las juntas. */
+    pipeDiameter: 0.35,
+    pipeFlange: 0.45,
     /** Objetos transportados: lado máximo entre estos valores, apoyados sobre la cinta. */
     itemSize: [0.15, 0.25] as [number, number],
   },
