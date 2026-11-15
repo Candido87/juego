@@ -151,3 +151,13 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [ ] HUE4. Munición por cinta y alimentador, con respaldo de NPC.
 - [ ] HUE5. Diagnóstico de edificios (panel, "Mostrar", resumen en el HUD).
 - [ ] HUE6. Guía de inicio, tooltips y equilibrado con simulaciones.
+
+## Estética de interfaz con pack de UI y conexión de transporte (después de la parte C; reglas en SPEC.md)
+- [ ] UI-A0. Inventario del pack de UI (el más reciente por fecha en `assets-juego/`).
+- [ ] UI-A1. Sistema de diseño HTML/CSS y galería de interfaz (`/galeria-ui`). **Parar y enseñar capturas para aprobar el estilo.**
+- [ ] UI-A2. Aplicación a todos los menús, HUD, paneles y tooltips, con iconos de estado.
+- [ ] CON-B1. Puertos tipados con aspecto y estados, y tests.
+- [ ] CON-B2. Encaje magnético y previsualización con retroalimentación por extremo.
+- [ ] CON-B3. Tuberías: redimensionado, curvas, uniones, desniveles y exclusividad de líquido.
+- [ ] CON-B4. Herramienta Conectar con A*, ajuste de ruta y mensajes con solución.
+- [ ] CON-B5. Resaltado de cadenas, vista de logística (L), tooltips, guía y simulaciones.
