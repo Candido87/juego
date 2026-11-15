@@ -11,12 +11,13 @@ export type StatusIcon =
   | { type: 'lowpower' }
   | { type: 'nofuel' }
   | { type: 'noammo' }
+  | { type: 'nopower' }
   | { type: 'producing'; item: ItemId };
 
 /**
  * Icono de estado de un edificio, o null si no hay nada que avisar.
  * Prioridad: marcado para desmontar > fábrica (sin receta, falta material, salida llena, poca energía, produciendo)
- * > generador parado sin combustible > torreta sin munición.
+ * > generador parado sin combustible > torreta sin energía > torreta sin munición.
  */
 export function statusIcon(game: Game, b: Building): StatusIcon | null {
   if (!b.built) return null;
@@ -36,6 +37,7 @@ export function statusIcon(game: Game, b: Building): StatusIcon | null {
   const gen = CONFIG.power.generators[b.kind as BuildKind];
   if (gen?.fuel && !b.running) return { type: 'nofuel' };
   const t = game.turretDef(b);
+  if (t && t.energyPerShot > 0 && game.turretPower(b) <= 0) return { type: 'nopower' };
   if (t?.ammo && !game.turretReady(b)) return { type: 'noammo' };
   return null;
 }
@@ -52,4 +54,5 @@ export const STATUS_STYLE: Record<Exclude<StatusIcon['type'], 'producing'>, { gl
   lowpower: { glyph: '⚡', tone: 'warn', title: 'Sin energía de la red' },
   nofuel: { glyph: '⚡', tone: 'bad', title: 'Generador parado: sin combustible' },
   noammo: { glyph: '∅', tone: 'bad', title: 'Sin munición' },
+  nopower: { glyph: '⚡', tone: 'bad', title: 'Torreta sin energía' },
 };

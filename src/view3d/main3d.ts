@@ -318,6 +318,7 @@ async function start() {
     view.buildDir = ui.dir;
     view.removeMode = ui.tool === 'remove';
     view.selectedId = ui.selected;
+    view.simPaused = ui.paused || game.gameOver;
     view.frame(dt);
     acc.game += t1 - t0;
     acc.view += performance.now() - t1;

@@ -553,3 +553,18 @@ El juego pasa a 3D con Three.js; la vista 2D de Phaser se retira cuando `PARIDAD
 - **Transparencia ajustada:** el círculo pasa a 0,95 casillas y se centra a media altura, porque con 1,7 tramaba cintas y objetos bajos que no tapaban nada.
 - **Hallazgo:** en la partida normal los muros (y la puerta) están siempre bloqueados: sólo los desbloquea el tutorial. Anotado en PARIDAD.md.
 - **Sin hacer:** la cinta parada sin energía no se distingue; el líquido dentro de las tuberías no se ve; falta el aviso general de "sin conexión a la red".
+
+## Migración, Fase 4: unidades y efectos
+- **Efectos en pocas mallas** (`effects3d.ts`): humo, fuego, chispas, anillos, proyectiles y barras de vida van en seis mallas instanciadas (una llamada de dibujo cada una). Sin transparencias que ordenar: el humo son poliedros opacos que se encogen al morir (y así reciben contorno, como el resto) y el fuego es aditivo.
+- **Partículas puras** (`particles.ts`, con tests): la simulación no depende de Three; tope de 2.400 partículas, las que no caben se descartan y se cuentan.
+- **Decisiones de aspecto puras** (`actors.ts`, con tests): animación de NPC y enemigo, modelo por rol, aspecto por nivel y estado de torreta, y fuentes de humo de cada edificio.
+- **NPCs:** un modelo por rol con tinte (constructor = obrero con casco, transportista, operaria, mecánico = soldado). Andan, esperan y, si llevan un rato quietos con tarea, trabajan. Lo que llevan se ve como una caja del color del objeto.
+- **Enemigos:** la lógica no rellena `Enemy.attacking`, así que **atacan cuando llevan 0,25 s parados**. Ralentizado = tinte azul, paso lento y escarcha; ardiendo = llamas y humo. Al morir caen (animación `die`) y se encogen; máximo 60 caídas a la vez. Los enemigos lejanos instanciados no cambian de pose ni de tinte, pero sí llevan barra, llamas y escarcha.
+- **Torretas:** cada tipo tiene color y accesorio propios. **Nivel** = un anillo de color por nivel y cañón un 14 % mayor por nivel. **Estados:** sin munición o sin energía = cabezal gris y caído, más icono; dañada = humo; lista = brillo en la boca (láser, hielo) o llama piloto (fuego).
+- **Disparos:** bala trazadora con fogonazo y chispa; láser = haz que se afina con núcleo blanco; fuego = chorro de llamas que se abre y prende el área; hielo = haz pálido, anillo del radio del área y esquirlas. Salen de la boca del cañón y llegan a media altura del blanco (más arriba si vuela).
+- **Humo:** fábrica y refinería mientras fabrican, generador en marcha y núcleo siempre; edificios bajo el 50 % de vida humo negro, bajo el 25 % chispas. Los muros no humean (ya tienen estados de daño).
+- **Barras de vida:** enemigos y NPCs heridos (verde, amarilla, roja) y edificios dañados (naranja). Los muros no llevan barra.
+- **Pausa:** con la partida en pausa, personajes y partículas se congelan.
+- **Medición** (mapa 120×120, 1.500 objetos, 250 enemigos con barras, llamas y escarcha, 150 edificios humeando, sombras y contorno): 16,4 ms por fotograma, 1.126 llamadas. La optimización es la Fase 6.
+- **Hallazgo:** las torretas de energía (láser, hielo) nunca disparan en la lógica actual (`turretPower` devuelve 0). Sus efectos están hechos y probados lanzándolos a mano.
+- **Sin hacer:** los enemigos voladores no tienen animación propia de vuelo; las llamas aditivas se ven pálidas sobre hierba clara.

@@ -283,3 +283,114 @@ describe('iconos de estado', () => {
     expect(statusKey(null)).toBe('');
   });
 });
+
+describe('partículas', () => {
+  it('nacen, se mueven, caen con la gravedad y mueren al acabar su vida', async () => {
+    const { ParticlePool, particleSize } = await import('./particles');
+    const pool = new ParticlePool(3);
+    expect(pool.spawn({ kind: 0, x: 0, y: 1, z: 0, color: 1, vx: 2, max: 1, s0: 0.2, s1: 0.6 })).toBe(true);
+    expect(pool.spawn({ kind: 1, x: 0, y: 1, z: 0, color: 2, gravity: -10, max: 0.5 })).toBe(true);
+    expect(pool.spawn({ kind: 2, x: 0, y: 0, z: 0, color: 3, max: 2 })).toBe(true);
+    // lleno: la cuarta no entra y se cuenta
+    expect(pool.spawn({ kind: 0, x: 0, y: 0, z: 0, color: 4 })).toBe(false);
+    expect(pool.dropped).toBe(1);
+    pool.step(0.25);
+    const [a, b] = pool.list;
+    expect(a.x).toBeCloseTo(0.5);
+    expect(b.y).toBeLessThan(1);
+    // crece de s0 a s1 mientras no entra en el último 30 %
+    expect(particleSize(a)).toBeCloseTo(0.3);
+    pool.step(0.3);
+    expect(pool.list.length).toBe(2);
+    expect(pool.count(1)).toBe(0);
+    pool.step(0.4);
+    // al final se encoge hasta desaparecer
+    expect(particleSize(pool.list[0])).toBeLessThan(0.2);
+    pool.step(5);
+    expect(pool.list.length).toBe(0);
+  });
+  it('el emisor por ritmo reparte las partículas sin perder fracciones', async () => {
+    const { Rate } = await import('./particles');
+    const r = new Rate();
+    let n = 0;
+    for (let i = 0; i < 60; i++) n += r.take(3, 1 / 60);
+    expect(n).toBeGreaterThanOrEqual(2);
+    expect(n).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('personajes, torretas y humo', () => {
+  it('NPC: anda, espera o trabaja; enseña lo que más lleva', async () => {
+    const { npcAnim, carried, STILL_TIME, ROLE_LOOK } = await import('./actors');
+    const { NPC_ROLES } = await import('../game/types');
+    expect(npcAnim({ jobId: 3 }, true, 0)).toBe('walk');
+    expect(npcAnim({ jobId: 3 }, false, 0)).toBe('idle');
+    expect(npcAnim({ jobId: 3 }, false, STILL_TIME)).toBe('work');
+    expect(npcAnim({ jobId: null }, false, 9)).toBe('idle');
+    expect(carried({ carry: {} })).toBeNull();
+    expect(carried({ carry: { coal: 2, iron_plate: 5 } })).toBe('iron_plate');
+    // cada rol tiene su modelo
+    expect(new Set(NPC_ROLES.map((r) => ROLE_LOOK[r].model)).size).toBe(NPC_ROLES.length);
+  });
+  it('enemigo: ataca si lleva un rato parado, y el frío lo frena', async () => {
+    const { enemyLook, STILL_TIME } = await import('./actors');
+    const e = { kind: 'grunt' as const, slowTimer: 0, slowFactor: 1, burnTimer: 0 };
+    expect(enemyLook(e, true, 0)).toEqual({ anim: 'walk', slowed: false, burning: false, pace: 1 });
+    expect(enemyLook(e, false, STILL_TIME / 2).anim).toBe('walk');
+    expect(enemyLook(e, false, STILL_TIME).anim).toBe('attack');
+    const cold = enemyLook({ ...e, slowTimer: 1, slowFactor: 0.45, burnTimer: 2 }, true, 0);
+    expect(cold.slowed).toBe(true);
+    expect(cold.burning).toBe(true);
+    expect(cold.pace).toBeCloseTo(0.45);
+    expect(enemyLook({ ...e, kind: 'runner' }, true, 0).pace).toBeGreaterThan(1);
+  });
+  it('torreta: el nivel añade anillos y agranda el cañón; estados sin munición y sin energía', async () => {
+    const { flatGame, instant } = await import('../game/testutil');
+    const { turretLook, turretState } = await import('./actors');
+    const { statusIcon } = await import('./status');
+    const g = flatGame();
+    expect(turretLook(g, 'turret_bullet')).toEqual({ level: 1, rings: 0, gunScale: 1 });
+    g.turretLevel.turret_bullet = 3;
+    const l3 = turretLook(g, 'turret_bullet');
+    expect(l3.rings).toBe(2);
+    expect(l3.gunScale).toBeGreaterThan(1.2);
+    g.turretLevel.turret_bullet = 99;
+    expect(turretLook(g, 'turret_bullet').level).toBe(3);
+    const t = instant(g, 'turret_bullet', 5, 3);
+    expect(turretState(g, t)).toBe('ready');
+    t.inv = {};
+    t.shots = 0;
+    expect(turretState(g, t)).toBe('noammo');
+    const laser = instant(g, 'turret_laser', 7, 3);
+    expect(turretState(g, laser)).toBe(g.turretPower(laser) > 0 ? 'ready' : 'nopower');
+    if (g.turretPower(laser) <= 0) expect(statusIcon(g, laser)).toEqual({ type: 'nopower' });
+  });
+  it('humo: chimenea si produce, humo negro si está dañado, chispas si está muy dañado; los muros no humean', async () => {
+    const { flatGame, instant } = await import('../game/testutil');
+    const { smokeSources } = await import('./actors');
+    const g = flatGame();
+    const f = instant(g, 'factory', 3, 3);
+    expect(smokeSources(f)).toEqual([]);
+    f.recipe = 'iron_plate';
+    f.craft = 0.5;
+    expect(smokeSources(f).length).toBe(1);
+    expect(smokeSources(f)[0].fromTop).toBe(true);
+    f.hp = f.maxHp * 0.4;
+    expect(smokeSources(f).length).toBe(2);
+    expect(smokeSources(f)[1].sparks).toBe(false);
+    f.hp = f.maxHp * 0.1;
+    expect(smokeSources(f)[1].sparks).toBe(true);
+    const gen = instant(g, 'generator', 6, 3);
+    expect(smokeSources(gen)).toEqual([]);
+    gen.running = true;
+    expect(smokeSources(gen).length).toBe(1);
+    const wall = instant(g, 'wall_stone', 8, 3);
+    wall.hp = 1;
+    expect(smokeSources(wall)).toEqual([]);
+    expect(smokeSources(g.core).length).toBe(1);
+    g.unlockedBuildings.add('house');
+    const site = g.place('house', 10, 3)!;
+    site.hp = 1;
+    expect(smokeSources(site)).toEqual([]);
+  });
+});

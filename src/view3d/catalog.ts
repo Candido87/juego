@@ -3,6 +3,7 @@
  * Datos puros (sin Three): los comprueba un test contra los archivos de `public/assets/3d/`.
  */
 import type { BuildingKind, EnemyKind, TurretKind } from '../game/types';
+import { ROLE_LOOK } from './actors';
 import { BELT_MODELS } from './pieces';
 
 /** Ruta relativa a `public/assets/3d/` sin extensión: `pack/modelo`. */
@@ -93,6 +94,7 @@ export function allModels(): ModelId[] {
   for (const parts of Object.values(BUILDING_PARTS)) for (const p of parts) s.add(p.model);
   for (const g of Object.values(TURRET_GUN)) s.add(g.model);
   s.add(NPC_MODEL);
+  for (const r of Object.values(ROLE_LOOK)) s.add(r.model);
   for (const e of Object.values(ENEMY_MODEL)) s.add(e.model);
   s.add(TERRAIN.flat);
   s.add(TERRAIN.block);

@@ -7,12 +7,14 @@ Rama de trabajo: `vista-3d`. Entrada 3D: `vista3d.html` + `src/view3d/`. Entrada
 
 **Vista 2D congelada:** desde hoy `src/view/` sólo recibe correcciones graves. Todo lo nuevo que se vea va a `src/view3d/`.
 
-Resumen: **61 hecho · 13 parcial · 22 pendiente · 4 no existe** (100 líneas).
+Resumen: **75 hecho · 9 parcial · 13 pendiente · 3 no existe** (100 líneas).
 
 ## Hallazgos al inventariar (cambian el plan)
 - **(Fase 1 hecha)** La interfaz es una sola para las dos vistas: `vista3d.html` usa `src/view/ui.ts`, `tooltip.ts` y `guia.ts`, que ya no importan Phaser (hay un test que lo vigila).
 - **La interfaz 2D ya es HTML/CSS**, no Phaser: `index.html` + `src/view/ui.ts` (`Hud`), `tooltip.ts`, `guia.ts`. Lo que la ata a Phaser es poco: `ui.ts` y `tooltip.ts` importan `ITEM_COLORS` de `shapes.ts` (que importa Phaser) y los iconos salen de la hoja de sprites Tiny Factory (`sprites.ts`). La Fase 1 es desacoplar y reconectar, no reescribir desde cero.
 - **Los muros no se pueden construir en una partida normal.** Sólo los desbloquea el tutorial (`tutorial.ts`); con el árbol de tecnología vacío, en la partida libre salen bloqueados, y la puerta nueva igual. Es una decisión de diseño pendiente, no un fallo de la vista.
+- **Las torretas de energía (láser y hielo) nunca disparan.** `Game.turretPower` devuelve 0 para toda torreta con `energyPerShot > 0`, así que su efecto de disparo existe en la vista pero no se verá en una partida hasta que la lógica las alimente. Además están bloqueadas (árbol de tecnología vacío). Es lógica pendiente, no un fallo de la vista.
+- **`Enemy.attacking` no se rellena nunca** en la lógica: la vista deduce el ataque de que el enemigo lleve un rato parado.
 - **Guardado y carga de partida no existen** en la 2D. Sólo se guardan en `localStorage` el progreso de la guía de inicio y qué paneles están plegados. Hay que hacerlo nuevo (toca `src/game/`, con tests).
 - **El árbol de tecnología está vacío** (`CONFIG.tech = []`): el botón "Árbol (T)" existe pero se oculta. No hay pantalla que portar hasta que haya nodos.
 - **El tutorial** (`src/game/tutorial.ts`, `tutorialBot.ts`, `tutorialText.ts`) tiene lógica y tests pero **no está conectado a la vista** en esta rama. Lo que sí funciona es la guía de inicio (`guia.ts`).
@@ -110,7 +112,7 @@ Resumen: **61 hecho · 13 parcial · 22 pendiente · 4 no existe** (100 líneas)
 | 7.11 | Flechas de puertos de entrada/salida (`puertos.ts`) | hecho | flecha llena = salida, tenue = entrada; amarillo sólidos, celeste líquidos; en selección, al pasar el ratón y al colocar |
 | 7.12 | Icono de lo que produce y aviso de estado sobre la fábrica | hecho | icono con el color del objeto si produce; aviso si no |
 | 7.13 | Sin energía / sin gasolina / sin material | parcial | fábrica (sin receta, falta material, salida llena, poca energía), generador sin combustible y torreta sin munición; falta el aviso general de "sin conexión a la red" |
-| 7.14 | Barras de vida de edificios dañados | pendiente | |
+| 7.14 | Barras de vida de edificios dañados | hecho | barra naranja sobre el edificio; los muros no la llevan (ya tienen estados de daño) |
 | 7.15 | Desgaste y mantenimiento (condición) | pendiente | |
 
 ## 8. Murallas
@@ -124,31 +126,31 @@ Resumen: **61 hecho · 13 parcial · 22 pendiente · 4 no existe** (100 líneas)
 ## 9. Torretas
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
-| 9.1 | Cuatro tipos con aspecto propio | parcial | misma base teñida y arma distinta |
+| 9.1 | Cuatro tipos con aspecto propio | hecho | arma, color y accesorio propios: caja de munición, lente, depósito o cristal |
 | 9.2 | La cabeza apunta al objetivo | hecho | |
-| 9.3 | Retroceso y fogonazo al disparar | parcial | hay retroceso; falta fogonazo |
-| 9.4 | Proyectil/efecto por tipo (bala, láser, fuego, hielo) | parcial | una línea de color por tipo |
-| 9.5 | Niveles visibles | pendiente | |
-| 9.6 | Estados: sin munición, sin energía, dañada (humo), lista (brillo) | parcial | icono de sin munición; faltan sin energía, humo de daño y brillo de lista |
+| 9.3 | Retroceso y fogonazo al disparar | hecho | retroceso, fogonazo y humo en la boca del cañón |
+| 9.4 | Proyectil/efecto por tipo (bala, láser, fuego, hielo) | hecho | bala trazadora con chispa; rayo láser que se afina; chorro de llamas; pulso de hielo con anillo y esquirlas |
+| 9.5 | Niveles visibles | hecho | un anillo de color por nivel y cañón más grande |
+| 9.6 | Estados: sin munición, sin energía, dañada (humo), lista (brillo) | hecho | sin munición o sin energía: icono y cabezal gris caído; dañada: humo negro y chispas; lista: brillo (láser, hielo) o llama piloto (fuego) |
 | 9.7 | Alcance al seleccionar | hecho |  |
 
 ## 10. Unidades
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
-| 10.1 | NPCs que se mueven | hecho | animación de andar y parado |
-| 10.2 | NPCs distintos por rol | pendiente | todos son el obrero |
-| 10.3 | Lo que lleva el NPC | pendiente | |
+| 10.1 | NPCs que se mueven | hecho | andar, esperar y trabajar (cuando está quieto con tarea) |
+| 10.2 | NPCs distintos por rol | hecho | un modelo por rol, con tinte |
+| 10.3 | Lo que lleva el NPC | hecho | caja del color del objeto que más lleva |
 | 10.4 | Cinco tipos de enemigo | hecho | un modelo por tipo; voladores elevados |
-| 10.5 | Enemigo atacando, ralentizado, ardiendo | pendiente | |
-| 10.6 | Barras de vida de enemigos y NPCs | pendiente | |
+| 10.5 | Enemigo atacando, ralentizado, ardiendo | hecho | ataca cuando lleva un rato parado; ralentizado: azulado, lento y con escarcha; ardiendo: llamas y humo. Al morir cae al suelo |
+| 10.6 | Barras de vida de enemigos y NPCs | hecho | verde, amarilla o roja según la vida; sólo si está herido |
 
 ## 11. Efectos
 | # | Función en 2D | Estado | Nota |
 |---|---|---|---|
-| 11.1 | Destello al matar un enemigo | pendiente | |
-| 11.2 | Efecto al morir un NPC y al destruirse un edificio | pendiente | |
-| 11.3 | Humo de torreta dañada | pendiente | |
-| 11.4 | Humo en fábricas y refinería, explosiones | no existe | pedido para la 3D |
+| 11.1 | Destello al matar un enemigo | hecho | destello amarillo con chispas |
+| 11.2 | Efecto al morir un NPC y al destruirse un edificio | hecho | destello rojo y caída del NPC; explosión con humo, escombros y onda al destruirse un edificio; destello rojo en el núcleo al recibir daño |
+| 11.3 | Humo de torreta dañada | hecho | cualquier edificio por debajo del 50 % de vida humea; por debajo del 25 % además chispea |
+| 11.4 | Humo en fábricas y refinería, explosiones | hecho | chimeneas de fábrica, refinería, generador y núcleo mientras están en marcha; explosiones |
 | 11.5 | Sombras | hecho | nuevo en 3D, con interruptor |
 
 ## 12. Guía de inicio y tutorial

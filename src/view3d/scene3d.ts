@@ -5,9 +5,11 @@
 import * as THREE from 'three';
 import { CONFIG } from '../game/config';
 import { Building, Enemy, Game } from '../game/game';
-import { DX, DY, Dir, BuildKind, EnemyKind, TurretKind, WallKind } from '../game/types';
+import { DX, DY, Dir, BuildKind, EnemyKind, ItemId, TurretKind, WallKind } from '../game/types';
 import { heightAt, heightAtPoint } from '../game/world';
-import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, NPC_MODEL, TURRET_GUN, allModels } from './catalog';
+import { ROLE_LOOK, TURRET_COLOR, TurretState, carried, enemyLook, npcAnim, smokeSources, turretLook, turretState } from './actors';
+import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, TURRET_GUN, allModels } from './catalog';
+import { Effects } from './effects3d';
 import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
 import { animations, instance, preload, tint } from './loader';
@@ -68,6 +70,25 @@ function shade(hex: number, f: number, dmg: number): number {
   const b = Math.round((hex & 255) * f);
   return (r << 16) | (g << 8) | b;
 }
+/** Piezas sueltas de las torretas (anillos de nivel y accesorios de cada tipo). */
+const RING_GEO = new THREE.CylinderGeometry(0.34, 0.34, 0.07, 14);
+const RING_STEP = 0.09;
+const CYL_GEO = new THREE.CylinderGeometry(0.5, 0.5, 1, 10);
+const GEM_GEO = new THREE.OctahedronGeometry(0.5, 0);
+const glowMats = new Map<number, THREE.MeshBasicMaterial>();
+/** Material que brilla solo (lentes y cristales). */
+function glowMat(color: number): THREE.MeshBasicMaterial {
+  let m = glowMats.get(color);
+  if (!m) glowMats.set(color, (m = new THREE.MeshBasicMaterial({ color })));
+  return m;
+}
+/** Tinte de la torreta que no puede disparar y del enemigo ralentizado. */
+const OFF_TINT = 0x8f94a6;
+const SLOW_TINT = 0x8fd0ff;
+const CARRY_GEO = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+/** Segundos que dura la caída de un personaje al morir y máximo de caídas a la vez. */
+const DIE_TIME = 0.9;
+const MAX_DYING = 60;
 const MAX_ITEMS = 8192;
 const MAX_MARKERS = 2048;
 /** Radio (en casillas) del agujero de transparencia y margen de profundidad (unidades de mundo) para no tramar lo que está en la propia casilla. */
@@ -97,6 +118,10 @@ interface BView {
   gun?: THREE.Object3D;
   yaw: number;
   recoil: number;
+  /** Torreta: inclinación del cañón (cae cuando no puede disparar), estado y materiales originales del cabezal. */
+  pitch: number;
+  state?: TurretState;
+  skin?: Skin;
   item?: THREE.Mesh;
   baseY: number;
   /** Altura del modelo (para elegirlo por su cuerpo). */
@@ -105,15 +130,43 @@ interface BView {
   statics?: { geo: THREE.BufferGeometry; mat: THREE.Material | THREE.Material[]; matrix: THREE.Matrix4 }[];
 }
 
+/** Mallas de un objeto con sus materiales originales (para teñirlo y devolverlo a su color). */
+interface Skin {
+  meshes: THREE.Mesh[];
+  base: (THREE.Material | THREE.Material[])[];
+  tinted: number | null;
+}
+function skinOf(obj: THREE.Object3D): Skin {
+  const meshes: THREE.Mesh[] = [];
+  obj.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.isMesh) meshes.push(m);
+  });
+  return { meshes, base: meshes.map((m) => m.material), tinted: null };
+}
+function setTint(obj: THREE.Object3D, skin: Skin, color: number | null): void {
+  if (skin.tinted === color) return;
+  skin.meshes.forEach((m, i) => (m.material = skin.base[i]));
+  skin.tinted = color;
+  if (color !== null) tint(obj, color);
+}
+
+type AnimName = 'walk' | 'idle' | 'work' | 'attack' | 'die';
 interface CView {
   group: THREE.Group;
   mixer: THREE.AnimationMixer;
-  walk: THREE.AnimationAction | null;
-  idle: THREE.AnimationAction | null;
+  acts: Record<AnimName, THREE.AnimationAction | null>;
+  anim: AnimName;
   moving: boolean;
-  tx: number;
-  tz: number;
+  /** Segundos que lleva quieto. */
+  still: number;
   yaw: number;
+  height: number;
+  skin: Skin;
+  /** Rol o tipo con el que se creó (si cambia, se rehace). */
+  key: string;
+  carry?: THREE.Mesh;
+  carryItem: ItemId | null;
 }
 
 const angleLerp = (a: number, b: number, k: number) => {
@@ -149,7 +202,13 @@ export class View3D {
   private buildings = new Map<number, BView>();
   private npcs = new Map<number, CView>();
   private enemies = new Map<number, CView>();
-  private tracers: { line: THREE.Line; life: number }[] = [];
+  private dying: { v: CView; t: number }[] = [];
+  private deadNpcs = new Set<number>();
+  private sphere = new THREE.Sphere(new THREE.Vector3(), 1.6);
+  /** Humo, disparos, explosiones y barras de vida. */
+  readonly fx = new Effects();
+  /** La partida está en pausa: personajes y partículas se congelan (lo pone la interfaz). */
+  simPaused = false;
   private hoverMesh: THREE.Group;
   private selMesh: THREE.LineSegments;
   private ghost: THREE.Group | null = null;
@@ -228,6 +287,7 @@ export class View3D {
 
     this.overlay = new Overlay(game, (b) => this.levelTop(b), (b) => this.buildings.get(b.id)?.height ?? 1);
     this.scene.add(this.overlay.group);
+    this.scene.add(this.fx.group);
 
     const c = game.core;
     this.rig.x = c.x + 1;
@@ -330,6 +390,7 @@ export class View3D {
   private signature(b: Building): string {
     let s = `${b.kind}|${b.dir}|${b.built ? 1 : 0}`;
     if (isWallKind(b.kind)) s += `|d${wallDamage(b.hp, b.maxHp)}`;
+    if (b.kind in CONFIG.turrets) s += `|L${this.game.turretLevel[b.kind as TurretKind]}`;
     if (b.kind === 'belt' || b.kind === 'belt_fast') {
       for (let d = 0; d < 4; d++) {
         const n = this.isKind(b.x + DX[d], b.y + DY[d], ['belt', 'belt_fast']);
@@ -351,7 +412,7 @@ export class View3D {
 
   private makeBuilding(b: Building, sig: string): BView {
     const group = new THREE.Group();
-    const view: BView = { group, sig, spin: [], bob: [], yaw: 0, recoil: 0, baseY: 0, height: 0 };
+    const view: BView = { group, sig, spin: [], bob: [], yaw: 0, recoil: 0, pitch: 0, baseY: 0, height: 0 };
     const kind = b.kind;
     let top = 0;
     const parts = BUILDING_PARTS[kind];
@@ -450,17 +511,40 @@ export class View3D {
       });
     }
     view.height = top;
-    // Torreta: cañón sobre un pivote que gira hacia el objetivo.
+    // Torreta: cañón sobre un pivote que gira hacia el objetivo. Cada nivel añade un anillo de su color y agranda el cañón;
+    // cada tipo lleva un accesorio propio (caja de munición, lente, depósito o cristal).
     if (kind in CONFIG.turrets) {
-      const g = TURRET_GUN[kind as TurretKind];
+      const tk = kind as TurretKind;
+      const g = TURRET_GUN[tk];
+      const look = turretLook(this.game, tk);
+      const col = TURRET_COLOR[tk];
+      const neck = top * 0.85;
+      for (let i = 0; i < look.rings; i++) {
+        const ring = new THREE.Mesh(RING_GEO, wallMat(col));
+        ring.position.y = neck + 0.035 + i * RING_STEP;
+        group.add(ring);
+      }
       const pivot = new THREE.Group();
-      pivot.position.y = top * 0.85;
-      const gun = instance(g.model, g.fit);
+      pivot.rotation.order = 'YXZ';
+      pivot.position.y = neck + look.rings * RING_STEP;
+      const gun = instance(g.model, g.fit * look.gunScale);
       gun.position.set(0, 0.05, 0.15);
       pivot.add(gun);
+      const extra = (geo: THREE.BufferGeometry, mat: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
+        const o = new THREE.Mesh(geo, mat);
+        o.scale.set(sx, sy, sz);
+        o.position.set(x, y, z);
+        pivot.add(o);
+      };
+      if (tk === 'turret_bullet') extra(BOX_GEO, wallMat(0x5d6b3a), 0.16, 0.2, 0.28, 0.2, 0.1, -0.04);
+      else if (tk === 'turret_laser') extra(HUB_GEO, glowMat(col), 0.17, 0.17, 0.17, 0, 0.24, -0.06);
+      else if (tk === 'turret_fire') extra(CYL_GEO, wallMat(0xc0392b), 0.2, 0.3, 0.2, 0, 0.12, -0.24);
+      else extra(GEM_GEO, glowMat(0xcff6ff), 0.18, 0.3, 0.18, 0, 0.3, -0.04);
       group.add(pivot);
       view.pivot = pivot;
       view.gun = gun;
+      view.skin = skinOf(pivot);
+      view.height = top + look.rings * RING_STEP + 0.25;
     }
     group.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -605,70 +689,107 @@ export class View3D {
 
   private aimTurret(b: Building, v: BView, dt: number): void {
     const kind = b.kind as TurretKind;
-    const range = this.game.turretRange(kind);
-    let best: Enemy | null = null;
-    let bd = range;
+    const pivot = v.pivot!;
+    if (!b.built) {
+      pivot.rotation.set(0, v.yaw, 0);
+      return;
+    }
+    const state = turretState(this.game, b);
+    const ready = state === 'ready';
+    if (v.state !== state) {
+      // Sin munición o sin energía: cabezal apagado (gris) y caído.
+      v.state = state;
+      if (v.skin) setTint(pivot, v.skin, ready ? null : OFF_TINT);
+    }
     const cx = b.x + 0.5;
     const cy = b.y + 0.5;
-    for (const e of this.game.enemies) {
-      if (e.hp <= 0) continue;
-      const d = Math.hypot(e.x - cx, e.y - cy);
-      if (d < bd) {
-        bd = d;
-        best = e;
+    if (ready) {
+      const range = this.game.turretRange(kind);
+      let best: Enemy | null = null;
+      let bd = range;
+      for (const e of this.game.enemies) {
+        if (e.hp <= 0) continue;
+        const d = Math.hypot(e.x - cx, e.y - cy);
+        if (d < bd) {
+          bd = d;
+          best = e;
+        }
       }
+      if (best) v.yaw = angleLerp(v.yaw, Math.atan2(best.x - cx, best.y - cy), 1 - Math.exp(-dt * 12));
+      else v.yaw += dt * 0.25;
     }
-    if (best) v.yaw = angleLerp(v.yaw, Math.atan2(best.x - cx, best.y - cy), 1 - Math.exp(-dt * 12));
-    else v.yaw += dt * 0.25;
-    v.pivot!.rotation.y = v.yaw;
+    v.pitch += ((ready ? 0 : 0.5) - v.pitch) * (1 - Math.exp(-dt * 5));
+    pivot.rotation.set(v.pitch, v.yaw, 0);
     v.recoil = Math.max(0, v.recoil - dt * 4);
     v.gun!.position.z = 0.15 - v.recoil * 0.12;
+    if (!ready) return;
+    // Lista para disparar: brillo en la boca (láser y hielo) o llama piloto (fuego).
+    const mx = cx + Math.sin(v.yaw) * 0.42;
+    const mz = cy + Math.cos(v.yaw) * 0.42;
+    const my = v.group.position.y + pivot.position.y + 0.12;
+    if (kind === 'turret_laser') this.fx.glow(mx, my, mz, 0.13 + 0.04 * Math.sin(this.time * 5 + b.id), TURRET_COLOR[kind]);
+    else if (kind === 'turret_frost') this.fx.glow(mx, my, mz, 0.15 + 0.04 * Math.sin(this.time * 3 + b.id), TURRET_COLOR[kind]);
+    else if (kind === 'turret_fire' && Math.random() < dt * 14) this.fx.flame(mx, my - 0.03, mz, 0.07);
   }
 
   // ---------- personajes ----------
-  private makeChar(model: string, scale: number): CView {
+  private makeChar(model: string, scale: number, key: string, tintColor: number | null = null): CView {
     const group = instance(model, undefined, scale);
-    group.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh) m.castShadow = true;
-    });
-    const root = group.children[0];
-    const mixer = new THREE.AnimationMixer(root);
+    if (tintColor !== null) tint(group, tintColor);
+    const skin = skinOf(group);
+    for (const m of skin.meshes) m.castShadow = true;
+    const height = new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3()).y;
+    const mixer = new THREE.AnimationMixer(group.children[0]);
     const clips = animations(model);
-    const find = (n: string) => clips.find((c) => c.name === n);
-    const w = find('walk');
-    const i = find('idle');
-    const walk = w ? mixer.clipAction(w) : null;
-    const idle = i ? mixer.clipAction(i) : null;
-    (idle ?? walk)?.play();
-    return { group, mixer, walk, idle, moving: false, tx: 0, tz: 0, yaw: 0 };
+    const act = (n: string) => {
+      const c = clips.find((cl) => cl.name === n);
+      return c ? mixer.clipAction(c) : null;
+    };
+    const acts = { walk: act('walk'), idle: act('idle'), work: act('interact-right'), attack: act('attack-melee-right'), die: act('die') };
+    (acts.idle ?? acts.walk)?.play();
+    return { group, mixer, acts, anim: 'idle', moving: false, still: 0, yaw: 0, height, skin, key, carryItem: null };
   }
 
-  private moveChar(v: CView, x: number, z: number, y: number, dt: number, sprint = false): void {
-    const sphere = new THREE.Sphere(new THREE.Vector3(x, y + 0.5, z), 1.6);
-    const visible = !this.opts.cull || this.frustum.intersectsSphere(sphere);
+  /** Cambia de animación con un fundido corto. */
+  private setAnim(v: CView, name: AnimName): void {
+    if (v.anim === name) return;
+    const on = v.acts[name] ?? v.acts.idle;
+    const off = v.acts[v.anim] ?? v.acts.idle;
+    v.anim = name;
+    if (off && off !== on) off.fadeOut(0.15);
+    if (!on) return;
+    on.reset().fadeIn(0.15).play();
+    if (name === 'die') {
+      on.setLoop(THREE.LoopOnce, 1);
+      on.clampWhenFinished = true;
+    }
+  }
+
+  /** Coloca y orienta un personaje. Devuelve false si queda fuera de cámara (entonces no se anima). */
+  private placeChar(v: CView, x: number, z: number, y: number, dt: number): boolean {
+    this.sphere.center.set(x, y + 0.5, z);
+    const visible = !this.opts.cull || this.frustum.intersectsSphere(this.sphere);
     v.group.visible = visible;
     if (!visible) {
-      // Fuera de cámara: sólo se coloca (sin animar ni girar).
       v.group.position.set(x, y, z);
       this.stats.charsSkipped++;
-      return;
+      return false;
     }
-    const dx = x - v.group.position.x;
-    const dz = z - v.group.position.z;
-    const moving = Math.hypot(dx, dz) > dt * 0.4 && v.group.position.lengthSq() > 0;
-    if (moving) v.yaw = angleLerp(v.yaw, Math.atan2(dx, dz), 1 - Math.exp(-dt * 10));
+    if (dt > 0) {
+      const dx = x - v.group.position.x;
+      const dz = z - v.group.position.z;
+      const moving = Math.hypot(dx, dz) > dt * 0.08 && v.group.position.lengthSq() > 0;
+      if (moving) v.yaw = angleLerp(v.yaw, Math.atan2(dx, dz), 1 - Math.exp(-dt * 10));
+      v.moving = moving;
+      v.still = moving ? 0 : v.still + dt;
+    }
     v.group.rotation.y = v.yaw;
     v.group.position.set(x, y, z);
-    if (moving !== v.moving) {
-      v.moving = moving;
-      const on = moving ? v.walk : v.idle;
-      const off = moving ? v.idle : v.walk;
-      if (on) on.reset().fadeIn(0.15).play();
-      if (off) off.fadeOut(0.15);
-    }
-    if (v.walk && moving) v.walk.timeScale = sprint ? 1.4 : 1;
-    // Con muchos personajes a la vista la animación se actualiza a la mitad de frecuencia.
+    return true;
+  }
+
+  /** Avanza la animación; con muchos personajes a la vista se actualiza a la mitad de frecuencia. */
+  private tickChar(v: CView, dt: number): void {
     if (!this.opts.cull || this.inView < 150 || (this.frameNo + v.group.id) % 2 === 0) {
       v.mixer.update(this.opts.cull && this.inView >= 150 ? dt * 2 : dt);
       this.stats.charsAnimated++;
@@ -676,23 +797,66 @@ export class View3D {
     this.inViewNext++;
   }
 
+  /** Enseña lo que lleva el NPC: una caja del color del objeto, delante del pecho. */
+  private syncCarry(v: CView, item: ItemId | null): void {
+    if (v.carryItem === item) return;
+    v.carryItem = item;
+    if (!item) {
+      if (v.carry) v.carry.visible = false;
+      return;
+    }
+    if (!v.carry) {
+      v.carry = new THREE.Mesh(CARRY_GEO, new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 }));
+      v.carry.position.set(0, v.height * 0.5, v.height * 0.28);
+      v.carry.castShadow = true;
+      v.group.add(v.carry);
+    }
+    v.carry.visible = true;
+    (v.carry.material as THREE.MeshStandardMaterial).color.setHex(ITEM_COLOR[item] ?? 0xd8c8a0);
+  }
+
+  /** Retira un personaje: si ha muerto a la vista, cae al suelo antes de desaparecer. */
+  private dropChar(v: CView, died: boolean): void {
+    if (died && v.group.visible && v.acts.die && this.dying.length < MAX_DYING) {
+      if (v.carry) v.carry.visible = false;
+      setTint(v.group, v.skin, null);
+      this.setAnim(v, 'die');
+      this.dying.push({ v, t: DIE_TIME });
+    } else this.scene.remove(v.group);
+  }
+
   private syncChars(dt: number): void {
     const w = this.game.world;
+    const fx = this.fx;
     const seenN = new Set<number>();
     for (const n of this.game.npcs) {
       seenN.add(n.id);
+      const look = ROLE_LOOK[n.role];
       let v = this.npcs.get(n.id);
+      if (v && v.key !== n.role) {
+        this.scene.remove(v.group);
+        v = undefined;
+      }
       if (!v) {
-        v = this.makeChar(NPC_MODEL, 0.9 * CHAR_SCALE);
+        v = this.makeChar(look.model, look.scale * CHAR_SCALE, n.role, look.tint);
         v.group.position.set(n.x, 0, n.y);
         this.npcs.set(n.id, v);
         this.scene.add(v.group);
       }
       const ny = heightAtPoint(w, n.x, n.y) * LEVEL_H;
-      this.moveChar(v, n.x, n.y, ny, dt);
+      if (this.placeChar(v, n.x, n.y, ny, dt)) {
+        this.setAnim(v, npcAnim(n, v.moving, v.still));
+        this.syncCarry(v, carried(n));
+        this.tickChar(v, dt);
+        if (n.hp < n.maxHp) fx.bar(n.x, ny + v.height + 0.22, n.y, n.hp / n.maxHp, 0.5);
+      }
       this.mark(n.x, ny, n.y, NPC_MARK);
     }
-    for (const [id, v] of this.npcs) if (!seenN.has(id)) (this.scene.remove(v.group), this.npcs.delete(id));
+    for (const [id, v] of this.npcs) {
+      if (seenN.has(id)) continue;
+      this.npcs.delete(id);
+      this.dropChar(v, this.deadNpcs.has(id));
+    }
     const seenE = new Set<number>();
     // Presupuesto de personajes animados (esqueleto): los más cercanos al centro de la cámara. El resto se dibuja
     // como malla instanciada en su pose base (sin esqueleto), que cuesta unas pocas llamadas en total.
@@ -705,29 +869,67 @@ export class View3D {
       animated = [...alive].sort((a, b) => (a.x - rx) ** 2 + (a.y - rz) ** 2 - ((b.x - rx) ** 2 + (b.y - rz) ** 2)).slice(0, budget);
     }
     const anim = new Set(animated);
+    const aliveIds = new Set<number>();
     for (const lod of this.lod.values()) for (const im of lod.meshes) im.count = 0;
     this.stats.lodChars = 0;
     for (const en of alive) {
+      aliveIds.add(en.id);
       const def = ENEMY_MODEL[en.kind];
       const y = heightAtPoint(w, en.x, en.y) * LEVEL_H + def.lift;
+      let visible = false;
+      let tall = 0.9;
       if (anim.has(en)) {
         seenE.add(en.id);
         let v = this.enemies.get(en.id);
         if (!v) {
-          v = this.makeChar(def.model, def.scale * CHAR_SCALE);
+          v = this.makeChar(def.model, def.scale * CHAR_SCALE, en.kind);
           v.group.position.set(en.x, 0, en.y);
           this.enemies.set(en.id, v);
           this.scene.add(v.group);
         }
-        this.moveChar(v, en.x, en.y, y, dt, en.kind === 'runner');
-        this.mark(en.x, y, en.y, ENEMY_MARK);
-      } else if (this.frustum.intersectsSphere(new THREE.Sphere(new THREE.Vector3(en.x, y + 0.5, en.y), 1.6))) {
-        this.drawLod(en.kind, en.x, y, en.y, en.id);
-        this.mark(en.x, y, en.y, ENEMY_MARK);
+        visible = this.placeChar(v, en.x, en.y, y, dt);
+        tall = v.height;
+        if (visible) {
+          // Estados: atacando (parado ante un obstáculo), ralentizado (azulado y lento) y ardiendo (llamas, más abajo).
+          const look = enemyLook(en, v.moving, v.still);
+          this.setAnim(v, look.anim);
+          if (v.acts.walk) v.acts.walk.timeScale = look.pace;
+          setTint(v.group, v.skin, look.slowed ? SLOW_TINT : null);
+          this.tickChar(v, dt);
+        }
+      } else {
+        this.sphere.center.set(en.x, y + 0.5, en.y);
+        visible = this.frustum.intersectsSphere(this.sphere);
+        if (visible) this.drawLod(en.kind, en.x, y, en.y, en.id);
+      }
+      if (!visible) continue;
+      this.mark(en.x, y, en.y, ENEMY_MARK);
+      if (en.hp < en.maxHp) fx.bar(en.x, y + tall + 0.2, en.y, en.hp / en.maxHp, en.kind === 'tank' ? 0.8 : 0.5);
+      if (dt <= 0) continue;
+      if (en.burnTimer > 0 && Math.random() < dt * 14) {
+        fx.flame(en.x, y + tall * (0.3 + Math.random() * 0.5), en.y, 0.3);
+        if (Math.random() < 0.25) fx.smoke(en.x, y + tall, en.y, 0x3a3a40, 0.1);
+      }
+      if (en.slowTimer > 0 && Math.random() < dt * 4) {
+        fx.pool.spawn({ kind: 0, x: en.x + (Math.random() - 0.5) * 0.4, y: y + tall * 0.8, z: en.y + (Math.random() - 0.5) * 0.4, vy: -0.5, max: 0.6, s0: 0.07, s1: 0.03, color: 0xe8fbff });
       }
     }
     for (const lod of this.lod.values()) for (const im of lod.meshes) im.instanceMatrix.needsUpdate = true;
-    for (const [id, v] of this.enemies) if (!seenE.has(id)) (this.scene.remove(v.group), this.enemies.delete(id));
+    for (const [id, v] of this.enemies) {
+      if (seenE.has(id)) continue;
+      this.enemies.delete(id);
+      // Si sigue vivo es que ha salido del presupuesto de animados (pasa a instancia), no que haya muerto.
+      this.dropChar(v, !aliveIds.has(id));
+    }
+    // Caídas en curso.
+    this.dying = this.dying.filter((d) => {
+      d.t -= dt;
+      d.v.mixer.update(dt);
+      if (d.t < 0.25) d.v.group.scale.setScalar(Math.max(0.01, d.t / 0.25));
+      if (d.t > 0) return true;
+      this.scene.remove(d.v.group);
+      return false;
+    });
   }
 
   /** Dibuja un enemigo lejano como instancia estática (pose base, giro según su id). */
@@ -765,34 +967,69 @@ export class View3D {
 
   // ---------- eventos, resaltado y fantasma ----------
   private handleEvents(): void {
+    const w = this.game.world;
+    const fx = this.fx;
+    const ground = (x: number, y: number) => heightAtPoint(w, x, y) * LEVEL_H;
+    this.deadNpcs.clear();
     for (const ev of this.game.drainEvents()) {
-      if (ev.type === 'npcDied') this.onMessage('¡Un NPC ha muerto!');
-      else if (ev.type === 'npcArrived') this.onMessage('Ha llegado una persona nueva a la colonia');
+      if (ev.type === 'npcDied') {
+        this.onMessage('¡Un NPC ha muerto!');
+        this.deadNpcs.add(ev.id);
+        fx.pop(ev.x, ground(ev.x, ev.y) + 0.6, ev.y, 0xff5555, 0.7);
+      } else if (ev.type === 'npcArrived') this.onMessage('Ha llegado una persona nueva a la colonia');
       else if (ev.type === 'npcLeft') this.onMessage('Alguien se ha marchado por el hambre');
       else if (ev.type === 'wave') this.onMessage(`¡Oleada ${ev.wave}!`);
       else if (ev.type === 'researched') this.onMessage('Investigación completada');
+      else if (ev.type === 'kill') fx.pop(ev.x, ground(ev.x, ev.y) + 0.6, ev.y, 0xffd166, 0.6);
+      else if (ev.type === 'destroyed') fx.explosion(ev.x + 0.5, ground(ev.x + 0.5, ev.y + 0.5), ev.y + 0.5, 1);
+      else if (ev.type === 'coreHit') {
+        const c = this.game.core;
+        const h = this.buildings.get(c.id)?.height ?? 1.5;
+        fx.pop(c.x + c.w / 2, this.levelTop(c) + h * 0.6, c.y + c.d / 2, 0xff4040, 1.1);
+      }
       if (ev.type !== 'shot') continue;
       const v = this.buildings.get(ev.towerId);
+      const yaw = Math.atan2(ev.toX - ev.fromX, ev.toY - ev.fromY);
       if (v) {
         v.recoil = 1;
-        v.yaw = Math.atan2(ev.toX - ev.fromX, ev.toY - ev.fromY);
+        v.yaw = yaw;
       }
-      const y0 = heightAtPoint(this.game.world, ev.fromX, ev.fromY) * LEVEL_H + 0.9;
-      const col = ev.kind === 'turret_laser' ? 0x60d0ff : ev.kind === 'turret_fire' ? 0xff8030 : ev.kind === 'turret_frost' ? 0xb0f0ff : 0xffe070;
-      const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ev.fromX, y0, ev.fromY), new THREE.Vector3(ev.toX, y0 - 0.3, ev.toY)]);
-      const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, transparent: true }));
-      this.scene.add(line);
-      this.tracers.push({ line, life: 0.14 });
+      // Sale de la boca del cañón y llega a media altura del objetivo (más arriba si vuela).
+      const y0 = v?.pivot ? v.group.position.y + v.pivot.position.y + 0.12 : ground(ev.fromX, ev.fromY) + 0.9;
+      let lift = 0;
+      for (const en of this.game.enemies) {
+        if (Math.abs(en.x - ev.toX) < 0.05 && Math.abs(en.y - ev.toY) < 0.05) {
+          lift = ENEMY_MODEL[en.kind].lift;
+          break;
+        }
+      }
+      const from = new THREE.Vector3(ev.fromX + Math.sin(yaw) * 0.42, y0, ev.fromY + Math.cos(yaw) * 0.42);
+      const to = new THREE.Vector3(ev.toX, ground(ev.toX, ev.toY) + lift + 0.5, ev.toY);
+      fx.shot(ev.kind, from, to, CONFIG.turrets[ev.kind].area);
     }
-    this.tracers = this.tracers.filter((t) => {
-      t.life -= 1 / 60;
-      if (t.life <= 0) {
-        this.scene.remove(t.line);
-        t.line.geometry.dispose();
-        return false;
+  }
+
+  /** Humo de chimeneas y de edificios dañados, y barras de vida de los edificios tocados. */
+  private syncBuildingFx(dt: number): void {
+    for (const b of this.game.buildings.values()) {
+      if (!b.built) continue;
+      const hurt = b.hp < b.maxHp && !isWallKind(b.kind);
+      const src = smokeSources(b);
+      if (!hurt && !src.length) continue;
+      const cx = b.x + b.w / 2;
+      const cz = b.y + b.d / 2;
+      const base = this.levelTop(b);
+      this.sphere.center.set(cx, base + 1, cz);
+      if (!this.frustum.intersectsSphere(this.sphere)) continue;
+      const h = this.buildings.get(b.id)?.height ?? 1;
+      if (hurt) this.fx.bar(cx, base + h + 0.82, cz, b.hp / b.maxHp, 0.5 + 0.2 * b.w, 0xff9f43);
+      if (dt <= 0) continue;
+      for (const s of src) {
+        if (Math.random() >= s.rate * dt) continue;
+        this.fx.smoke(cx + s.dx, base + (s.fromTop ? h : h * 0.6), cz + s.dz, s.color, s.size);
+        if (s.sparks && Math.random() < 0.6) this.fx.flame(cx, base + h * 0.5, cz, 0.18);
       }
-      return true;
-    });
+    }
   }
 
   /** Coloca los agujeros de transparencia: A = casilla bajo el cursor, B = edificio seleccionado. */
@@ -940,11 +1177,16 @@ export class View3D {
     this.stats.charsSkipped = 0;
     this.inView = this.inViewNext;
     this.inViewNext = 0;
-    this.syncBuildings(dt);
-    this.syncChars(dt);
+    // Con la partida en pausa, personajes y partículas se quedan quietos.
+    const sdt = this.simPaused ? 0 : dt;
+    this.fx.begin(this.camera);
     this.handleEvents();
+    this.syncBuildings(dt);
+    this.syncChars(sdt);
+    this.syncBuildingFx(sdt);
     this.updateHighlights();
     this.overlay.update({ selectedId: this.selectedId, hoverBuildingId: this.hoverBuildingId, tool: this.buildKind, dir: this.buildDir, hover: this.hover, time: this.time, dt });
+    this.fx.update(sdt, this.camera);
     this.updateHoles();
     this.markers.count = this.markerN;
     this.markers.instanceMatrix.needsUpdate = true;
