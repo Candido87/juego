@@ -46,6 +46,8 @@ export interface Building {
   /** Cinta: objeto transportado. */
   item: ItemId | null;
   beltProgress: number;
+  /** Cinta: de qué lado entró el último objeto (para alternar turno en los empalmes). */
+  lastFrom?: Dir;
   /** Taladro: tiempo acumulado. Torreta: enfriamiento. */
   timer: number;
   /** Entradas / munición / combustible. */
@@ -1170,6 +1172,16 @@ export class Game {
   }
 
   /** Intenta meter un objeto en (x,y) viniendo en dirección `dir`. */
+  /** ¿Hay otra cinta, que no viene en el sentido `dir`, con un objeto listo para entrar en `b`? */
+  private otherFeederWaiting(b: Building, dir: Dir): boolean {
+    for (let k = 0; k < 4; k++) {
+      const n = this.buildingAt(b.x + DX[k], b.y + DY[k]);
+      if (!n || !n.built || (n.kind !== 'belt' && n.kind !== 'belt_fast') || n.dir !== opposite(k as Dir) || n.dir === dir) continue;
+      if (n.item !== null && n.beltProgress >= 1) return true;
+    }
+    return false;
+  }
+
   pushItem(x: number, y: number, item: ItemId, dir: Dir, src?: Building): boolean {
     const b = this.buildingAt(x, y);
     if (!b || !b.built) return false;
@@ -1199,8 +1211,12 @@ export class Game {
     }
     if (belt) {
       if (b.item !== null || b.dir === opposite(dir)) return false;
+      const fromBelt = !!src && (src.kind === 'belt' || src.kind === 'belt_fast');
+      // Empalme: si otra cinta también espera para entrar aquí, se alterna el turno (si no, la que se procesa antes dejaría sin servicio a la otra).
+      if (fromBelt && b.lastFrom === dir && this.otherFeederWaiting(b, dir)) return false;
       b.item = item;
       b.beltProgress = 0;
+      if (fromBelt) b.lastFrom = dir;
       return true;
     }
     if (this.room(b, item) > 0) {

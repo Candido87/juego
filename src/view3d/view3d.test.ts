@@ -904,3 +904,24 @@ describe('cintas: textura de dirección animada', () => {
     expect([flow.stats.full, flow.stats.half]).toEqual([2, 0]);
   });
 });
+
+describe('cintas: curvas a izquierda y a derecha con auto-tile', () => {
+  it('con una entrada lateral sale una curva con los lados abiertos correctos, para las cuatro direcciones y los dos sentidos de giro', async () => {
+    const { beltPiece, BELT_MODELS, dirsOf, maskOf } = await import('./pieces');
+    for (const dir of [0, 1, 2, 3] as const) {
+      for (const side of [1, 3]) {
+        const incoming = (dir + side) % 4; // la vecina está a la derecha (1) o a la izquierda (3) del sentido de la marcha
+        const p = beltPiece(dir, [incoming]);
+        expect(p.piece, `dir ${dir} desde ${incoming}`).toBe('corner');
+        // Girada k cuartos de vuelta, la pieza abre exactamente la salida y la entrada.
+        const open = BELT_MODELS.corner.open.map((d) => (((d - p.k) % 4) + 4) % 4);
+        expect(maskOf(open)).toBe(maskOf([dir, incoming]));
+        expect(dirsOf(maskOf(open)).sort()).toEqual([dir, incoming].sort());
+      }
+    }
+    // Dibujar una cinta recta y luego otra que le entra de lado convierte la primera en curva (se elige sola).
+    expect(beltPiece(0, []).piece).toBe('straight');
+    expect(beltPiece(0, [1]).piece).toBe('corner');
+    expect(beltPiece(0, [3]).piece).toBe('corner');
+  });
+});
