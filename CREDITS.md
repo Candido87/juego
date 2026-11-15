@@ -40,3 +40,5 @@ Copiados a `public/assets/3d/<pack>/` (cada carpeta con su `License.txt`):
 - **Space Kit** — https://kenney.nl/assets/space-kit — `public/assets/3d/space/` (naves de los enemigos aéreos).
 
 - **UI Pack Sci-Fi** — Kenney (https://kenney.nl/assets/ui-pack-sci-fi), CC0: paneles, botones, barras, cursores y tipografías (`public/assets/ui-pack/`, y `public/assets/ui-pack/ds/` de la fase A1). El `License.txt` original de este pack se perdió al mezclar carpetas en `assets-juego/`; Kenney publica todos sus packs como CC0. El pack **UI RPG extension** (2014, también CC0) está en la carpeta de origen pero no se usa.
+
+- **Factory Kit 3.0** — Kenney (https://kenney.nl/assets/factory-kit), CC0: cintas (`conveyor*`), tuberías, tolvas, brazos y detalles de `public/assets/3d/factory/`.

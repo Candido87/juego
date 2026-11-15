@@ -170,3 +170,11 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] ESC-4. Registro de aspectos `src/view3d/aspectos.ts` (factor `f` y estiramiento `sy` por modelo: edificios, personas, enemigos, árboles y muros, generado por `tools/calcular-aspectos.cjs` desde `docs/escala/medidas-base.json` y `CONFIG.scale.targets`), árboles con transparencia por tramado cuando tapan, brazo de la fábrica más bajo; 9 tests en `aspectos.test.ts`.
 - [x] ESC-5. Revisión final: galería con las cajas objetivo (todos los modelos dentro de su caja), informe final `docs/escala/informe.md`, escenas del juego a cuatro zoom (`docs/escala/juego-*.png`). **Hecho; el hito ESC-6 (detalles de encaje) queda pendiente.**
 - [ ] ESC-6. Detalles de encaje (conectores físicos en puertos, luz de estado, conos y marcas de suelo, flechas, adornos animados opcionales) según la referencia del Factory Kit; ver SPEC.md.
+
+## Cintas con el aspecto del Factory Kit (reglas en SPEC.md; sólo capa visual)
+- [x] CIN-K0. Inventario: galería `/galeria-cintas.html` con las 36 piezas `conveyor*`, nombre y medidas (`docs/cintas/medidas-kit.json`, capturas `docs/cintas/kit-*.png`) y tabla de mapeo en SPEC.md.
+- [x] CIN-K1. Escala y registro: `CINTA_PIEZAS`/`escalaPieza` en `aspectos.ts`; la cinta usa `conveyor-sides` (normal) y `conveyor-stripe-sides` (rápida) a 0,65 × 0,18 con 1 de largo, sobre la altura de su casilla; galería con la sección "a escala" (cinta recta, curvas, T, cruce, cuestas, objetos, persona, árbol y casa). **Parado: esperando visto bueno de las capturas.**
+- [ ] CIN-K2. Encaje automático (extremos, conectores en puertos, previsualización translúcida).
+- [ ] CIN-K3. Cuestas con las piezas del kit y ascensor compuesto.
+- [ ] CIN-K4. Dirección, estado y objetos en curvas y cuestas.
+- [ ] CIN-K5. Galería completa, tests geométricos y rendimiento.

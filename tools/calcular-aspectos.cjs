@@ -39,23 +39,17 @@ for (const r of rows) {
   out[r.key] = { f: r2(f), ...(sy !== 1 ? { sy: r2(sy) } : {}) };
 }
 const lines = Object.entries(out).map(([k, v]) => `  ${k}: { f: ${v.f}${v.sy ? `, sy: ${v.sy}` : ''} },`);
-const body = `/**
- * Registro de aspectos: el factor de escala de cada modelo, en un único sitio (no repartido por el código).
- * \`f\` multiplica el modelo entero (uniforme); \`sy\` lo estira en vertical para llegar a la altura objetivo cuando el ancho de la
- * huella ya no deja crecer más. Las claves son el tipo de edificio, \`npc_<rol>\`, \`enemy_<tipo>\` y el nombre del modelo de árbol.
- * Los valores salen de \`node tools/calcular-aspectos.cjs --write\` (medidas sin escalar de \`docs/escala/medidas-base.json\` y los
- * objetivos de \`CONFIG.scale.targets\`); se pueden retocar a mano. Cintas, tuberías, postes y torretas no entran: se construyen ya a medida.
- */
-export const ASPECTOS: Record<string, { f: number; sy?: number }> = {
-${lines.join('\n')}
-};
-
-/** Factor uniforme de un modelo (1 si no está registrado). */
-export const aspectF = (key: string): number => ASPECTOS[key]?.f ?? 1;
-/** Estiramiento vertical adicional de un modelo (1 si no hay). */
-export const aspectSy = (key: string): number => ASPECTOS[key]?.sy ?? 1;
-`;
-if (process.argv.includes('--write')) fs.writeFileSync('src/view3d/aspectos.ts', body);
+if (process.argv.includes('--write')) {
+  // Sólo se reescribe el bloque generado de aspectos.ts (entre los marcadores); el resto del archivo es manual.
+  const p = 'src/view3d/aspectos.ts';
+  const cur = fs.readFileSync(p, 'utf8');
+  const gen = ['export const ASPECTOS: Record<string, { f: number; sy?: number }> = {', ...lines, '};'].join('\n');
+  const open = '// <generado>';
+  const close = '// </generado>';
+  const a = cur.indexOf(open);
+  const b = cur.indexOf(close);
+  fs.writeFileSync(p, cur.slice(0, a) + open + '\n' + gen + '\n' + cur.slice(b));
+}
 for (const [k, v] of Object.entries(out)) {
   const r = rows.find((x) => x.key === k);
   console.log(k.padEnd(16), JSON.stringify(v).padEnd(22), 'ancho', r2(Math.max(r.w, r.d) * v.f), 'alto', r2(r.h * v.f * (v.sy ?? 1)), 'obj', targets[k].h);

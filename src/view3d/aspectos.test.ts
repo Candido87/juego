@@ -86,3 +86,21 @@ describe('Registro de aspectos · escala de edificios, personas, enemigos y árb
     for (const r of base.filter((x) => x.cat === 'objeto')) expect(Math.min(r.w, r.d)).toBeLessThanOrEqual(S.beltLane);
   });
 });
+
+describe('Registro de aspectos · piezas de cinta del Factory Kit', () => {
+  it('cada pieza registrada existe en public/assets/3d y su escala da el ancho y el alto de la tabla', async () => {
+    const { CINTA_PIEZAS, CINTA_NATIVO, escalaPieza } = await import('./aspectos');
+    const { existsSync } = await import('node:fs');
+    for (const set of Object.values(CINTA_PIEZAS)) {
+      for (const model of Object.values(set)) {
+        expect(existsSync(resolve(__dirname, '../../public/assets/3d', `${model}.glb`)), model).toBe(true);
+        const [sx, sy, sz] = escalaPieza(model, S.beltWidth, S.beltHeight);
+        const n = CINTA_NATIVO[model];
+        expect(sx).toBe(1);
+        expect(n[0] * sx).toBe(1); // 1 casilla de largo: encaja con las vecinas
+        expect(n[1] * sy).toBeCloseTo(S.beltHeight, 6);
+        expect(n[2] * sz).toBeCloseTo(S.beltWidth, 6);
+      }
+    }
+  });
+});

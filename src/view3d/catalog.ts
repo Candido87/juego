@@ -4,6 +4,7 @@
  */
 import type { BuildingKind, EnemyKind, TurretKind } from '../game/types';
 import { ROLE_LOOK } from './actors';
+import { CINTA_PIEZAS } from './aspectos';
 import { BELT_MODELS } from './pieces';
 
 /** Ruta relativa a `public/assets/3d/` sin extensión: `pack/modelo`. */
@@ -40,8 +41,8 @@ export interface Part {
 export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
   core: [{ model: 'industrial/building-h', fit: 1.8 }, { model: 'industrial/chimney-large', fit: 0.5, dx: 0.55, dz: -0.55 }],
   drill: [{ model: 'factory/machine-connection-hole', fit: 0.85 }, { model: 'factory/piston-round', fit: 0.4, stack: true, bob: true }],
-  belt: [{ model: 'factory/conveyor', fit: 1 }],
-  belt_fast: [{ model: 'factory/conveyor-stripe', fit: 1 }],
+  belt: [{ model: 'factory/conveyor-sides', fit: 1 }],
+  belt_fast: [{ model: 'factory/conveyor-stripe-sides', fit: 1 }],
   pipeline: [{ model: 'factory/pipe-large', fit: 1 }],
   storage: [{ model: 'industrial/shipping-container-a', fit: 0.95 }],
   factory: [{ model: 'factory/machine', fit: 0.9 }, { model: 'factory/robot-arm-a', fit: 0.34, stack: true }],
@@ -123,6 +124,7 @@ export function allModels(): ModelId[] {
   s.add(TERRAIN.oreRock);
   for (const m of [...TERRAIN.trees, ...TERRAIN.rocks, ...TERRAIN.small, ...TERRAIN.camp]) s.add(m);
   for (const p of Object.values(BELT_MODELS)) s.add(p.model);
+  for (const set of Object.values(CINTA_PIEZAS)) for (const m of Object.values(set)) s.add(m);
   for (const m of ['factory/pipe-large', 'factory/structure-short', 'factory/structure-medium', 'factory/structure-tall', 'factory/box-small', 'weapons/bullet-foam', 'factory/arrow']) s.add(m);
   return [...s];
 }

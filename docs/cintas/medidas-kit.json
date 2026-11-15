@@ -1,0 +1,762 @@
+[
+ {
+  "group": "rectas",
+  "name": "conveyor",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "rectas",
+  "name": "conveyor-sides",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "rectas",
+  "name": "conveyor-stripe",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "rectas",
+  "name": "conveyor-stripe-sides",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "rectas",
+  "name": "conveyor-bars",
+  "size": [
+   1,
+   0.25,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.25,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "rectas",
+  "name": "conveyor-bars-sides",
+  "size": [
+   1,
+   0.3,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.3,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "rectas",
+  "name": "conveyor-bars-stripe",
+  "size": [
+   1,
+   0.25,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.25,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "rectas",
+  "name": "conveyor-bars-stripe-side",
+  "size": [
+   1,
+   0.3,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.3,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "largas",
+  "name": "conveyor-long",
+  "size": [
+   2,
+   0.4,
+   1
+  ],
+  "min": [
+   -1,
+   0,
+   -0.5
+  ],
+  "max": [
+   1,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "largas",
+  "name": "conveyor-long-sides",
+  "size": [
+   2,
+   0.4,
+   1
+  ],
+  "min": [
+   -1,
+   0,
+   -0.5
+  ],
+  "max": [
+   1,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "largas",
+  "name": "conveyor-long-stripe",
+  "size": [
+   2,
+   0.4,
+   1
+  ],
+  "min": [
+   -1,
+   0,
+   -0.5
+  ],
+  "max": [
+   1,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "largas",
+  "name": "conveyor-long-stripe-sides",
+  "size": [
+   2,
+   0.4,
+   1
+  ],
+  "min": [
+   -1,
+   0,
+   -0.5
+  ],
+  "max": [
+   1,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "tramos",
+  "name": "conveyor-stripe-part-end",
+  "size": [
+   0.5,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.25,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.25,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "tramos",
+  "name": "conveyor-stripe-part-middle",
+  "size": [
+   0.5,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.25,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.25,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "tramos",
+  "name": "conveyor-long-part-end",
+  "size": [
+   0.5,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.25,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.25,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "tramos",
+  "name": "conveyor-long-part-middle",
+  "size": [
+   0.5,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.25,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.25,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "tramos",
+  "name": "conveyor-long-sides-part-end",
+  "size": [
+   0.5,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.25,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.25,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "tramos",
+  "name": "conveyor-long-sides-part-middle",
+  "size": [
+   0.5,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.25,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.25,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "tramos",
+  "name": "conveyor-long-stripe-sides-part-end",
+  "size": [
+   0.5,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.25,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.25,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "tramos",
+  "name": "conveyor-long-stripe-sides-part-middle",
+  "size": [
+   0.5,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.25,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.25,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "curvas",
+  "name": "conveyor-corner",
+  "size": [
+   1,
+   0.45,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.45,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "curvas",
+  "name": "conveyor-stripe-corner",
+  "size": [
+   1,
+   0.45,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.45,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "empalmes",
+  "name": "conveyor-junction-t",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "empalmes",
+  "name": "conveyor-sides-junction-t",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "empalmes",
+  "name": "conveyor-stripe-junction-t",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "empalmes",
+  "name": "conveyor-stripe-sides-junction-t",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "cruces",
+  "name": "conveyor-cross",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "cruces",
+  "name": "conveyor-sides-cross",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "cruces",
+  "name": "conveyor-stripe-cross",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "cruces",
+  "name": "conveyor-stripe-sides-cross",
+  "size": [
+   1,
+   0.4,
+   1
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.5
+  ],
+  "max": [
+   0.5,
+   0.4,
+   0.5
+  ],
+  "axis": "x"
+ },
+ {
+  "group": "cuestas",
+  "name": "conveyor-bars-high",
+  "size": [
+   1,
+   0.42,
+   1.012
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.506
+  ],
+  "max": [
+   0.5,
+   0.42,
+   0.506
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "cuestas",
+  "name": "conveyor-bars-high-slope",
+  "size": [
+   1,
+   0.8,
+   1.012
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.506
+  ],
+  "max": [
+   0.5,
+   0.8,
+   0.506
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "cuestas",
+  "name": "conveyor-bars-fence",
+  "size": [
+   1.006,
+   0.8,
+   1.2
+  ],
+  "min": [
+   -0.503,
+   0,
+   -0.6
+  ],
+  "max": [
+   0.503,
+   0.8,
+   0.6
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "cuestas",
+  "name": "conveyor-bars-fence-slope",
+  "size": [
+   1.006,
+   1.15,
+   1.2
+  ],
+  "min": [
+   -0.503,
+   0,
+   -0.6
+  ],
+  "max": [
+   0.503,
+   1.15,
+   0.6
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "cuestas",
+  "name": "conveyor-bars-stripe-high",
+  "size": [
+   1,
+   0.42,
+   1.012
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.506
+  ],
+  "max": [
+   0.5,
+   0.42,
+   0.506
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "cuestas",
+  "name": "conveyor-bars-stripe-high-slope",
+  "size": [
+   1,
+   0.8,
+   1.012
+  ],
+  "min": [
+   -0.5,
+   0,
+   -0.506
+  ],
+  "max": [
+   0.5,
+   0.8,
+   0.506
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "cuestas",
+  "name": "conveyor-bars-stripe-fence",
+  "size": [
+   1.006,
+   0.8,
+   1.2
+  ],
+  "min": [
+   -0.503,
+   0,
+   -0.6
+  ],
+  "max": [
+   0.503,
+   0.8,
+   0.6
+  ],
+  "axis": "z"
+ },
+ {
+  "group": "cuestas",
+  "name": "conveyor-bars-stripe-fence-slope",
+  "size": [
+   1.006,
+   1.15,
+   1.2
+  ],
+  "min": [
+   -0.503,
+   0,
+   -0.6
+  ],
+  "max": [
+   0.503,
+   1.15,
+   0.6
+  ],
+  "axis": "z"
+ }
+]

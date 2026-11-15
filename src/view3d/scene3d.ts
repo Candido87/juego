@@ -17,7 +17,7 @@ import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
 import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { slopeLower, tileSurface } from './relieve';
-import { aspectF, aspectSy } from './aspectos';
+import { CINTA_PIEZAS, aspectF, aspectSy, escalaPieza } from './aspectos';
 import { ITEM_SHAPES, ItemShape, armsFor, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
 import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
@@ -580,31 +580,27 @@ export class View3D {
     const flags = sig.slice(-4);
     const on = (c: string) => [0, 1, 2, 3].filter((d) => flags[d] === c);
     if (kind === 'belt' || kind === 'belt_fast') {
-      // Cinta baja y estrecha (CONFIG.scale: 0,65 × 0,18, 1 de largo): tramos del modelo recto estirados a la medida, con bordes
-      // laterales más claros. Recta = un tramo entero; curva, T o cruce = medio tramo hacia cada lado abierto y un cubo central.
+      // Cinta del Factory Kit de Kenney a la medida de CONFIG.scale (0,65 × 0,18, 1 de largo): pieza recta con laterales estirada
+      // (aspectos.ts: CINTA_PIEZAS). Recta = un tramo entero; curva, T o cruce = medio tramo hacia cada lado abierto y, en el
+      // centro, la pieza de cruce a escala. La rapida usa la variante de franja naranja.
       const sc = CONFIG.scale;
-      const model = parts[0].model!;
+      const set = CINTA_PIEZAS[kind === 'belt_fast' ? 'rapida' : 'normal'];
       const off = sig.includes('|off');
-      const seg = (len: number, cx: number, rails = true): THREE.Group => {
+      const piece = (model: string, len: number, cx: number): THREE.Group => {
         const holder = new THREE.Group();
         const o = instance(model, undefined, 1);
         if (off) tint(o, BELT_OFF_TINT);
-        o.scale.set(len, sc.beltHeight / 0.4, sc.beltWidth);
+        const [sx, sy, sz] = escalaPieza(model, sc.beltWidth, sc.beltHeight);
+        o.scale.set(len * sx, sy, sz);
         o.position.x = cx;
         holder.add(o);
-        for (const side of rails ? [-1, 1] : []) {
-          const rail = new THREE.Mesh(BOX_GEO, off ? RAIL_OFF_MAT : RAIL_MAT);
-          rail.scale.set(len, sc.beltHeight + 0.03, sc.beltRail);
-          rail.position.set(cx, (sc.beltHeight + 0.03) / 2, side * (sc.beltWidth / 2 - sc.beltRail / 2));
-          holder.add(rail);
-        }
         return holder;
       };
       const incoming = on('i');
       const only = incoming.every((d) => d === (b.dir + 2) % 4);
       const slope = Number(/\|s(-?\d)/.exec(sig)?.[1] ?? 0);
       if (only) {
-        const holder = seg(1, 0);
+        const holder = piece(set.recta, 1, 0);
         holder.rotation.set(0, yawToDir(b.dir), slope * Math.atan(LEVEL_H), 'XYZ');
         // Rampa: la pieza se inclina para unir los dos niveles (sube LEVEL_H a lo largo de la casilla).
         holder.position.y = (slope * LEVEL_H) / 2;
@@ -612,14 +608,11 @@ export class View3D {
       } else {
         const arms = new Set<number>([b.dir, ...incoming]);
         for (const d of arms) {
-          const holder = seg(0.5, 0.25, false);
+          const holder = piece(set.recta, 0.5, 0.25);
           holder.rotation.y = yawToDir(d);
           group.add(holder);
         }
-        const hub = new THREE.Mesh(BOX_GEO, off ? RAIL_OFF_MAT : BELT_HUB_MAT);
-        hub.scale.set(sc.beltWidth, sc.beltHeight, sc.beltWidth);
-        hub.position.y = sc.beltHeight / 2;
-        group.add(hub);
+        group.add(piece(set.hub, 1, 0));
       }
       top = sc.beltHeight;
     } else if (kind === 'pipeline') {

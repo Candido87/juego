@@ -5,6 +5,7 @@
  * Los valores salen de `node tools/calcular-aspectos.cjs --write` (medidas sin escalar de `docs/escala/medidas-base.json` y los
  * objetivos de `CONFIG.scale.targets`); se pueden retocar a mano. Cintas, tuberías, postes y torretas no entran: se construyen ya a medida.
  */
+// <generado>
 export const ASPECTOS: Record<string, { f: number; sy?: number }> = {
   npc_constructor: { f: 0.64 },
   npc_transporter: { f: 0.79 },
@@ -41,8 +42,31 @@ export const ASPECTOS: Record<string, { f: number; sy?: number }> = {
   wall_metal: { f: 1, sy: 0.68 },
   wall_gate: { f: 1, sy: 0.69 },
 };
+// </generado>
 
 /** Factor uniforme de un modelo (1 si no está registrado). */
 export const aspectF = (key: string): number => ASPECTOS[key]?.f ?? 1;
 /** Estiramiento vertical adicional de un modelo (1 si no hay). */
 export const aspectSy = (key: string): number => ASPECTOS[key]?.sy ?? 1;
+
+/**
+ * Piezas de cinta del Factory Kit de Kenney (CC0): qué modelo se usa para cada forma y sus medidas originales [largo (eje del
+ * flujo, x), alto, ancho]. La escala de cada pieza sale de CONFIG.scale (cinta de ancho beltWidth y alto beltHeight, 1 casilla
+ * de largo): escalaPieza da el factor por eje. Curvas, T y cruces se componen con medios tramos de la pieza recta y la pieza
+ * hub (el cruce a escala) en el centro, porque los modelos de curva y T sólo encajan a ancho completo.
+ */
+export const CINTA_PIEZAS = {
+  normal: { recta: 'factory/conveyor-sides', hub: 'factory/conveyor-sides-cross' },
+  rapida: { recta: 'factory/conveyor-stripe-sides', hub: 'factory/conveyor-stripe-sides-cross' },
+} as const;
+export const CINTA_NATIVO: Record<string, [number, number, number]> = {
+  'factory/conveyor-sides': [1, 0.4, 1],
+  'factory/conveyor-stripe-sides': [1, 0.4, 1],
+  'factory/conveyor-sides-cross': [1, 0.4, 1],
+  'factory/conveyor-stripe-sides-cross': [1, 0.4, 1],
+};
+/** Escala por eje [largo, alto, ancho] de una pieza de cinta para que mida beltHeight de alto y beltWidth de ancho. */
+export function escalaPieza(model: string, beltWidth: number, beltHeight: number): [number, number, number] {
+  const n = CINTA_NATIVO[model] ?? [1, beltHeight, beltWidth];
+  return [1, beltHeight / n[1], beltWidth / n[2]];
+}

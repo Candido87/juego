@@ -897,3 +897,19 @@ Cambios aprobados sobre la tabla (ya en `CONFIG.scale` y en el informe): (1) el 
 - **Árboles con transparencia:** los que quedan entre la cámara y una cinta, tubería o edificio (hasta donde alcanza su altura en la vista isométrica) se dibujan a `CONFIG.scale.tree.fade` = 0,3 de opacidad con tramado (sin mezcla ni ordenar). Se recalcula cada 0,25 s.
 - **Tests:** `aspectos.test.ts` (altura objetivo ±6 %, caja dentro del 95 % de la huella, alturas mínimas, persona < torreta pequeña < edificios grandes y persona < edificio pequeño, árboles 1,0–1,3 con copa ≤ 0,8, muros sólo en vertical), `escala.test.ts` (cinta, tubería, objetos) y `relieve.test.ts` (bases). Informe final `docs/escala/informe.md`: todos los modelos coinciden con su caja objetivo.
 - **Pendiente (anotado):** huellas reales (HUE1: entonces los tamaños se multiplican por la huella y las torretas 2×2 pasan a 1,8 × 1,3), y ESC-6 (conectores físicos, luces, conos, flechas del kit).
+
+## Cintas con el aspecto del Factory Kit (encargo 15-11-2026; Hitos 0 y 1 hechos)
+Sólo capa visual: la lógica de cintas, curvas, rampas, ascensor y puertos no cambia. Pack: Factory Kit 3.0 de Kenney (CC0), extraído del ZIP de Descargas (en `assets-juego` no hay carpeta del kit). Referencias: `Preview.png` y `Preview (Variation A).png` (cintas de rodillos y de laterales claros con franja naranja, curvas, cruces y cuestas con vallas naranjas).
+- **Medidas reales** (`docs/cintas/medidas-kit.json`, en casillas, origen en el centro y base en y = 0): `conveyor`, `-sides`, `-stripe`, `-stripe-sides` **1 × 0,4 × 1** (flujo por el eje x); `conveyor-bars*` (rodillos) 0,25–0,3 de alto; `corner` 1 × 0,45 × 1; `junction-t` y `cross` 1 × 0,4 × 1; `long*` 2 × 0,4 × 1; `part-end/middle` 0,5 × 0,4 × 1 (flujo por z); cuestas `bars-high` 0,42 y `high-slope` 0,8 de alto, y con valla (`fence`) 1,2 de fondo y 0,8–1,15 de alto.
+- **Tabla de mapeo elegida:**
+  | Forma | Pieza | Nota |
+  |---|---|---|
+  | Recta | `conveyor-sides` | laterales claros; se estira a 0,65 de ancho × 0,18 de alto, 1 de largo |
+  | Rápida | `conveyor-stripe-sides` | franja naranja: se distingue a simple vista |
+  | Curva (izq. y der.), T y cruce | medios tramos de la recta + `conveyor-(stripe-)sides-cross` a escala en el centro | los modelos `corner` y `junction-t` sólo encajan a ancho completo (1,0): a 0,65 las puntas quedarían cortas |
+  | Cuesta (sube o baja 1) | la propia pieza recta inclinada (como ahora) | los modelos `bars-*-slope` son rodillos sobre patas y suben 0,38, no 0,5; se evalúan en el Hito 3 |
+  | Extremos de línea | no hacen falta (cada casilla es una pieza de 1 de largo) | `part-end`/`part-middle` y `long*` no encajan en la rejilla de 1 |
+  | Ascensor | composición: `conveyor-bars-high` + tolvas `hopper-*` en entrada y salida + pasarela `catwalk` | Hito 3 |
+  | Alimentador | brazo `robot-arm-a/b` sobre la cinta | Hito 3 (o ESC-6) |
+- **Qué falta o no encaja y cómo se resuelve:** (1) curvas y T a 0,65: composición con medios tramos y cruce a escala (decisión simple; si se prefiere el modelo `corner` original, hay que ir a ancho completo). (2) `part-end/middle` miden 0,5 de ancho y corren por z: sirven para formar tramos largos, no para casillas sueltas. (3) El kit no trae una cuesta con laterales: se inclina la recta. (4) Las 29 piezas `conveyor*` que aún no se usan quedan en `public/assets/3d/factory/` sólo para la galería; se podarán al terminar el encargo.
+- **Escala** (Hito 1): `escalaPieza` (en `aspectos.ts`) da el factor por eje; todas las piezas miden 1 de largo y base en la altura de su casilla (el modelo trae base en y = 0; el −0,09 que se veía era una malla oculta del modo sin agrupar, ya corregido en ESC-3). Captura `docs/cintas/escala.png`.
