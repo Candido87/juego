@@ -237,3 +237,85 @@ describe('árbol de tecnología: compra y efectos', () => {
     expect(gameFromSave(old).factoryTier).toBe(CONFIG.factory.tier);
   });
 });
+
+import { TREE, layoutTree, techIconKind, techMatches, techTip, techUnlockLines, techVisible } from './arbol';
+
+describe('pantalla del árbol (parte pura)', () => {
+  it('cada nodo tiene sitio, sin solaparse, y las líneas van de un requisito al siguiente', () => {
+    const L = layoutTree();
+    expect(L.nodes.size).toBe(TECH.length);
+    const boxes = [...L.nodes.values()];
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        const overlap = a.x < b.x + TREE.nodeW && b.x < a.x + TREE.nodeW && a.y < b.y + TREE.nodeH && b.y < a.y + TREE.nodeH;
+        expect(overlap, `${i} y ${j}`).toBe(false);
+      }
+    }
+    // Un carril por rama, sin solaparse, y cada nodo dentro del suyo.
+    expect(L.lanes.map((l) => l.branch)).toEqual([...TECH_BRANCHES]);
+    for (let i = 1; i < L.lanes.length; i++) expect(L.lanes[i].y).toBeGreaterThanOrEqual(L.lanes[i - 1].y + L.lanes[i - 1].h);
+    for (const n of TECH) {
+      const p = L.nodes.get(n.id)!;
+      const lane = L.lanes.find((l) => l.branch === n.branch)!;
+      expect(p.y, n.id).toBeGreaterThanOrEqual(lane.y);
+      expect(p.y + TREE.nodeH, n.id).toBeLessThanOrEqual(lane.y + lane.h);
+      expect(p.x + TREE.nodeW, n.id).toBeLessThanOrEqual(L.width);
+    }
+    expect(L.edges.length).toBe(TECH.reduce((s, n) => s + n.requires.length, 0));
+    for (const e of L.edges) {
+      const from = techNode(e.from);
+      const to = techNode(e.to);
+      if (from.branch === to.branch) expect(e.x2).toBeGreaterThan(e.x1);
+    }
+    expect(L.height).toBeGreaterThan(300);
+  });
+
+  it('los textos salen de los datos: desbloqueos, efectos y requisitos', () => {
+    expect(techUnlockLines(techNode('arm_laser'))).toEqual(['Edificio: Torreta láser']);
+    expect(techUnlockLines(techNode('ind_circuits'))).toEqual(['Receta: Circuito']);
+    expect(techUnlockLines(techNode('log_speed_1'))).toEqual(['Personas: +25 % de velocidad al andar']);
+    expect(techUnlockLines(techNode('pop_houses_1'))).toEqual(['Casas: +1 plaza cada una']);
+    expect(techUnlockLines(techNode('ing_research_2'))[0]).toContain('+25 %');
+    expect(techUnlockLines(techNode('arm_bullet_2'))[0]).toContain('Torreta de balas');
+    expect(techUnlockLines(techNode('ind_tier2'))[0]).toContain('nivel 2');
+    // Todo nodo dice algo, y lo que dice existe en los datos.
+    for (const n of TECH) expect(techUnlockLines(n).length, n.id).toBeGreaterThan(0);
+    expect(techIconKind(techNode('arm_laser'))).toBe('turret_laser');
+    expect(techIconKind(techNode('arm_fire_2'))).toBe('turret_fire');
+    expect(techIconKind(techNode('log_speed_1'))).toBeNull();
+  });
+
+  it('el tooltip refleja el estado: bloqueado con sus requisitos, sin puntos con el tiempo, disponible y comprado', () => {
+    const g = flatGame();
+    const locked = techTip(g, 'def_metal');
+    expect(locked.state).toBe('locked');
+    expect(locked.requires.map((r) => [r.name, r.done])).toEqual([['Murallas de piedra', false], ['Placas de muro', false]]);
+    expect(locked.reason).toContain('Faltan requisitos');
+    expect(locked.cost).toBe(50);
+    const poor = techTip(g, 'def_wood');
+    expect(poor.state).toBe('nopoints');
+    expect(poor.reason).toMatch(/Faltan 8 puntos/);
+    expect(poor.recommended).toBe(true);
+    g.researchPoints = 20;
+    const ok = techTip(g, 'def_wood');
+    expect(ok.state).toBe('available');
+    expect(ok.reason).toBeUndefined();
+    g.research('def_wood');
+    const done = techTip(g, 'def_wood');
+    expect([done.state, done.stateText, done.reason]).toEqual(['done', 'Investigado', undefined]);
+    expect(done.recommended).toBe(false);
+  });
+
+  it('la búsqueda y el filtro de rama ignoran acentos y mayúsculas y miran lo que desbloquea', () => {
+    expect(techMatches(techNode('arm_laser'), 'LASER')).toBe(true);
+    expect(techMatches(techNode('ind_circuits'), 'circuito')).toBe(true);
+    expect(techMatches(techNode('def_wood'), 'láser')).toBe(false);
+    expect(techMatches(techNode('def_wood'), '')).toBe(true);
+    expect(TECH.filter((n) => techMatches(n, 'casa')).map((n) => n.id).sort()).toEqual(['pop_houses_1', 'pop_houses_2']);
+    expect(techVisible(techNode('arm_laser'), 'Armamento', '')).toBe(true);
+    expect(techVisible(techNode('arm_laser'), 'Defensa', '')).toBe(false);
+    expect(techVisible(techNode('arm_laser'), null, 'torreta')).toBe(true);
+  });
+});

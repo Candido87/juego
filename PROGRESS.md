@@ -143,3 +143,11 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [ ] INV1-INV5. Investigación con puntos y árbol (rama `investigacion`, creada, aún sin código): laboratorio, investigadores, puntos, árbol, pantalla, bloqueos reales, guardado, guía y sim.
 - [ ] CIN0-CIN4. Cintas: Fase 0 de assets, textura animada, curvas, rampas, ascensor.
 - [ ] AIR5-AIR9. Enemigos aéreos y lanzamisiles.
+
+## Cuatro mejoras de edificios (parte C, después de los aéreos; reglas en SPEC.md)
+- [ ] HUE1. Sistema de huellas y colocación, con migración del guardado.
+- [ ] HUE2. Escala de modelos y puertos por lado con flechas.
+- [ ] HUE3. Granja nueva (4×4).
+- [ ] HUE4. Munición por cinta y alimentador, con respaldo de NPC.
+- [ ] HUE5. Diagnóstico de edificios (panel, "Mostrar", resumen en el HUD).
+- [ ] HUE6. Guía de inicio, tooltips y equilibrado con simulaciones.
