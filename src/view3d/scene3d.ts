@@ -11,6 +11,7 @@ import { ROLE_LOOK, TURRET_COLOR, TurretState, carried, enemyLook, npcAnim, smok
 import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, allModels } from './catalog';
 import { AirFleet, dropsBomb } from './aereos3d';
 import { maskOf as connMask, pipeConnections, planFor } from '../game/conexiones';
+import { TracePlan, stepDir } from '../game/trazado';
 import { Effects } from './effects3d';
 import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
@@ -256,6 +257,12 @@ export class View3D {
   /** Botón izquierdo abajo; si devuelve true empieza a "pintar" en vez de mover la cámara. */
   onDown: (t: Tile | null, ev: PointerEvent) => boolean = () => false;
   onPaint: (t: Tile) => void = () => {};
+  /** Se suelta el botón tras un trazado arrastrado. */
+  onPaintEnd: () => void = () => {};
+  /** Trazado en curso (cintas o tuberías arrastrando): se dibuja con las piezas reales, translúcidas, en verde (válida), azul (ya existe, sólo gira) o rojo. */
+  trace: TracePlan | null = null;
+  private traceKey = '';
+  private traceGhosts: THREE.Group[] = [];
   /** Avisos de eventos del juego para la interfaz. */
   onMessage: (text: string) => void = () => {};
   private buildings = new Map<number, BView>();
@@ -500,7 +507,8 @@ export class View3D {
       }
     });
     el.addEventListener('pointerup', (e) => {
-      if (down && !down.moved && !down.painting) this.onClick(this.pick(e.clientX, e.clientY), down.button);
+      if (down && down.painting) this.onPaintEnd();
+      else if (down && !down.moved) this.onClick(this.pick(e.clientX, e.clientY), down.button);
       down = null;
     });
     el.addEventListener('pointerleave', () => {
@@ -1584,6 +1592,57 @@ export class View3D {
         this.denied.position.set(this.hover.x + 0.5, tileSurface(w, this.hover.x, this.hover.y) + CONFIG.scale.groundMargin + 0.01, this.hover.y + 0.5);
         for (const m of this.ghostMats) if (m.emissive) m.emissive.setHex(ok ? 0x1f7a3a : 0x8a1f1f);
       }
+    }
+    this.syncTrace();
+  }
+
+  /** Vista previa del trazado arrastrado: una pieza real translúcida por casilla, con la forma que tendrá según sus vecinas del propio recorrido. */
+  private syncTrace(): void {
+    const plan = this.trace;
+    const key = plan ? plan.kind + '|' + plan.tiles.map((t) => `${t.x},${t.y},${t.dir},${t.status}`).join(';') : '';
+    if (key !== this.traceKey) {
+      for (const g of this.traceGhosts) this.scene.remove(g);
+      this.traceGhosts = [];
+      this.traceKey = key;
+      if (plan) {
+        const w = this.game.world;
+        const n = plan.tiles.length;
+        plan.tiles.forEach((t, i) => {
+          const prev = i > 0 ? plan.tiles[i - 1] : null;
+          const next = i < n - 1 ? plan.tiles[i + 1] : null;
+          const flags = [0, 1, 2, 3].map((d) => (plan.kind === 'pipeline' ? ((prev && stepDir(t, prev) === d) || (next && stepDir(t, next) === d) ? 'p' : '-') : prev && stepDir(t, prev) === d ? 'i' : '-')).join('');
+          const h = heightAt(w, t.x, t.y);
+          const slope = plan.kind === 'pipeline' ? 0 : rampSlope(!!next, next ? heightAt(w, next.x, next.y) - h : 0, !!prev, prev ? heightAt(w, prev.x, prev.y) - h : 0);
+          const sig = plan.kind === 'pipeline' ? `pipeline|${t.dir}|1|q|k----${flags}` : `${plan.kind}|${t.dir}|1|s${slope}|c--${flags}`;
+          const fake = { id: -1, kind: plan.kind, x: t.x, y: t.y, w: 1, d: 1, dir: t.dir, built: true, progress: 1, inv: {}, hp: 1, maxHp: 1 } as unknown as Building;
+          const g = this.makeBuilding(fake, sig).group;
+          const col = t.status === 'bad' ? 0xff6060 : t.status === 'reuse' ? 0x70c0ff : 0x70ff90;
+          const emi = t.status === 'bad' ? 0x8a1f1f : t.status === 'reuse' ? 0x1f4f7a : 0x1f7a3a;
+          g.traverse((o) => {
+            const m = o as THREE.Mesh;
+            if (!m.isMesh) return;
+            const mats = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => {
+              const c = x.clone() as THREE.MeshStandardMaterial;
+              c.transparent = true;
+              c.opacity = 0.62;
+              c.depthWrite = false;
+              c.color.setHex(col);
+              if (c.emissive) c.emissive.setHex(emi);
+              return c;
+            });
+            m.material = Array.isArray(m.material) ? mats : mats[0];
+            m.castShadow = false;
+          });
+          g.position.set(t.x + 0.5, tileSurface(w, t.x, t.y) + CONFIG.scale.groundMargin, t.y + 0.5);
+          this.scene.add(g);
+          this.traceGhosts.push(g);
+        });
+      }
+    }
+    if (plan) {
+      // Durante el trazado no se ve el fantasma de una sola casilla.
+      if (this.ghost) this.ghost.visible = false;
+      if (this.denied) this.denied.visible = false;
     }
   }
 

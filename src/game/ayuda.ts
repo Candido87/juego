@@ -4,9 +4,9 @@
  */
 export const HELP_CONTROLS: [string, string][] = [
   ['Clic', 'Construir con la herramienta elegida / seleccionar un edificio'],
-  ['Arrastrar', 'Mover la cámara'],
+  ['Arrastrar', 'Mover la cámara; con Cinta o Tubería elegida dibuja el recorrido pieza a pieza (el clic derecho arrastrando mueve la cámara)'],
   ['Rueda', 'Acercar o alejar (sobre el mapa)'],
-  ['Mayús + arrastrar', 'Pintar una línea de cintas'],
+  ['Mayús al trazar', 'Mantiene el trazado en línea recta · R invierte el sentido · Esc cancela · Ctrl+Z deshace el último trazado'],
   ['1–9', 'Elegir el edificio de ese número en la categoría activa'],
   ['Q / E', 'Categoría anterior / siguiente del menú (también la rueda sobre el menú)'],
   ['R', 'Girar el edificio (dirección de cintas, taladros, fábricas...)'],

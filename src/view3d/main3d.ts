@@ -8,6 +8,7 @@ import { isLineTool, portsAt, previewLine, snapDir } from '../game/conectar';
 import { FLOW_NAMES, Port, canLink, portStatus } from '../game/puertos';
 import { RouteResult, RouteTarget, buildRoute, canAffordRoute, findRoute, freeInPorts, freeOutPorts } from '../game/ruta';
 import { pipeJoinConflict } from '../game/tuberias';
+import { TracePlan, TraceUndo, commitTrace, extendPath, isLineKindName, planTrace, undoTrace } from '../game/trazado';
 import { Game } from '../game/game';
 import type { GuiaState } from '../game/guia-inicio';
 import { AutoSaver, SaveFile, SaveSlot, gameFromSave, latestSave, makeSave, readSave, saveSummary, writeSave } from '../game/savegame';
@@ -335,34 +336,77 @@ async function start() {
     } else if (button === 0 && ui.tool === null) ui.selected = view.hoverBuildingId;
     else if (button === 0 && t) placeAt(t);
   };
-  // Mayús + arrastrar: traza cintas o tuberías casilla a casilla orientándolas según el movimiento.
-  let painting: Tile | null = null;
-  const paintable = () => ui.tool === 'belt' || ui.tool === 'belt_fast' || ui.tool === 'pipeline';
+  // Trazado arrastrando (cintas y tuberías): pulsar y arrastrar dibuja el recorrido casilla a casilla por ejes, con las piezas reales en
+  // vista previa (verde válido, azul = ya existe y sólo gira, rojo = motivo); al soltar se construye todo de una vez y Ctrl+Z lo deshace entero.
+  // Mayús = línea recta, R = invertir el sentido, Esc = cancelar. Las curvas, T y cruces las deduce la tabla de conexiones.
+  let trace: { path: Tile[]; reversed: boolean; last: Tile } | null = null;
+  let shiftDown = false;
+  const undoStack: TraceUndo[] = [];
+  const planOfTrace = (): TracePlan | null => (trace && isLineKindName(ui.tool) ? planTrace(game, ui.tool, trace.path, ui.dir, trace.reversed) : null);
+  const refreshTrace = () => (view.trace = planOfTrace());
+  const traceText = (): string => {
+    const plan = view.trace;
+    if (!plan) return '';
+    const cost = Object.entries(plan.cost).map(([k, v]) => `${v} ${itemName(k as ItemId)}`).join(', ');
+    const head = `Trazado: ${plan.tiles.length} casillas${plan.reused ? ` (${plan.reused} ya existen y se reorientan)` : ''}`;
+    if (!plan.ok) return `${head} · ✗ ${plan.reason}`;
+    return `${head} · ✓ coste ${cost || 'ninguno'}${plan.affordable ? '' : ' (faltan materiales: las obras esperan)'} · Mayús recta · R invierte · Esc cancela`;
+  };
   view.onDown = (t, ev) => {
-    if (!ev.shiftKey || !paintable() || !t) return false;
-    painting = { ...t };
-    placeAt(t);
+    if (!t || !isLineKindName(ui.tool)) return false;
+    trace = { path: [{ ...t }], reversed: false, last: { ...t } };
+    shiftDown = ev.shiftKey;
+    refreshTrace();
     return true;
   };
   view.onPaint = (target) => {
-    if (!painting) return;
-    let cur: Tile = painting;
-    let guard = 0;
-    while ((cur.x !== target.x || cur.y !== target.y) && guard++ < 64) {
-      const dx = target.x - cur.x;
-      const dy = target.y - cur.y;
-      const next: Tile = Math.abs(dx) >= Math.abs(dy) ? { x: cur.x + Math.sign(dx), y: cur.y } : { x: cur.x, y: cur.y + Math.sign(dy) };
-      const dir = dirBetween(cur, next)!;
-      ui.dir = dir;
-      game.rotate(cur.x, cur.y, dir);
-      const existing = game.buildingAt(next.x, next.y);
-      if (existing?.kind === ui.tool) game.rotate(next.x, next.y, dir);
-      else if (!existing) placeAt(next);
-      cur = next;
-    }
-    painting = cur;
+    if (!trace) return;
+    trace.last = { ...target };
+    trace.path = extendPath(trace.path, target, shiftDown);
+    refreshTrace();
   };
-  window.addEventListener('pointerup', () => (painting = null));
+  view.onPaintEnd = () => {
+    const plan = planOfTrace();
+    trace = null;
+    view.trace = null;
+    if (!plan) return;
+    if (!plan.ok) return hud.flash(plan.reason ?? 'No se puede trazar aquí');
+    const rec = commitTrace(game, plan);
+    if (!rec) return;
+    undoStack.push(rec);
+    if (undoStack.length > 50) undoStack.shift();
+    if (plan.tiles.length > 1 || rec.placed.length > 0) hud.flash(`${plan.fresh} piezas${plan.reused ? ` y ${plan.reused} reorientadas` : ''}${plan.affordable ? '' : '. Las obras esperan los materiales'} · Ctrl+Z deshace`);
+  };
+  const cancelTrace = (): boolean => {
+    if (!trace) return false;
+    trace = null;
+    view.trace = null;
+    hud.flash('Trazado cancelado');
+    return true;
+  };
+  const undoLast = () => {
+    const rec = undoStack.pop();
+    if (!rec) return hud.flash('Nada que deshacer');
+    hud.flash(`Deshecho: ${undoTrace(game, rec)} piezas`);
+  };
+  window.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Shift' && !shiftDown) {
+      shiftDown = true;
+      if (trace) {
+        trace.path = extendPath(trace.path, trace.last, true);
+        refreshTrace();
+      }
+    }
+  });
+  window.addEventListener('keyup', (ev) => {
+    if (ev.key === 'Shift') {
+      shiftDown = false;
+      if (trace) {
+        trace.path = extendPath(trace.path, trace.last, false);
+        refreshTrace();
+      }
+    }
+  });
   let lastSnapKey = '';
   let logistics = false;
 
@@ -463,10 +507,18 @@ async function start() {
   window.addEventListener('keydown', (ev) => {
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes((ev.target as HTMLElement)?.tagName)) return;
     const k = ev.key.toLowerCase();
-    if (k === 'r') hud.rotate();
+    if ((ev.ctrlKey || ev.metaKey) && k === 'z') return void (ev.preventDefault(), undoLast());
+    if (k === 'r') {
+      if (trace) {
+        trace.reversed = !trace.reversed;
+        refreshTrace();
+        hud.flash(trace.reversed ? 'Sentido invertido' : 'Sentido normal');
+      } else hud.rotate();
+    }
     else if (k === 'h') (toggleOptions(false), hud.toggleHelp());
     else if (k === 'o') toggleOptions();
     else if (k === 'escape') {
+      if (cancelTrace()) return;
       if (hud.tech.isOpen) return hud.toggleTech(false);
       if (optionsOpen()) return toggleOptions(false);
       if (hud.closeHelp()) return;
@@ -511,6 +563,8 @@ async function start() {
 
   /** Texto de la casilla bajo el ratón (mismo que la 2D). */
   const hoverInfo = (): string => {
+    const tr = traceText();
+    if (tr) return tr;
     const t = view.hover;
     if (!t) return '';
     const parts = [`Casilla ${t.x},${t.y} · altura ${heightAt(game.world, t.x, t.y)}`];
@@ -671,7 +725,7 @@ async function start() {
     acc.n++;
     // Imán: al pasar sobre la casilla de un puerto compatible, la cinta o tubería se orienta sola (R sigue sirviendo).
     const ht = view.hover;
-    const snapKey = ht && isLineTool(ui.tool) && !painting ? `${ui.tool}|${ht.x},${ht.y}` : '';
+    const snapKey = ht && isLineTool(ui.tool) && !trace ? `${ui.tool}|${ht.x},${ht.y}` : '';
     if (snapKey !== lastSnapKey) {
       lastSnapKey = snapKey;
       if (snapKey && isLineTool(ui.tool) && ht) {
