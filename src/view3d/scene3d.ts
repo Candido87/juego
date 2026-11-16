@@ -73,7 +73,7 @@ export const ITEM_GEO: Record<ItemShape, { geo: THREE.BufferGeometry; y: number 
   crate: { geo: new THREE.BoxGeometry(0.2, 0.16, 0.2), y: rests(0.08) },
 };
 /** Piezas del Factory Kit del ascensor: tolva de carga/descarga y cinta de barras (aspectos.ts documenta el mapeo). */
-const ELEVATOR_PARTS = { tolva: 'factory/hopper-square', cinta: 'factory/conveyor-bars-high' } as const;
+const ELEVATOR_PARTS = { tolva: 'factory/hopper-square', cinta: 'factory/conveyor-sides' } as const;
 const CONNECTOR_GEO = new THREE.BoxGeometry(0.06, CONFIG.scale.beltHeight + 0.06, CONFIG.scale.beltWidth + 0.14);
 const CONNECTOR_MAT = new THREE.MeshStandardMaterial({ color: 0xffb347, flatShading: true, roughness: 0.7 });
 const RAIL_MAT = new THREE.MeshStandardMaterial({ color: 0xc9cdd9, flatShading: true, roughness: 0.9 });
@@ -658,16 +658,22 @@ export class View3D {
       hop(0.38, s);
       const tilt = new THREE.Group();
       const belt = instance(ELEVATOR_PARTS.cinta, undefined, 1);
-      belt.scale.set(len, 0.3 / 0.42, sc.beltWidth);
+      const [ex, ey, ez] = escalaPieza(ELEVATOR_PARTS.cinta, sc.beltWidth, sc.beltHeight);
+      belt.scale.set(len * ex, ey, ez);
       tilt.add(belt);
-      tilt.position.set(0, s / 2 + 0.12, 0);
+      tilt.position.set(0, s / 2 + 0.2, 0);
       tilt.rotation.z = Math.atan2(s, run);
       root.add(tilt);
-      const post = new THREE.Mesh(BOX_GEO, FLANGE_MAT);
-      const ph = Math.max(Math.abs(s), 0.1);
-      post.scale.set(0.12, ph, 0.12);
-      post.position.set(0.3, Math.min(0, s) + ph / 2, 0);
-      root.add(post);
+      for (const [px, py] of [[-0.3, 0], [0.3, s]] as const) {
+        const ph = Math.max(Math.abs(py), 0.2) + 0.2;
+        const post = new THREE.Mesh(BOX_GEO, FLANGE_MAT);
+        post.scale.set(0.1, ph, 0.1);
+        post.position.set(px, py + 0.2 - ph / 2, 0.34);
+        root.add(post);
+        const post2 = post.clone();
+        post2.position.z = -0.34;
+        root.add(post2);
+      }
       group.add(root);
       top = Math.max(0, s) + 0.45;
     } else if (kind === 'pipeline') {
