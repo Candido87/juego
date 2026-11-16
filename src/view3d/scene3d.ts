@@ -18,7 +18,7 @@ import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { slopeLower, tileSurface } from './relieve';
 import { CINTA_PIEZAS, aspectF, aspectSy, escalaPieza } from './aspectos';
-import { ITEM_SHAPES, ItemShape, armsFor, beltConnectors, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
+import { ITEM_SHAPES, ItemShape, armsFor, beltConnectors, beltItemPose, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
 import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
 import { ThreatMarks } from './threat3d';
@@ -1008,10 +1008,15 @@ export class View3D {
     const c = new THREE.Color();
     for (const im of this.itemMeshes.values()) im.count = 0;
     let lamps = 0;
-    for (const b of this.belts) {
+    const tilt = new THREE.Matrix4();
+    for (let i = 0; i < this.belts.length; i++) {
+      const b = this.belts[i];
+      // Entradas y rampa de la capa de dirección (misma cinta, mismo índice); si aún no se ha sincronizado, recta y llana.
+      const info = this.flowInfos[i]?.id === b.id ? this.flowInfos[i] : undefined;
+      const slope = info?.slope ?? 0;
       if (beltStopped(b) && lamps < MAX_ITEMS) {
-        // El piloto va en el borde derecho de la cinta según su sentido.
-        m.makeTranslation(b.x + 0.5 - DY[b.dir] * 0.36, this.levelTop(b) + BELT_TOP + 0.1, b.y + 0.5 + DX[b.dir] * 0.36);
+        // El piloto va en el borde derecho de la cinta según su sentido (y a media altura de la rampa).
+        m.makeTranslation(b.x + 0.5 - DY[b.dir] * 0.36, this.levelTop(b) + BELT_TOP + 0.1 + (slope * LEVEL_H) / 2, b.y + 0.5 + DX[b.dir] * 0.36);
         this.beltLamps.setMatrixAt(lamps++, m);
       }
       if (!b.item) continue;
@@ -1019,9 +1024,12 @@ export class View3D {
       const im = this.itemMeshes.get(shape)!;
       const n = im.count;
       if (n >= MAX_ITEMS) continue;
-      const t = Math.min(1, Math.max(0, b.beltProgress)) - 0.5;
-      // Troncos y losas van a lo largo de la cinta.
-      m.makeRotationY(b.dir % 2 === 0 ? 0 : Math.PI / 2).setPosition(b.x + 0.5 + DX[b.dir] * t, this.levelTop(b) + ITEM_GEO[shape].y, b.y + 0.5 + DY[b.dir] * t);
+      // Troncos y losas van a lo largo del recorrido: recto, en curva (entrada lateral) o subiendo la cuesta.
+      const pose = beltItemPose(b.dir, info?.incoming ?? [], b.beltProgress);
+      const p = Math.min(1, Math.max(0, b.beltProgress));
+      m.makeRotationY(pose.yaw);
+      if (slope !== 0) m.multiply(tilt.makeRotationZ(slope * Math.atan(LEVEL_H)));
+      m.setPosition(b.x + 0.5 + pose.x, this.levelTop(b) + ITEM_GEO[shape].y + slope * LEVEL_H * p, b.y + 0.5 + pose.z);
       im.setMatrixAt(n, m);
       im.setColorAt(n, c.setHex(ITEM_COLOR[b.item] ?? ITEM_COLORS[b.item] ?? 0xffffff));
       im.count = n + 1;

@@ -130,3 +130,29 @@ export function beltConnectors(dir: Dir, incoming: Iterable<number>, frontBuildi
   if (backBuilding && ![...incoming].some((d) => norm(d) === back)) out.push(back);
   return out;
 }
+
+/**
+ * Posición y giro de un objeto que va por una cinta, respecto al centro de la casilla (en unidades de casilla).
+ * `progress` 0..1 es el avance real del juego: 0 en el borde de entrada, 1 en el de salida. En una recta el objeto va en línea;
+ * en una curva (entrada lateral y nada por detrás) recorre una curva suave del borde de entrada al de salida. Con varias
+ * entradas laterales el juego no dice por cuál llegó: se usa la primera. `yaw` es el giro Y que lleva el eje x del objeto a la tangente.
+ */
+export function beltItemPose(dir: Dir, incoming: Iterable<number>, progress: number): { x: number; z: number; yaw: number } {
+  const p = Math.min(1, Math.max(0, progress));
+  const back = norm(dir + 2);
+  const ins = [...new Set([...incoming].map(norm))].filter((d) => d !== dir);
+  const side = ins.length === 0 || ins.includes(back) ? back : ins[0];
+  // Entrada = borde de la casilla por donde llega (en la dirección `side`), salida = borde de delante, control = centro.
+  const ex = HALF_DX[side] * 0.5;
+  const ez = HALF_DZ[side] * 0.5;
+  const sx = HALF_DX[dir] * 0.5;
+  const sz = HALF_DZ[dir] * 0.5;
+  const a = (1 - p) * (1 - p);
+  const b = p * p;
+  const x = a * ex + b * sx;
+  const z = a * ez + b * sz;
+  // Derivada de la curva: 2(1-p)(0-E) + 2p(S-0).
+  const tx = -2 * (1 - p) * ex + 2 * p * sx;
+  const tz = -2 * (1 - p) * ez + 2 * p * sz;
+  return { x, z, yaw: Math.atan2(-tz, tx) };
+}

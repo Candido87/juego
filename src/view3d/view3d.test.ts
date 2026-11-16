@@ -950,3 +950,33 @@ describe('ascensor con piezas del kit', () => {
     }
   });
 });
+
+describe('objetos en cintas (CIN-K4)', () => {
+  it('en una recta van en línea del borde de entrada al de salida', async () => {
+    const { beltItemPose } = await import('./pieces');
+    const a = beltItemPose(0, [], 0);
+    const m = beltItemPose(0, [2], 0.5);
+    const z = beltItemPose(0, [], 1);
+    expect(a.x).toBeCloseTo(-0.5);
+    expect(m.x).toBeCloseTo(0);
+    expect(z.x).toBeCloseTo(0.5);
+    expect(a.z).toBeCloseTo(0);
+  });
+  it('en una curva entran por el lado de la entrada y salen por delante', async () => {
+    const { beltItemPose } = await import('./pieces');
+    // Cinta hacia +x que recibe desde +z (dir 1): entra por el borde +z y sale por +x.
+    const a = beltItemPose(0, [1], 0);
+    const z = beltItemPose(0, [1], 1);
+    const m = beltItemPose(0, [1], 0.5);
+    expect(a.z).toBeCloseTo(0.5);
+    expect(a.x).toBeCloseTo(0);
+    expect(z.x).toBeCloseTo(0.5);
+    expect(z.z).toBeCloseTo(0);
+    // A mitad de camino está dentro de la casilla y recorta la esquina.
+    expect(m.x).toBeGreaterThan(0);
+    expect(m.z).toBeGreaterThan(0);
+    expect(Math.abs(m.x)).toBeLessThan(0.5);
+    // El giro cambia a lo largo de la curva.
+    expect(a.yaw).not.toBeCloseTo(z.yaw);
+  });
+});
