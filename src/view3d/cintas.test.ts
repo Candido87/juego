@@ -133,3 +133,23 @@ describe('cintas: rampas (la de abajo absorbe el desnivel)', () => {
     expect(rampItemLift(0, 0.5, LH)).toBe(0);
   });
 });
+
+describe('luz de estado (ESC-6)', () => {
+  it('verde si funciona, naranja si espera o va mermado, rojo si está parado o averiado', async () => {
+    const { statusLight } = await import('./status');
+    expect(statusLight('factory', true, null)).toBe('green');
+    expect(statusLight('factory', true, { type: 'producing', item: 'gear' })).toBe('green');
+    expect(statusLight('factory', true, { type: 'missing' })).toBe('orange');
+    expect(statusLight('factory', true, { type: 'lowpower' })).toBe('orange');
+    expect(statusLight('factory', true, { type: 'norecipe' })).toBe('red');
+    expect(statusLight('generator', true, { type: 'nofuel' })).toBe('red');
+    expect(statusLight('drill', true, { type: 'broken' })).toBe('red');
+  });
+  it('sin luz: obras sin terminar, edificios que no la llevan y los marcados para desmontar', async () => {
+    const { statusLight } = await import('./status');
+    expect(statusLight('factory', false, null)).toBeNull();
+    expect(statusLight('wall_stone', true, null)).toBeNull();
+    expect(statusLight('belt', true, null)).toBeNull();
+    expect(statusLight('factory', true, { type: 'remove' })).toBeNull();
+  });
+});

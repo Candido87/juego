@@ -15,7 +15,7 @@ import { heightAt, inBounds } from '../game/world';
 import { ITEM_COLORS } from '../view/itemColors';
 import { LEVEL_H } from './pick';
 import { yawToDir } from './pieces';
-import { STATUS_STYLE, StatusIcon, statusIcon, statusKey } from './status';
+import { LIGHT_HEX, LIGHT_KINDS, STATUS_STYLE, StatusIcon, statusIcon, statusKey, statusLight } from './status';
 
 type Tile = { x: number; y: number };
 
@@ -111,6 +111,8 @@ function iconTexture(s: StatusIcon): THREE.Texture {
   return t;
 }
 
+const LIGHT_GEO = new THREE.SphereGeometry(0.06, 10, 8);
+
 export class Overlay {
   readonly group = new THREE.Group();
   private wires = new THREE.Group();
@@ -121,6 +123,7 @@ export class Overlay {
   private rangeN = 0;
   private ring: THREE.LineLoop;
   private icons = new Map<number, { sprite: THREE.Sprite; key: string }>();
+  private lights = new Map<number, { mesh: THREE.Mesh; color: string }>();
   private iconTimer = 0;
   private arrowGeo = arrowGeometry();
   private lamps: THREE.Mesh[] = [];
@@ -323,8 +326,26 @@ export class Overlay {
   private syncIcons(time: number, refresh: boolean): void {
     if (refresh) {
       const seen = new Set<number>();
+      const lit = new Set<number>();
       for (const b of this.game.buildings.values()) {
         const s = statusIcon(this.game, b);
+        // Luz de estado (semáforo) pegada al edificio.
+        const lc = LIGHT_KINDS.has(b.kind) ? statusLight(b.kind, b.built, s) : null;
+        if (lc) {
+          lit.add(b.id);
+          let l = this.lights.get(b.id);
+          if (!l) {
+            l = { mesh: new THREE.Mesh(LIGHT_GEO, new THREE.MeshBasicMaterial({ color: LIGHT_HEX[lc] })), color: lc };
+            l.mesh.renderOrder = 3;
+            this.group.add(l.mesh);
+            this.lights.set(b.id, l);
+          }
+          if (l.color !== lc) {
+            l.color = lc;
+            (l.mesh.material as THREE.MeshBasicMaterial).color.setHex(LIGHT_HEX[lc]);
+          }
+          l.mesh.position.set(b.x + b.w - 0.16, this.baseOf(b) + this.heightOf(b) + 0.07, b.y + b.d - 0.16);
+        }
         if (!s) continue;
         seen.add(b.id);
         const key = statusKey(s);
@@ -340,6 +361,12 @@ export class Overlay {
           e.sprite.material.map = iconTexture(s);
           e.sprite.material.needsUpdate = true;
         }
+      }
+      for (const [id, l] of this.lights) {
+        if (lit.has(id)) continue;
+        this.group.remove(l.mesh);
+        (l.mesh.material as THREE.Material).dispose();
+        this.lights.delete(id);
       }
       for (const [id, e] of this.icons) {
         if (seen.has(id)) continue;

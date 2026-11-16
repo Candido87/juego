@@ -85,3 +85,20 @@ export const STATUS_STYLE: Record<Exclude<StatusIcon['type'], 'producing'>, { gl
   worn: { glyph: '⚙', tone: 'warn', title: 'Desgastado: rinde la mitad hasta que lo repare un Operario' },
   broken: { glyph: '⚙', tone: 'bad', title: 'Averiado: no funciona hasta que lo repare un Operario' },
 };
+
+export type LightColor = 'green' | 'orange' | 'red';
+/** Edificios con luz de estado propia (los que producen o consumen algo y pueden pararse). */
+export const LIGHT_KINDS: ReadonlySet<string> = new Set(['factory', 'refinery', 'generator', 'turbine', 'pump', 'drill', 'feeder', 'farm', 'laboratory']);
+export const LIGHT_HEX: Record<LightColor, number> = { green: 0x57e06a, orange: 0xffa31a, red: 0xff3b30 };
+
+/**
+ * Luz tipo semáforo de un edificio (ESC-6): verde si funciona, naranja si va mermado o espera algo, rojo si está parado o averiado.
+ * Sale del mismo estado que el icono flotante (`statusIcon`), así que ambos siempre coinciden. Sin luz en edificios sin obra terminada
+ * o que no la llevan.
+ */
+export function statusLight(kind: string, built: boolean, icon: StatusIcon | null): LightColor | null {
+  if (!built || !LIGHT_KINDS.has(kind)) return null;
+  if (!icon || icon.type === 'producing') return 'green';
+  if (icon.type === 'remove') return null;
+  return STATUS_STYLE[icon.type].tone === 'bad' ? 'red' : 'orange';
+}

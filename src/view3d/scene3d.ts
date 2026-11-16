@@ -85,6 +85,8 @@ patchMaterial(BELT_HUB_MAT);
 const HUB_GEO = new THREE.SphereGeometry(0.5, 8, 6);
 const HUB_MAT = new THREE.MeshStandardMaterial({ color: 0x5f5d78, flatShading: true, roughness: 1, metalness: 0 });
 patchMaterial(HUB_MAT);
+const PIPE_MACHINES: string[] = ['pump', 'refinery', 'generator', 'turbine', 'turret_fire'];
+const PIPE_CONNECTOR_GEO = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 12).rotateZ(Math.PI / 2);
 const FLANGE_GEO = new THREE.CylinderGeometry(0.5, 0.5, 0.07, 10).rotateZ(Math.PI / 2);
 const FLANGE_MAT = new THREE.MeshStandardMaterial({ color: 0xaeb0c8, flatShading: true, roughness: 0.8, metalness: 0.1 });
 patchMaterial(FLANGE_MAT);
@@ -568,6 +570,9 @@ export class View3D {
       s += '|e' + Math.max(-CONFIG.elevator.maxRise, Math.min(CONFIG.elevator.maxRise, this.game.slopeAhead(b)));
     } else if (b.kind === 'pipeline') {
       s += `|q${Object.keys(b.inv).find((k) => (b.inv[k as ItemId] ?? 0) > 0) ?? ''}`;
+      // Conector físico (ESC-6): lados que dan a una máquina con puerto de tubería (no a otra tubería).
+      s += '|k';
+      for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], PIPE_MACHINES) ? 'k' : '-';
       for (let d = 0; d < 4; d++) s += this.pipeLinked(b.x + DX[d], b.y + DY[d]) ? 'p' : '-';
     } else if (isWallKind(b.kind)) {
       for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], WALL_LINK) ? 'w' : '-';
@@ -698,6 +703,20 @@ export class View3D {
         holder.position.y = PIPE_LIFT;
         group.add(holder);
       };
+      // Anillo de conexión pegado a la máquina vecina (donde el tubo "encaja").
+      const kf = /|k([k-]{4})/.exec(sig)?.[1] ?? '----';
+      for (let d = 0; d < 4; d++) {
+        if (kf[d] !== 'k') continue;
+        const ring = new THREE.Mesh(PIPE_CONNECTOR_GEO, CONNECTOR_MAT);
+        const r = CONFIG.scale.pipeFlange * 1.25;
+        ring.scale.set(1, r, r);
+        ring.position.set(0.45, 0, 0);
+        const h = new THREE.Group();
+        h.rotation.y = yawToDir(d);
+        h.position.y = PIPE_LIFT + PIPE_T * 0.5;
+        h.add(ring);
+        group.add(h);
+      }
       if (a.straightAxis !== null) seg(a.straightAxis, false);
       else {
         a.arms.forEach((d) => seg(d, true));
