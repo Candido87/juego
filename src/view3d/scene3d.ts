@@ -58,7 +58,7 @@ const FAST_TINT = 0xbfe0ff;
 /** Altura de la cara superior de una cinta sobre su casilla (donde va la textura de dirección). */
 const BELT_TOP = CONFIG.scale.beltHeight;
 /** Cinta parada por falta de energía: se ve apagada. */
-const BELT_OFF_TINT = 0x6f7480;
+const BELT_OFF_TINT = 0xa4a9b8;
 /** Segundos de temblor de cámara cuando golpean el núcleo. */
 const SHAKE_TIME = 0.14;
 /** Geometría de cada forma de objeto sobre las cintas y altura de su centro sobre la cinta. */
@@ -625,7 +625,7 @@ export class View3D {
         group.add(piece(set.hub, 1, 0));
       }
       // Conectores físicos: placa de brida en el borde de la casilla que da a un edificio (puerto de entrada o de salida).
-      const cf = /|c(.)(.)/.exec(sig);
+      const cf = /\|c(.)(.)/.exec(sig);
       for (const d of beltConnectors(b.dir, incoming, cf?.[1] === 'f', cf?.[2] === 'b')) {
         const plate = new THREE.Mesh(CONNECTOR_GEO, CONNECTOR_MAT);
         plate.position.set(0.47, sc.beltHeight / 2 + 0.01, 0);
