@@ -145,7 +145,7 @@ export function placeNextToCore(game: Game, kind: BuildKind, recipe?: string): b
 }
 
 /** Topes de existencias: por encima, el bot quita la receta para no gastar placas de más. */
-const BOT_STOCK: Record<string, [number, number]> = { gear: [10, 25], ammo: [30, 80], frame: [10, 30], gun_part: [4, 12] };
+const BOT_STOCK: Record<string, [number, number]> = { gear: [10, 25], ammo: [30, 80], frame: [10, 30], gun_part: [4, 12], missile: [6, 20] };
 
 /** Activa/desactiva fábricas según existencias (como haría un jugador). */
 function regulate(game: Game): void {
@@ -176,7 +176,7 @@ export function placeNear(game: Game, kind: BuildKind): boolean {
 }
 
 /** Tecnologías que el bot compra, por orden de preferencia (después, la recomendada). Defensa y economía primero. */
-export const BOT_TECH_ORDER = ['def_wood', 'arm_bullet_2', 'ing_research_1', 'ind_tier2', 'pop_houses_1', 'log_speed_1', 'ing_work_1', 'def_stone', 'arm_fire', 'ind_circuits', 'ing_research_2', 'arm_bullet_3', 'pop_houses_2', 'log_capacity', 'ing_work_2', 'arm_fire_2'];
+export const BOT_TECH_ORDER = ['def_wood', 'arm_bullet_2', 'ing_research_1', 'ind_tier2', 'pop_houses_1', 'log_speed_1', 'ing_work_1', 'def_stone', 'arm_fire', 'ind_circuits', 'ing_research_2', 'arm_bullet_3', 'arm_laser', 'ind_battery', 'arm_missile', 'pop_houses_2', 'log_capacity', 'ing_work_2', 'arm_fire_2'];
 
 /** Compra la primera tecnología de su lista que esté disponible (o, si no, la recomendada). Devuelve el id comprado. */
 export function buyTech(game: Game): string | null {
@@ -211,6 +211,12 @@ export function botTick(game: Game): string | null {
   const turrets = countKind(game, 'turret_bullet');
   if (turrets < 1 + Math.ceil(game.wave * 0.6)) {
     if (placeBestTurret(game, 'turret_bullet')) return 'torreta';
+  }
+  // Defensa antiaérea: con el lanzamisiles desbloqueado, uno y luego uno más cada pocas oleadas, y una fábrica de misiles.
+  if (game.airAvailable()) {
+    if (countKind(game, 'turret_missile') < 1 + Math.floor(game.wave / 4) && placeBestTurret(game, 'turret_missile')) return 'lanzamisiles';
+    const hasMissileFactory = [...game.buildings.values()].some((b) => b.kind === 'factory' && ((b as { botRecipe?: string }).botRecipe ?? b.recipe) === 'missile');
+    if (!hasMissileFactory && game.factoryTier >= 2 && placeNextToCore(game, 'factory', 'missile')) return 'fábrica de misiles';
   }
   const factories = countKind(game, 'factory');
   if (factories < Math.min(BOT_FACTORIES.length, 4 + game.wave) && countKind(game, 'drill') >= 1 && placeNextToCore(game, 'factory', BOT_FACTORIES[factories])) {

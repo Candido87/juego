@@ -181,6 +181,22 @@ export function guiaBotTick(g: Game, s: GuiaState): void {
     case 'turret':
       if (count(g, 'turret_bullet') === 0) placeBestTurret(g, 'turret_bullet');
       break;
+    case 'air_research': {
+      // Investiga la cadena hasta el lanzamisiles (láser y baterías primero si hacen falta).
+      for (const id of ['arm_missile', 'ind_battery', 'arm_laser', 'ind_circuits', 'ind_tier2']) {
+        if (g.techState(id) === 'available') {
+          g.research(id);
+          break;
+        }
+      }
+      break;
+    }
+    case 'air_turret':
+      if (count(g, 'turret_missile') === 0) placeBestTurret(g, 'turret_missile');
+      break;
+    case 'air_ammo':
+      placeFactory(g, 'missile');
+      break;
     case 'lab_build':
       if (count(g, 'laboratory') === 0) placeNear(g, 'laboratory');
       break;

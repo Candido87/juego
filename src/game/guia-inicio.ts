@@ -195,6 +195,31 @@ export const GUIA_STEPS: GuiaStep[] = [
     when: (g) => g.wave >= 1 && g.enemies.length > 0,
     done: (g, s) => flag(s, 'wave_seen') && g.enemies.length === 0,
   },
+  // Defensa antiaérea (AIR8): sólo el lanzamisiles derriba aviones. Avisa antes de la primera oleada aérea, cuando aún no se puede construir.
+  {
+    id: 'air_research',
+    urgent: true,
+    highlight: { ui: 'techBtn' },
+    when: (g) => g.wave >= CONFIG.waves.air.from - 2 && !g.airAvailable(),
+    done: (g) => g.airAvailable(),
+  },
+  {
+    id: 'air_turret',
+    urgent: true,
+    highlight: { tool: 'turret_missile', target: 'core' },
+    build: 'turret_missile',
+    when: (g) => g.airAvailable() && g.wave < CONFIG.waves.air.from + 1,
+    done: (g) => hasBuilt(g, 'turret_missile'),
+  },
+  {
+    id: 'air_ammo',
+    urgent: true,
+    highlight: { tool: 'factory', ports: ['factory', 'turret_missile'] },
+    build: 'factory',
+    recipe: 'missile',
+    when: (g) => hasBuilt(g, 'turret_missile') && g.wave < CONFIG.waves.air.from + 1,
+    done: (g) => factoryWith(g, 'missile') || built(g, (b) => b.kind === 'turret_missile' && (b.inv.missile ?? 0) > 0),
+  },
   {
     id: 'next',
     highlight: { tool: 'workshop' },

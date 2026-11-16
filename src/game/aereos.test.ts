@@ -170,3 +170,65 @@ describe('oleadas espaciadas', () => {
     expect(CONFIG.waves.interval).toBeGreaterThanOrEqual(60);
   });
 });
+
+describe('aéreos: guía, bot y guardado (AIR8)', () => {
+  it('la guía avisa antes de la primera oleada aérea y acompaña hasta los misiles', async () => {
+    const { GUIA_STEPS, currentStep, newGuiaState, stepGuia } = await import('./guia-inicio');
+    const { GUIA_TEXT, GUIA_DONE } = await import('./guia-inicio-textos');
+    for (const id of ['air_research', 'air_turret', 'air_ammo']) {
+      expect(GUIA_STEPS.some((s) => s.id === id), id).toBe(true);
+      expect(GUIA_DONE[id], id).toBeTruthy();
+    }
+    const g = flatGame();
+    const s = newGuiaState();
+    expect(GUIA_TEXT.air_research(g).text).toContain('lanzamisiles');
+    g.wave = CONFIG.waves.air.from - 3;
+    expect(currentStep(g, s)!.id).not.toBe('air_research');
+    g.wave = CONFIG.waves.air.from - 2;
+    expect(currentStep(g, s)!.id).toBe('air_research');
+    g.unlockedBuildings.add('turret_missile');
+    stepGuia(g, s);
+    expect(currentStep(g, s)!.id).toBe('air_turret');
+    const mt = instant(g, 'turret_missile', 5, 5);
+    mt.inv.missile = 0; // instant() la llena de misiles: se vacía para comprobar el paso de la fábrica
+    stepGuia(g, s);
+    expect(currentStep(g, s)!.id).toBe('air_ammo');
+    const f = instant(g, 'factory', 12, 12);
+    g.unlockedRecipes.add('missile'); // lo desbloquea arm_missile; la receta es de nivel 2
+    g.factoryTier = 2;
+    expect(g.setRecipe(f.id, 'missile')).toBe(true);
+    stepGuia(g, s);
+    expect(s.completed).toEqual(expect.arrayContaining(['air_research', 'air_turret', 'air_ammo']));
+  });
+
+  it('el bot investiga el lanzamisiles y lo pone cuando está disponible', async () => {
+    const { BOT_TECH_ORDER } = await import('./bot');
+    expect(BOT_TECH_ORDER).toContain('arm_missile');
+    expect(BOT_TECH_ORDER.indexOf('arm_laser')).toBeLessThan(BOT_TECH_ORDER.indexOf('arm_missile'));
+    expect(BOT_TECH_ORDER.indexOf('ind_battery')).toBeLessThan(BOT_TECH_ORDER.indexOf('arm_missile'));
+  });
+
+  it('guardar y cargar conserva un aéreo atacando, el lanzamisiles con sus misiles y su nivel', async () => {
+    const { makeSave, gameFromSave } = await import('./savegame');
+    const { Game } = await import('./game');
+    const { generateWorld } = await import('./world');
+    const g = new Game({ world: generateWorld(7, 40, 40), noWaves: true });
+    g.unlockedBuildings.add('turret_missile');
+    g.unlockedBuildings.add('factory');
+    const c = g.core;
+    const t = instant(g, 'turret_missile', c.x + 4, c.y);
+    t.inv.missile = 7;
+    const f = instant(g, 'factory', c.x - 5, c.y);
+    const e = air(g as never, 'bomber', c.x + 2, c.y + 2);
+    e.attacking = f.id;
+    g.turretLevel.turret_missile = 2;
+    const g2 = gameFromSave(JSON.parse(JSON.stringify(makeSave(g, 7))));
+    const t2 = [...g2.buildings.values()].find((b) => b.kind === 'turret_missile')!;
+    expect(t2.inv.missile).toBe(7);
+    expect(g2.turretLevel.turret_missile).toBe(2);
+    expect(g2.airAvailable()).toBe(true);
+    const e2 = g2.enemies.find((x) => x.kind === 'bomber')!;
+    expect(e2.flying).toBe(true);
+    expect(e2.attacking).toBe(f.id);
+  });
+});

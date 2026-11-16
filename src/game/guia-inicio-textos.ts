@@ -128,6 +128,18 @@ export const GUIA_TEXT: Record<string, (g: Game) => GuiaText> = {
     title: '¡Oleada en curso!',
     text: 'Haz clic en una torreta para ver su munición y su desgaste. Tus Mecánicos reparan lo dañado cuando termine el ataque.',
   }),
+  air_research: () => ({
+    title: `Se acercan aviones (oleada ${CONFIG.waves.air.from})`,
+    text: `Balas, láser, fuego y hielo no alcanzan a los aviones: sólo el lanzamisiles. Investígalo en el árbol (T, rama Armamento: «${CONFIG.tech.find((n) => n.id === 'arm_missile')?.name ?? 'Lanzamisiles'}», ${CONFIG.tech.find((n) => n.id === 'arm_missile')?.cost ?? '?'} puntos) antes de que lleguen.`,
+  }),
+  air_turret: () => ({
+    title: 'Lanzamisiles',
+    text: `Construye un lanzamisiles (${costOf('turret_missile')}) cerca del núcleo: los aviones vuelan en línea recta por encima de los muros hacia su objetivo.`,
+  }),
+  air_ammo: () => ({
+    title: 'Misiles',
+    text: `El lanzamisiles gasta misiles. Construye una fábrica con la receta Misil: ${recipeIn('missile')} → ${recipeOut('missile')} (necesita fábrica de nivel 2).`,
+  }),
   next: () => ({
     title: 'Y ahora…',
     text: `Construye un taller (${costOf('workshop')}) para reparar, y luego el laboratorio y el árbol de tecnología (T).`,
@@ -162,6 +174,9 @@ export const GUIA_DONE: Record<string, string> = {
   wave_soon: 'Oleada en marcha',
   wave_now: '¡Oleada superada!',
   next: 'Buen comienzo',
+  air_research: 'Lanzamisiles investigado',
+  air_turret: 'Lanzamisiles construido',
+  air_ammo: 'Misiles en camino',
 };
 
 /** Textos extra de ayuda cuando falta un recurso para el paso ("te falta ..."). */
