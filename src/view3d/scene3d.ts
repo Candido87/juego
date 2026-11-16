@@ -18,7 +18,7 @@ import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { slopeLower, tileSurface } from './relieve';
 import { CINTA_PIEZAS, aspectF, aspectSy, escalaPieza } from './aspectos';
-import { ITEM_SHAPES, ItemShape, armsFor, beltConnectors, beltItemPose, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
+import { ITEM_SHAPES, ItemShape, armsFor, beltConnectors, beltItemPose, rampCenter, rampItemLift, rampSlope, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
 import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
 import { ThreatMarks } from './threat3d';
@@ -617,7 +617,7 @@ export class View3D {
         const holder = piece(set.recta, 1, 0);
         holder.rotation.set(0, yawToDir(b.dir), slope * Math.atan(LEVEL_H), 'XYZ');
         // Rampa: la pieza se inclina para unir los dos niveles (sube LEVEL_H a lo largo de la casilla).
-        holder.position.y = (slope * LEVEL_H) / 2;
+        holder.position.y = rampCenter(slope, LEVEL_H);
         group.add(holder);
       } else {
         const arms = new Set<number>([b.dir, ...incoming]);
@@ -936,12 +936,15 @@ export class View3D {
     }
   }
 
-  /** Rampa de la cinta: +1 si sube un nivel hacia la casilla de delante, -1 si baja, 0 si va llana (o si delante no hay otra cinta). */
+  /** Rampa de la cinta (ver `rampSlope`): sólo la cinta de abajo se inclina; la de arriba va llana. */
   private beltSlope(b: Building): number {
     const f = this.game.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
-    if (!f || !(f.kind === 'belt' || f.kind === 'belt_fast')) return 0;
-    const d = this.game.slopeAhead(b);
-    return d === 1 || d === -1 ? d : 0;
+    const k = this.game.buildingAt(b.x - DX[b.dir], b.y - DY[b.dir]);
+    const w = this.game.world;
+    const h = heightAt(w, b.x, b.y);
+    const aheadBelt = !!f && this.isBeltKind(f);
+    const backFeeds = !!k && this.isBeltKind(k) && k.dir === b.dir;
+    return rampSlope(aheadBelt, aheadBelt ? heightAt(w, f!.x, f!.y) - h : 0, backFeeds, backFeeds ? heightAt(w, k!.x, k!.y) - h : 0);
   }
 
   /** Datos de cada cinta para la capa de dirección: entradas (de la firma del modelo), velocidad real y altura. */
@@ -1016,7 +1019,7 @@ export class View3D {
       const slope = info?.slope ?? 0;
       if (beltStopped(b) && lamps < MAX_ITEMS) {
         // El piloto va en el borde derecho de la cinta según su sentido (y a media altura de la rampa).
-        m.makeTranslation(b.x + 0.5 - DY[b.dir] * 0.36, this.levelTop(b) + BELT_TOP + 0.1 + (slope * LEVEL_H) / 2, b.y + 0.5 + DX[b.dir] * 0.36);
+        m.makeTranslation(b.x + 0.5 - DY[b.dir] * 0.36, this.levelTop(b) + BELT_TOP + 0.1 + rampCenter(slope, LEVEL_H), b.y + 0.5 + DX[b.dir] * 0.36);
         this.beltLamps.setMatrixAt(lamps++, m);
       }
       if (!b.item) continue;
@@ -1029,7 +1032,7 @@ export class View3D {
       const p = Math.min(1, Math.max(0, b.beltProgress));
       m.makeRotationY(pose.yaw);
       if (slope !== 0) m.multiply(tilt.makeRotationZ(slope * Math.atan(LEVEL_H)));
-      m.setPosition(b.x + 0.5 + pose.x, this.levelTop(b) + ITEM_GEO[shape].y + slope * LEVEL_H * p, b.y + 0.5 + pose.z);
+      m.setPosition(b.x + 0.5 + pose.x, this.levelTop(b) + ITEM_GEO[shape].y + rampItemLift(slope, p, LEVEL_H), b.y + 0.5 + pose.z);
       im.setMatrixAt(n, m);
       im.setColorAt(n, c.setHex(ITEM_COLOR[b.item] ?? ITEM_COLORS[b.item] ?? 0xffffff));
       im.count = n + 1;

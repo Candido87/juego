@@ -107,3 +107,29 @@ describe('cintas: piezas del kit', () => {
       for (const m of Object.values(set)) expect(existsSync(join(root, `${m.replace('factory/', '')}.glb`)), m).toBe(true);
   });
 });
+
+describe('cintas: rampas (la de abajo absorbe el desnivel)', () => {
+  it('sube hacia una cinta más alta; baja desde una cinta más alta que la alimenta; la de arriba va llana', async () => {
+    const { rampSlope } = await import('./pieces');
+    expect(rampSlope(true, 1, false, 0)).toBe(1);
+    expect(rampSlope(false, 0, true, 1)).toBe(-1);
+    // La de arriba (delante hay una cinta más baja) no se inclina: antes se hundía en su casilla.
+    expect(rampSlope(true, -1, false, 0)).toBe(0);
+    expect(rampSlope(false, 0, false, 0)).toBe(0);
+    expect(rampSlope(true, 0, true, 0)).toBe(0);
+  });
+  it('el centro de la pieza inclinada y los objetos nunca quedan bajo la casilla y enlazan con los dos niveles', async () => {
+    const { rampCenter, rampItemLift } = await import('./pieces');
+    const LH = 0.5;
+    for (const s of [-1, 1]) {
+      expect(rampCenter(s, LH)).toBeCloseTo(LH / 2);
+      const a = rampItemLift(s, 0, LH);
+      const z = rampItemLift(s, 1, LH);
+      expect(Math.min(a, z)).toBeCloseTo(0);
+      expect(Math.max(a, z)).toBeCloseTo(LH);
+    }
+    expect(rampItemLift(1, 0, LH)).toBeCloseTo(0);
+    expect(rampItemLift(-1, 0, LH)).toBeCloseTo(LH);
+    expect(rampItemLift(0, 0.5, LH)).toBe(0);
+  });
+});

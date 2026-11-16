@@ -160,7 +160,7 @@ export class BeltFlow {
         q.setFromAxisAngle(up, yawOf(qd.flow));
         const ramp = (b.slope ?? 0) !== 0 && !qd.half && qd.flow === b.dir;
         if (ramp) q.multiply(tilt.setFromAxisAngle(zAxis, (b.slope ?? 0) * RAMP_ANGLE));
-        pos.set(b.x + 0.5 + qd.dx, b.top + 0.02 + (ramp ? ((b.slope ?? 0) * LEVEL_H) / 2 : 0), b.z + 0.5 + qd.dz);
+        pos.set(b.x + 0.5 + qd.dx, b.top + 0.02 + (ramp ? (Math.abs(b.slope ?? 0) * LEVEL_H) / 2 : 0), b.z + 0.5 + qd.dz);
         m.compose(pos, q, one);
         if (qd.half) {
           this.half.setMatrixAt(nh, m);

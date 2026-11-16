@@ -156,3 +156,25 @@ export function beltItemPose(dir: Dir, incoming: Iterable<number>, progress: num
   const tz = -2 * (1 - p) * ez + 2 * p * sz;
   return { x, z, yaw: Math.atan2(-tz, tx) };
 }
+
+/**
+ * Rampa de una cinta (sólo visual). +1: la de abajo sube hacia la casilla de delante, que es una cinta un nivel más alta.
+ * -1: la de abajo baja desde la casilla de atrás, que es una cinta un nivel más alta que apunta hacia ella. 0: llana.
+ * La cinta de arriba nunca se inclina (se hundiría en su propia casilla): la que absorbe el desnivel es siempre la de abajo.
+ * `aheadDh` / `backDh`: altura de la vecina menos la de esta cinta; `aheadBelt` / `backFeeds`: hay una cinta delante / una cinta detrás que apunta a ésta.
+ */
+export function rampSlope(aheadBelt: boolean, aheadDh: number, backFeeds: boolean, backDh: number): -1 | 0 | 1 {
+  if (aheadBelt && aheadDh === 1) return 1;
+  if (backFeeds && backDh === 1) return -1;
+  return 0;
+}
+
+/** Elevación (en casillas) del centro de la pieza inclinada sobre la cara superior de su casilla: siempre hacia arriba, la mitad del desnivel. */
+export const rampCenter = (slope: number, levelH: number): number => (Math.abs(slope) * levelH) / 2;
+
+/** Altura extra de un objeto con avance `p` (0..1) en una cinta con rampa: sube con +1, baja con -1 (parte de arriba). */
+export function rampItemLift(slope: number, p: number, levelH: number): number {
+  if (slope === 0) return 0;
+  const q = Math.min(1, Math.max(0, p));
+  return levelH * (slope > 0 ? q : 1 - q);
+}
