@@ -108,6 +108,13 @@ export const ENEMY_MODEL: Record<EnemyKind, { model: ModelId; scale: number; lif
   heavy: { model: 'characters/character-robot', scale: 1.5, lift: 1.4 },
 };
 
+/** Aeronaves enemigas (AIR7): modelos del Space Kit, ajustados a `fit` casillas y a `lift` de altura sobre el suelo. */
+export const AIR_MODEL: Partial<Record<EnemyKind, { model: ModelId; fit: number; lift: number; tint: number }>> = {
+  flyer: { model: 'space/craft_speederA', fit: 0.7, lift: 1.5, tint: 0xff8f80 },
+  bomber: { model: 'space/craft_cargoA', fit: 1.0, lift: 1.7, tint: 0xff7060 },
+  heavy: { model: 'space/craft_miner', fit: 1.3, lift: 1.9, tint: 0xc05050 },
+};
+
 /** Terreno y decoración (Nature Kit y Mini Forest). */
 export const TERRAIN = {
   flat: 'nature/ground_grass',
@@ -127,6 +134,7 @@ export function allModels(): ModelId[] {
   s.add(NPC_MODEL);
   for (const r of Object.values(ROLE_LOOK)) s.add(r.model);
   for (const e of Object.values(ENEMY_MODEL)) s.add(e.model);
+  for (const a of Object.values(AIR_MODEL)) s.add(a!.model);
   s.add(TERRAIN.flat);
   s.add(TERRAIN.block);
   s.add(TERRAIN.slope);

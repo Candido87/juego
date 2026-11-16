@@ -443,7 +443,9 @@ export const CONFIG = {
     firstDelay: 300,
     /** La primera oleada es suave: pocos enemigos débiles. */
     firstCount: 2,
-    interval: 35,
+    /** Segundos entre oleadas (la cuenta atrás tras la oleada 1 es `afterFirst`, más larga: respiro para montar defensa). */
+    interval: 90,
+    afterFirst: 150,
     spawnGap: 0.8,
     baseCount: 3,
     countGrowth: 2,

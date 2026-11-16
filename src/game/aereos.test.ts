@@ -153,3 +153,20 @@ describe('aéreos: oleadas y alerta (AIR6)', () => {
     expect(g.nextWaveAir()).toBeNull();
   });
 });
+
+describe('oleadas espaciadas', () => {
+  it('tras la primera oleada la segunda tarda más (respiro) y luego van cada intervalo', () => {
+    const g = flatGame([], { waves: true });
+    g.coreHp = 1e9;
+    g.nextWaveIn = 0;
+    g.step(CONFIG.step);
+    expect(g.wave).toBe(1);
+    expect(g.nextWaveIn).toBeGreaterThan(CONFIG.waves.afterFirst - 1);
+    expect(CONFIG.waves.afterFirst).toBeGreaterThan(CONFIG.waves.interval);
+    g.nextWaveIn = 0;
+    g.step(CONFIG.step);
+    expect(g.wave).toBe(2);
+    expect(g.nextWaveIn).toBeGreaterThan(CONFIG.waves.interval - 1);
+    expect(CONFIG.waves.interval).toBeGreaterThanOrEqual(60);
+  });
+});

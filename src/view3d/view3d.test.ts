@@ -15,7 +15,7 @@ describe('catálogo 3D', () => {
     const missing = allModels().filter((m) => !existsSync(join('public', 'assets', '3d', `${m}.glb`)));
     expect(missing).toEqual([]);
     for (const pack of new Set(allModels().map((m) => m.split('/')[0]))) {
-      expect(existsSync(join('public', 'assets', '3d', pack, 'Textures', 'colormap.png')) || pack === 'nature', pack).toBe(true);
+      expect(existsSync(join('public', 'assets', '3d', pack, 'Textures', 'colormap.png')) || pack === 'nature' || pack === 'space' /* colores de material, sin textura externa */, pack).toBe(true);
     }
   });
 });
@@ -978,5 +978,31 @@ describe('objetos en cintas (CIN-K4)', () => {
     expect(Math.abs(m.x)).toBeLessThan(0.5);
     // El giro cambia a lo largo de la curva.
     expect(a.yaw).not.toBeCloseTo(z.yaw);
+  });
+});
+
+describe('aeronaves 3D (AIR7)', () => {
+  it('rumbo, alabeo y bombas son decisiones puras y razonables', async () => {
+    const { airYaw, angleDelta, bankFor, dropsBomb } = await import('./aereos3d');
+    expect(airYaw(0, 0)).toBeNull();
+    expect(airYaw(0, 1)).toBeCloseTo(0);
+    expect(airYaw(1, 0)).toBeCloseTo(Math.PI / 2);
+    expect(Math.abs(angleDelta(3.0, -3.0))).toBeLessThan(0.3); // da la vuelta por el camino corto
+    expect(bankFor(10)).toBe(-0.5);
+    expect(bankFor(-10)).toBe(0.5);
+    expect(bankFor(0)).toBeCloseTo(0);
+    expect(dropsBomb(false, 1, 3, 0)).toBe(false);
+    expect(dropsBomb(true, 0.1, 3, 0.1)).toBe(true);
+    expect(dropsBomb(true, 0.1, 3, 0.9)).toBe(false);
+  });
+  it('los tres aéreos tienen modelo del Space Kit que existe y vuelan más alto cuanto más grandes', async () => {
+    const { AIR_MODEL } = await import('./catalog');
+    for (const k of ['flyer', 'bomber', 'heavy'] as const) {
+      const a = AIR_MODEL[k]!;
+      expect(existsSync(join(process.cwd(), 'public', 'assets', '3d', `${a.model}.glb`)), k).toBe(true);
+      expect(a.lift).toBeGreaterThan(1);
+    }
+    expect(AIR_MODEL.heavy!.fit).toBeGreaterThan(AIR_MODEL.bomber!.fit);
+    expect(AIR_MODEL.bomber!.fit).toBeGreaterThan(AIR_MODEL.flyer!.fit);
   });
 });

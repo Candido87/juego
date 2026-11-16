@@ -9,6 +9,7 @@ import { BUILD_KINDS, DX, DY, Dir, BuildKind, EnemyKind, ItemId, TurretKind, Wal
 import { heightAt, heightAtPoint } from '../game/world';
 import { ROLE_LOOK, TURRET_COLOR, TurretState, carried, enemyLook, npcAnim, smokeSources, turretLook, turretState } from './actors';
 import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, allModels } from './catalog';
+import { AirFleet, dropsBomb } from './aereos3d';
 import { Effects } from './effects3d';
 import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
@@ -260,6 +261,7 @@ export class View3D {
   private buildings = new Map<number, BView>();
   private npcs = new Map<number, CView>();
   private enemies = new Map<number, CView>();
+  private air = new AirFleet(this.scene);
   private dying: { v: CView; t: number }[] = [];
   private deadNpcs = new Set<number>();
   private sphere = new THREE.Sphere(new THREE.Vector3(), 1.6);
@@ -1252,6 +1254,7 @@ export class View3D {
     }
     const anim = new Set(animated);
     const aliveIds = new Set<number>();
+    const aliveIdsAir = new Set<number>();
     for (const lod of this.lod.values()) for (const im of lod.meshes) im.count = 0;
     this.stats.lodChars = 0;
     for (const en of alive) {
@@ -1260,7 +1263,28 @@ export class View3D {
       const y = heightAtPoint(w, en.x, en.y) * LEVEL_H + def.lift;
       let visible = false;
       let tall = 0.9;
-      if (anim.has(en)) {
+      if (en.flying && this.air.has(en.kind)) {
+        // Aeronave propia (AIR7): sin esqueleto, con sombra; no entra en el presupuesto de personajes animados.
+        const ground = heightAtPoint(w, en.x, en.y) * LEVEL_H;
+        this.sphere.center.set(en.x, ground + 1.5, en.y);
+        visible = this.frustum.intersectsSphere(this.sphere);
+        if (visible) {
+          tall = this.air.place(en.id, en.kind, en.x, en.y, ground, this.time, dt);
+          // Bombardero sobre su objetivo: suelta bombas que caen y explotan en el suelo dentro del radio de bombardeo.
+          const bombing = en.kind === 'bomber' && en.attacking !== null && dt > 0;
+          if (dropsBomb(bombing, dt, 3, Math.random())) {
+            const r = (CONFIG.enemies.bomber.bombRadius ?? 1.5) * Math.random();
+            const a = Math.random() * Math.PI * 2;
+            const bx = en.x + Math.cos(a) * r;
+            const bz = en.y + Math.sin(a) * r;
+            const gy = heightAtPoint(w, bx, bz) * LEVEL_H;
+            fx.pool.spawn({ kind: 0, x: en.x, y: ground + tall, z: en.y, vy: -3, max: 0.45, s0: 0.1, s1: 0.1, color: 0x25262b, gravity: -9 });
+            fx.pop(bx, gy + 0.2, bz, 0xff9a3a, 0.7);
+            fx.smoke(bx, gy + 0.3, bz, 0x3a3a40, 0.3);
+          }
+        }
+        aliveIdsAir.add(en.id);
+      } else if (anim.has(en)) {
         seenE.add(en.id);
         let v = this.enemies.get(en.id);
         if (!v) {
@@ -1297,6 +1321,7 @@ export class View3D {
       }
     }
     for (const lod of this.lod.values()) for (const im of lod.meshes) im.instanceMatrix.needsUpdate = true;
+    this.air.prune(aliveIdsAir);
     for (const [id, v] of this.enemies) {
       if (seenE.has(id)) continue;
       this.enemies.delete(id);

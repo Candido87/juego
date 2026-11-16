@@ -1147,7 +1147,7 @@ export class Game {
     this.nextWaveIn -= dt;
     if (this.nextWaveIn <= 0) {
       this.wave++;
-      this.nextWaveIn = CONFIG.waves.interval;
+      this.nextWaveIn = this.wave === 1 ? CONFIG.waves.afterFirst : CONFIG.waves.interval;
       const W = CONFIG.waves;
       const n = this.wave - 1;
       const count = this.wave === 1 ? W.firstCount : W.baseCount + W.countGrowth * n;

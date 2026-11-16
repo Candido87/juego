@@ -154,7 +154,7 @@ export function hudTip(g: Game, key: HudKey): HudTip {
       return {
         key,
         title: 'Oleada',
-        means: `Número de oleadas que han llegado; cada ${CONFIG.waves.interval} s viene otra, con más enemigos y más fuertes. «Adelantar oleada» llama a la siguiente ya.`,
+        means: `Número de oleadas que han llegado; cada ${CONFIG.waves.interval} s viene otra (la segunda tarda ${CONFIG.waves.afterFirst} s), con más enemigos y más fuertes. «Adelantar oleada» llama a la siguiente ya.`,
         zero: 'En la oleada 0 todavía no ha llegado ninguna: es tu tiempo de preparación.',
       };
     case 'population':
