@@ -72,6 +72,8 @@ export const ITEM_GEO: Record<ItemShape, { geo: THREE.BufferGeometry; y: number 
   shell: { geo: new THREE.CylinderGeometry(0.05, 0.05, 0.18, 8), y: rests(0.09) },
   crate: { geo: new THREE.BoxGeometry(0.2, 0.16, 0.2), y: rests(0.08) },
 };
+/** Piezas del Factory Kit del ascensor: tolva de carga/descarga y cinta de barras (aspectos.ts documenta el mapeo). */
+const ELEVATOR_PARTS = { tolva: 'factory/hopper-square', cinta: 'factory/conveyor-bars-high' } as const;
 const CONNECTOR_GEO = new THREE.BoxGeometry(0.06, CONFIG.scale.beltHeight + 0.06, CONFIG.scale.beltWidth + 0.14);
 const CONNECTOR_MAT = new THREE.MeshStandardMaterial({ color: 0xffb347, flatShading: true, roughness: 0.7 });
 const RAIL_MAT = new THREE.MeshStandardMaterial({ color: 0xc9cdd9, flatShading: true, roughness: 0.9 });
@@ -562,6 +564,8 @@ export class View3D {
         const n = this.isKind(b.x + DX[d], b.y + DY[d], ['belt', 'belt_fast']);
         s += n && n.dir === (d + 2) % 4 ? 'i' : '-';
       }
+    } else if (b.kind === 'elevator') {
+      s += '|e' + Math.max(-CONFIG.elevator.maxRise, Math.min(CONFIG.elevator.maxRise, this.game.slopeAhead(b)));
     } else if (b.kind === 'pipeline') {
       s += `|q${Object.keys(b.inv).find((k) => (b.inv[k as ItemId] ?? 0) > 0) ?? ''}`;
       for (let d = 0; d < 4; d++) s += this.pipeLinked(b.x + DX[d], b.y + DY[d]) ? 'p' : '-';
@@ -635,6 +639,37 @@ export class View3D {
         group.add(h);
       }
       top = sc.beltHeight;
+    } else if (kind === 'elevator') {
+      // Ascensor de cintas con piezas del Factory Kit: tolva de entrada, cinta de barras inclinada hasta la altura de salida,
+      // tolva de salida y un poste. El desnivel (en niveles) viene de la firma (`|e<n>`): sube (n>0) o baja (n<0) hasta la casilla de delante.
+      const sc = CONFIG.scale;
+      const rise = Number(/\|e(-?\d)/.exec(sig)?.[1] ?? 0);
+      const s = rise * LEVEL_H;
+      const run = 0.7;
+      const len = Math.hypot(run, s);
+      const root = new THREE.Group();
+      root.rotation.y = yawToDir(b.dir);
+      const hop = (x: number, y: number) => {
+        const h = instance(ELEVATOR_PARTS.tolva, 0.46, 1);
+        h.position.set(x, y, 0);
+        root.add(h);
+      };
+      hop(-0.38, 0);
+      hop(0.38, s);
+      const tilt = new THREE.Group();
+      const belt = instance(ELEVATOR_PARTS.cinta, undefined, 1);
+      belt.scale.set(len, 0.3 / 0.42, sc.beltWidth);
+      tilt.add(belt);
+      tilt.position.set(0, s / 2 + 0.12, 0);
+      tilt.rotation.z = Math.atan2(s, run);
+      root.add(tilt);
+      const post = new THREE.Mesh(BOX_GEO, FLANGE_MAT);
+      const ph = Math.max(Math.abs(s), 0.1);
+      post.scale.set(0.12, ph, 0.12);
+      post.position.set(0.3, Math.min(0, s) + ph / 2, 0);
+      root.add(post);
+      group.add(root);
+      top = Math.max(0, s) + 0.45;
     } else if (kind === 'pipeline') {
       // Tubería: tramo recto, o medios tramos hacia cada vecino con un codo central.
       const a = armsFor(maskOf(on('p')), (b.dir % 2) as 0 | 1);

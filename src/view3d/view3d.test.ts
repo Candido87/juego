@@ -939,3 +939,14 @@ describe('cinta: conectores de puerto', () => {
     }
   });
 });
+
+describe('ascensor con piezas del kit', () => {
+  it('sus modelos se precargan y existen en public', async () => {
+    const { allModels } = await import('./catalog');
+    const fs = await import('node:fs');
+    for (const m of ['factory/hopper-square', 'factory/conveyor-bars-high']) {
+      expect(allModels()).toContain(m);
+      expect(fs.existsSync(`public/assets/3d/${m}.glb`)).toBe(true);
+    }
+  });
+});

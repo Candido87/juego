@@ -125,6 +125,8 @@ export function allModels(): ModelId[] {
   for (const m of [...TERRAIN.trees, ...TERRAIN.rocks, ...TERRAIN.small, ...TERRAIN.camp]) s.add(m);
   for (const p of Object.values(BELT_MODELS)) s.add(p.model);
   for (const set of Object.values(CINTA_PIEZAS)) for (const m of Object.values(set)) s.add(m);
+  s.add('factory/hopper-square'); // ascensor (scene3d.ts: ELEVATOR_PARTS)
+  s.add('factory/conveyor-bars-high');
   for (const m of ['factory/pipe-large', 'factory/structure-short', 'factory/structure-medium', 'factory/structure-tall', 'factory/box-small', 'weapons/bullet-foam', 'factory/arrow']) s.add(m);
   return [...s];
 }
