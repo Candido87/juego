@@ -10,6 +10,7 @@ import { heightAt, heightAtPoint } from '../game/world';
 import { ROLE_LOOK, TURRET_COLOR, TurretState, carried, enemyLook, npcAnim, smokeSources, turretLook, turretState } from './actors';
 import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, allModels } from './catalog';
 import { AirFleet, dropsBomb } from './aereos3d';
+import { maskOf as connMask, pipeConnections, planFor } from '../game/conexiones';
 import { Effects } from './effects3d';
 import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
@@ -86,7 +87,6 @@ patchMaterial(BELT_HUB_MAT);
 const HUB_GEO = new THREE.SphereGeometry(0.5, 8, 6);
 const HUB_MAT = new THREE.MeshStandardMaterial({ color: 0x5f5d78, flatShading: true, roughness: 1, metalness: 0 });
 patchMaterial(HUB_MAT);
-const PIPE_MACHINES: string[] = ['pump', 'refinery', 'generator', 'turbine', 'turret_fire'];
 const PIPE_CONNECTOR_GEO = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 12).rotateZ(Math.PI / 2);
 const FLANGE_GEO = new THREE.CylinderGeometry(0.5, 0.5, 0.07, 10).rotateZ(Math.PI / 2);
 const FLANGE_MAT = new THREE.MeshStandardMaterial({ color: 0xaeb0c8, flatShading: true, roughness: 0.8, metalness: 0.1 });
@@ -574,10 +574,11 @@ export class View3D {
       s += '|e' + Math.max(-CONFIG.elevator.maxRise, Math.min(CONFIG.elevator.maxRise, this.game.slopeAhead(b)));
     } else if (b.kind === 'pipeline') {
       s += `|q${Object.keys(b.inv).find((k) => (b.inv[k as ItemId] ?? 0) > 0) ?? ''}`;
-      // Conector físico (ESC-6): lados que dan a una máquina con puerto de tubería (no a otra tubería).
+      // Conexiones con la MISMA regla que la lógica de redes (conexiones.ts): lados con unión y, de ellos, los que dan a una máquina (conector físico).
+      const pc = pipeConnections(this.game, b);
       s += '|k';
-      for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], PIPE_MACHINES) ? 'k' : '-';
-      for (let d = 0; d < 4; d++) s += this.pipeLinked(b.x + DX[d], b.y + DY[d]) ? 'p' : '-';
+      for (let d = 0; d < 4; d++) s += pc.machines & (1 << d) ? 'k' : '-';
+      for (let d = 0; d < 4; d++) s += pc.mask & (1 << d) ? 'p' : '-';
     } else if (isWallKind(b.kind)) {
       for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], WALL_LINK) ? 'w' : '-';
     } else if (b.kind === 'wall_gate') {
@@ -588,10 +589,6 @@ export class View3D {
 
   private isBeltKind(b: Building): boolean {
     return b.kind === 'belt' || b.kind === 'belt_fast';
-  }
-
-  private pipeLinked(x: number, y: number): boolean {
-    return !!this.isKind(x, y, ['pipeline', 'pump', 'refinery', 'generator', 'turbine', 'turret_fire']);
   }
 
   private makeBuilding(b: Building, sig: string): BView {
@@ -687,22 +684,25 @@ export class View3D {
       top = Math.max(0, s) + 0.45;
     } else if (kind === 'pipeline') {
       // Tubería: tramo recto, o medios tramos hacia cada vecino con un codo central.
-      const a = armsFor(maskOf(on('p')), (b.dir % 2) as 0 | 1);
-      const seg = (d: number, half: boolean) => {
+      // Pieza y giro: tabla única de conexiones (conexiones.ts). Tramo aislado y extremo llevan tapa; recta, un tubo entero;
+      // curva, T y cruce, medios tubos hacia cada lado abierto con una pieza central.
+      const plan = planFor(connMask(on('p')));
+      const liquid = /\|q(\w*)/.exec(sig)?.[1] ?? '';
+      const flangeMat = FLANGE_BY_LIQUID[liquid] ?? FLANGE_MAT;
+      // Tubo de largo `len` centrado en `cx` a lo largo de la dirección d, con bridas (o tapas) en las posiciones `flanges`.
+      const tube = (d: number, len: number, cx: number, flanges: number[]) => {
         const holder = new THREE.Group();
         holder.rotation.y = yawToDir(d);
         const o = instance('factory/pipe-large', 1);
-        o.scale.set(half ? 0.5 : 1, PIPE_T, PIPE_T);
-        o.position.x = half ? 0.25 : 0;
-        const liquid = /\|q(\w*)/.exec(sig)?.[1] ?? '';
+        o.scale.set(len, PIPE_T, PIPE_T);
+        o.position.x = cx;
         if (PIPE_LIQUID_TINT[liquid]) tint(o, PIPE_LIQUID_TINT[liquid]);
         holder.add(o);
-        // Bridas en las juntas con la casilla vecina (en el extremo exterior del tramo).
-        for (const sx of half ? [0.47] : [0.47, -0.47]) {
-          const f = new THREE.Mesh(FLANGE_GEO, FLANGE_BY_LIQUID[liquid] ?? FLANGE_MAT);
-          f.position.set(sx, PIPE_T * 0.5, 0);
-          f.scale.set(1, CONFIG.scale.pipeFlange, CONFIG.scale.pipeFlange);
-          holder.add(f);
+        for (const sx of flanges) {
+          const fl = new THREE.Mesh(FLANGE_GEO, flangeMat);
+          fl.position.set(sx, PIPE_T * 0.5, 0);
+          fl.scale.set(1, CONFIG.scale.pipeFlange, CONFIG.scale.pipeFlange);
+          holder.add(fl);
         }
         holder.position.y = PIPE_LIFT;
         group.add(holder);
@@ -721,9 +721,11 @@ export class View3D {
         h.add(ring);
         group.add(h);
       }
-      if (a.straightAxis !== null) seg(a.straightAxis, false);
+      if (plan.piece === 'isolated') tube(b.dir % 2, 0.5, 0, [0.22, -0.22]);
+      else if (plan.piece === 'end') tube(plan.open[0], 0.5, 0.25, [0.47, 0.0]);
+      else if (plan.piece === 'straight') tube(plan.open[0] % 2, 1, 0, [0.47, -0.47]);
       else {
-        a.arms.forEach((d) => seg(d, true));
+        for (const d of plan.open) tube(d, 0.5, 0.25, [0.47]);
         const hub = new THREE.Mesh(HUB_GEO, HUB_MAT);
         hub.position.y = PIPE_T * 0.5 + PIPE_LIFT;
         hub.scale.setScalar(PIPE_T);

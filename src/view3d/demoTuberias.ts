@@ -11,8 +11,8 @@ import { createFlatWorld, type World } from '../game/world';
 export interface PipeCase {
   id: string;
   label: string;
-  /** Casillas de tubería del caso. */
-  pipes: [number, number][];
+  /** Tuberías del caso (x, y, dirección): la central mira a su primer lado abierto y cada vecina apunta a la central, así todas quedan unidas. */
+  pipes: [number, number, Dir][];
   /** Casilla cuya pieza se estudia y las direcciones (0:+x 1:+y 2:-x 3:-y) que debe tener abiertas. */
   probe: [number, number];
   open: Dir[];
@@ -32,7 +32,7 @@ export function pipeCases(): PipeCase[] {
   const add = (id: string, label: string, col: number, row: number, open: Dir[]): void => {
     const x = 5 + col * 5;
     const y = 6 + row * 6;
-    const pipes: [number, number][] = [[x, y], ...open.map((d) => at(x, y, d))];
+    const pipes: [number, number, Dir][] = [[x, y, open[0] ?? 0], ...open.map((d): [number, number, Dir] => [...at(x, y, d), ((d + 2) % 4) as Dir])];
     out.push({ id, label, pipes, probe: [x, y], open });
   };
   // Fila 0: aislado, extremo (1 vecino, en los 4 sentidos).
@@ -66,7 +66,7 @@ export function placeDemoTuberias(game: Game): { cases: PipeCase[]; notes: strin
     return b;
   };
   const cases = pipeCases();
-  for (const c of cases) for (const [x, y] of c.pipes) put('pipeline', x, y);
+  for (const c of cases) for (const [x, y, d] of c.pipes) put('pipeline', x, y, d);
   // Puertos (los edificios son 1×1): bomba, generador y refinería con una tubería en cada casilla de puerto de líquido y otra en un lado sin puerto.
   for (const [kind, x, y] of [['pump', 8, 31], ['generator', 16, 31], ['refinery', 22, 31]] as const) {
     const b = put(kind, x, y);

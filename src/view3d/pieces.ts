@@ -4,6 +4,7 @@
  * Direcciones del juego: 0:+x 1:+z(+y del juego) 2:-x 3:-z. Un giro Y de Three de k cuartos de vuelta (+90° cada uno)
  * lleva la dirección d del modelo a (d − k) mod 4.
  */
+import { dirsOf as dirsOfShared, maskOf as maskOfShared, planFor } from '../game/conexiones';
 import type { Dir } from '../game/types';
 
 /** Lados abiertos de cada modelo de cinta con giro 0 (medidos en los vértices de los .glb: los lados con borde alto están cerrados). */
@@ -15,12 +16,9 @@ export const BELT_MODELS = {
 } as const;
 
 const norm = (d: number) => ((d % 4) + 4) % 4;
-export const maskOf = (dirs: Iterable<number>): number => {
-  let m = 0;
-  for (const d of dirs) m |= 1 << norm(d);
-  return m;
-};
-export const dirsOf = (mask: number): Dir[] => ([0, 1, 2, 3] as Dir[]).filter((d) => mask & (1 << d));
+// Máscaras y tabla de piezas: una sola definición, en src/game/conexiones.ts.
+export const maskOf = maskOfShared;
+export const dirsOf = dirsOfShared;
 
 /** Cuartos de vuelta k (0..3) para que los lados abiertos del modelo coincidan con los deseados, o null si no encaja. */
 export function orient(modelOpen: readonly number[], want: Iterable<number>): number | null {
@@ -50,8 +48,8 @@ export function beltPiece(dir: Dir, incoming: Iterable<number>): Placed {
   const open = new Set<number>([dir]);
   for (const d of incoming) if (norm(d) !== dir) open.add(norm(d));
   if (open.size === 1) open.add(norm(dir + 2));
-  const n = open.size;
-  const piece = n === 4 ? 'cross' : n === 3 ? 'tee' : open.has(norm(dir + 2)) ? 'straight' : 'corner';
+  // La pieza la decide la tabla única de conexiones (con la salida y la espalda siempre abiertas nunca sale extremo ni aislada).
+  const piece = planFor(maskOf(open)).piece as 'straight' | 'corner' | 'tee' | 'cross';
   const def = BELT_MODELS[piece];
   return { model: def.model, k: orient(def.open, open) ?? 0, piece };
 }

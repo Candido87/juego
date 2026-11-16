@@ -181,7 +181,8 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 
 ## Encargo de conexiones de cintas/tuberías (arrastrar para dibujar) — en curso
 - [x] Hito 0. Diagnóstico de tuberías (docs/tuberias/diagnostico.md, mapa de pruebas `?demo=tuberias`): la vista conecta por vecindad y la lógica por dirección; puertos ignorados; extremos abiertos; sin piezas bend/junction; sin desniveles. **Parado: esperando visto bueno.**
-- [ ] Hitos 1-5 (motor de conexiones, arrastrar, enganche, aspecto, guía).
+- [x] Hito 1. Motor único de conexiones (`conexiones.ts`: tabla de 16 máscaras, `pipeConnections` con la regla de la lógica de redes), vista de tuberías y `beltPiece` sobre esa tabla, extremos con tapa, 10 tests de propiedades. La lógica de flujo sigue con dirección (ver SPEC).
+- [ ] Hitos 2-5 (arrastrar, enganche, aspecto, guía).
 
 ## Encargo de escala, City Kit y tutorial — en curso
 - [x] A0. Diagnóstico de escala y huellas (docs/escala/a0-diagnostico.md): las huellas NO existen (todo es 1×1); es la causa de que cintas y tuberías parezcan enormes. **Parado: esperando visto bueno.**
