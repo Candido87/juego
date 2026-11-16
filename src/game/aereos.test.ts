@@ -103,3 +103,53 @@ describe('aéreos: en la partida', () => {
     expect(t.hp).toBeLessThan(hp);
   });
 });
+
+describe('aéreos: oleadas y alerta (AIR6)', () => {
+  it('la mezcla crece con el paso: ligeros, luego bombarderos, luego pesados', async () => {
+    const { airWaveMix, airAlertText } = await import('./aereos');
+    const A = CONFIG.waves.air;
+    expect(airWaveMix(A.from - 1)).toEqual({});
+    expect(airWaveMix(A.from + 1)).toEqual({});
+    expect(airWaveMix(A.from)).toEqual({ flyer: A.flyerBase });
+    expect(airWaveMix(A.from + A.every)).toEqual({ flyer: A.flyerBase + A.flyerPerStep, bomber: 1 });
+    expect(airWaveMix(A.from + 2 * A.every)).toEqual({ flyer: A.flyerBase + 2 * A.flyerPerStep, bomber: 2, heavy: 1 });
+    expect(airAlertText({ flyer: 2, bomber: 1 })).toBe('2 volador, 1 bombardero');
+  });
+
+  /** Fuerza las oleadas hasta la `wave` y cuenta los aéreos que entran mientras es la oleada actual (la siguiente no llega). */
+  function airSpawned(unlockMissile: boolean, wave: number): number {
+    const g = flatGame([], { waves: true });
+    if (unlockMissile) g.unlockedBuildings.add('turret_missile');
+    g.coreHp = 1e9;
+    const known = new Set<number>();
+    let seen = 0;
+    for (let i = 0; i < 6000; i++) {
+      if (g.wave < wave) g.nextWaveIn = 0;
+      else g.nextWaveIn = 1e9;
+      g.step(CONFIG.step);
+      if (g.wave < wave) continue;
+      for (const e of g.enemies) {
+        if (known.has(e.id)) continue;
+        known.add(e.id);
+        if (e.flying) seen++;
+      }
+    }
+    return seen;
+  }
+
+  it('sin el lanzamisiles desbloqueado no sale ninguna oleada aérea', () => {
+    expect(airSpawned(false, CONFIG.waves.air.from)).toBe(0);
+  });
+  it('con el lanzamisiles desbloqueado la oleada aérea trae los ligeros previstos', () => {
+    expect(airSpawned(true, CONFIG.waves.air.from)).toBe(CONFIG.waves.air.flyerBase);
+  });
+  it('la alerta aérea salta una oleada antes, y sólo con el lanzamisiles disponible', () => {
+    const g = flatGame([], { waves: true });
+    g.wave = CONFIG.waves.air.from - 1;
+    expect(g.nextWaveAir()).toBeNull();
+    g.unlockedBuildings.add('turret_missile');
+    expect(g.nextWaveAir()).toEqual({ flyer: CONFIG.waves.air.flyerBase });
+    g.wave = CONFIG.waves.air.from;
+    expect(g.nextWaveAir()).toBeNull();
+  });
+});

@@ -450,6 +450,12 @@ export const CONFIG = {
     hpGrowth: 1.12,
     /** Composición: a partir de la oleada `from`, proporción de cada tipo. */
     table: [{ from: 1, mix: { grunt: 1 } }] as { from: number; mix: Partial<Record<EnemyKind, number>> }[],
+    /**
+     * Oleadas aéreas (se suman a las de tierra, y sólo si el lanzamisiles está desbloqueado): la primera en la oleada `from` y
+     * luego una cada `every`. Paso k = 0, 1, 2...: `flyerBase + flyerPerStep·k` ligeros; bombarderos desde k = 1 (k de ellos);
+     * pesados desde k = 2 (k − 1 de ellos).
+     */
+    air: { from: 5, every: 3, flyerBase: 2, flyerPerStep: 2 },
   },
 
   /**

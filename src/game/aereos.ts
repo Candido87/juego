@@ -5,7 +5,8 @@
  * - torreta (pesado): la torreta más cercana; al llegar la ataca hasta que cae.
  * Si no queda objetivo de su tipo, van al núcleo. Sólo el lanzamisiles los alcanza (`hitsAir` en `CONFIG.turrets`).
  */
-import type { BuildingKind } from './types';
+import { CONFIG } from './config';
+import type { BuildingKind, EnemyKind } from './types';
 
 export type AirTarget = 'core' | 'industry' | 'turret';
 
@@ -52,4 +53,23 @@ export function flyToward(x: number, y: number, tx: number, ty: number, budget: 
   if (d <= reach) return { x, y, arrived: true };
   const step = Math.min(budget, d - reach + 1e-9);
   return { x: x + (dx / d) * step, y: y + (dy / d) * step, arrived: d - step <= reach + 1e-6 };
+}
+
+/** Aéreos que se suman a la oleada `wave` (vacío si no toca oleada aérea). No mira si el lanzamisiles está disponible. */
+export function airWaveMix(wave: number): Partial<Record<EnemyKind, number>> {
+  const A = CONFIG.waves.air;
+  if (wave < A.from || (wave - A.from) % A.every !== 0) return {};
+  const k = (wave - A.from) / A.every;
+  const mix: Partial<Record<EnemyKind, number>> = { flyer: A.flyerBase + A.flyerPerStep * k };
+  if (k >= 1) mix.bomber = k;
+  if (k >= 2) mix.heavy = k - 1;
+  return mix;
+}
+
+/** Texto de la alerta aérea ("2 Volador, 1 Bombardero"). */
+export function airAlertText(mix: Partial<Record<EnemyKind, number>>): string {
+  return (Object.entries(mix) as [EnemyKind, number][])
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => `${n} ${CONFIG.enemies[k].name.toLowerCase()}`)
+    .join(', ');
 }

@@ -2,7 +2,7 @@
  * Estado y sistemas del juego. Sin Phaser ni DOM: se puede simular sin gráficos.
  */
 import { add, addAll, count, entries, take } from './bag';
-import { AirTarget, flyToward, pickAirTarget } from './aereos';
+import { AirTarget, airWaveMix, flyToward, pickAirTarget } from './aereos';
 import { BuildingDef, CONFIG, TurretDef } from './config';
 import { JobBoard } from './jobs';
 import { Npc, stepNpc } from './npc';
@@ -1131,6 +1131,18 @@ export class Game {
     return best;
   }
 
+  /** ¿Puede el jugador construir el lanzamisiles? Sin él no llega ninguna oleada aérea. */
+  airAvailable(): boolean {
+    return this.unlockedBuildings.has('turret_missile');
+  }
+
+  /** Aéreos de la próxima oleada (para la "Alerta aérea" del HUD), o null si la próxima no trae o aún no se pueden defender. */
+  nextWaveAir(): Partial<Record<EnemyKind, number>> | null {
+    if (!this.airAvailable()) return null;
+    const mix = airWaveMix(this.wave + 1);
+    return Object.keys(mix).length ? mix : null;
+  }
+
   private stepWaves(dt: number): void {
     this.nextWaveIn -= dt;
     if (this.nextWaveIn <= 0) {
@@ -1149,6 +1161,13 @@ export class Game {
           hpMult,
           spawn: this.spawns[(i + n) % active],
         });
+      }
+      // Oleada aérea: se suma a la de tierra y sólo si el jugador ya puede levantar lanzamisiles.
+      if (this.airAvailable()) {
+        let j = count;
+        for (const [kind, num] of Object.entries(airWaveMix(this.wave)) as [EnemyKind, number][]) {
+          for (let i = 0; i < num; i++, j++) this.queue.push({ at: this.time + j * W.spawnGap, kind, hpMult, spawn: this.spawns[(j + n) % active] });
+        }
       }
       this.emit({ type: 'wave', wave: this.wave });
     }

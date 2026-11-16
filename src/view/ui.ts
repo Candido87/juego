@@ -2,6 +2,7 @@
 import { count, entries, missing, total } from '../game/bag';
 import { CONFIG } from '../game/config';
 import { ROTATABLE, type Building, type Game } from '../game/game';
+import { airAlertText } from '../game/aereos';
 import { formatClock } from '../game/format';
 import { RecipeCategory } from '../game/config';
 import { factoryStatusText, recipeCategories, recipeEntries, recipeFormula } from '../game/recetas';
@@ -359,6 +360,9 @@ export class Hud {
     this.set('core', String(Math.max(0, Math.ceil(sim.coreHp))));
     this.set('wave', String(sim.wave));
     this.set('next', formatClock(sim.nextWaveIn));
+    const air = sim.nextWaveAir();
+    this.set('airAlert', air ? airAlertText(air) : '');
+    $('airAlertWrap').hidden = !air;
     this.guia.update(sim, dt);
     this.tech.update(dt);
     // El botón avisa cuando hay algo que comprar.
