@@ -1,8 +1,9 @@
 /** Selección de casilla con relieve: avanza un rayo hasta chocar con la columna de una casilla. */
+import { CONFIG } from '../game/config';
 import type { Vec3 } from './camera';
 
-/** Altura en unidades de mundo de cada nivel del juego. */
-export const LEVEL_H = 0.5;
+/** Altura en unidades de mundo de cada nivel del juego (`CONFIG.scale.levelH`). */
+export const LEVEL_H = CONFIG.scale.levelH;
 
 export interface PickWorld {
   w: number;

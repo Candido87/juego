@@ -253,6 +253,8 @@ export const CONFIG = {
     beltWidth: 0.65,
     beltHeight: 0.18,
     beltRail: 0.04,
+    /** Altura de un nivel del terreno, en casillas (antes sólo en la vista: `LEVEL_H`). Las tuberías con desnivel la usan para el tramo vertical. */
+    levelH: 0.5,
     /** Margen entre la superficie del terreno y la base de lo que se construye (evita el parpadeo entre caras coplanares). */
     groundMargin: 0.004,
     beltLane: 0.5,

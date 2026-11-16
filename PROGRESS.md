@@ -191,4 +191,5 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 
 ## Encargo de tuberías en desnivel (codo-vertical-codo) — en curso
 - [x] Hito 0. Piezas del kit medidas (`docs/tuberias/medidas-piezas.json`, `piezas.md`), tabla de puertos geométricos (`tuberiasPiezas.ts` + test contra las medidas) y galería `/galeria-tuberias.html` con ejes y extremos. Conclusión: el tramo vertical es la recta girada; los codos se generan por código (cuarto de toro) porque `pipe-large-bend` mide 1,9×1,9 y no encaja en una casilla con la escala aprobada. **Parado: esperando visto bueno.**
-- [ ] Hitos 1-4 (motor 3D de conexiones, aspecto, arrastrar en terreno desigual, galería y pruebas).
+- [x] Hito 1. Motor de conexiones con altura (`conexiones3d.ts`: lados a nivel / que suben, tabla única de 81 patrones, T/cruce en desnivel inválidos con motivo, puertos geométricos que coinciden en el mundo, vecinos afectados), `CONFIG.scale.levelH`; 11 tests. Decisión del usuario: codo del kit; ver SPEC (el codo de 90° no cabe para subir 0,5: se usarán curvas de 45° con tramo diagonal).
+- [ ] Hitos 2-4 (aspecto con el kit, arrastrar en terreno desigual, galería y pruebas).
