@@ -293,3 +293,6 @@ En total, por color: 60 imágenes por tamaño (barras 40, botones 16, miras 4); 
 
 ## Cintas del Factory Kit (Kenney, CC0)
 Las cintas del juego usan las piezas `conveyor*` del **Factory Kit 3.0** de Kenney (https://kenney.nl/assets/factory-kit, CC0), de `Models/GLB format` del ZIP `kenney_factory-kit_3.0.zip` (la carpeta `assets-juego` no lo trae: está mezclada con otros packs; se extrajo del ZIP de Descargas a una carpeta aparte, sin tocar el original). En `public/assets/3d/factory/` están **las 36 piezas `conveyor*`** (la galería `/galeria-cintas.html` las enseña todas con su nombre y medidas); **las que usa el juego** son `conveyor-sides`, `conveyor-stripe-sides`, `conveyor-sides-cross` y `conveyor-stripe-sides-cross`. Licencia en `public/assets/3d/factory/License.txt`. Textura: la paleta `Textures/colormap.png` ya copiada.
+
+## Tuberías de cristal (Factory Kit 3.0, desniveles Hito 0)
+Añadidas a `public/assets/3d/factory/` (Kenney, CC0, mismo pack ya acreditado): `pipe-glass-large`, `-bend`, `-bump`, `-cross`, `-curve`, `-junction`, `-long`, `-side` y `-valve` (9 .glb, sin texturas nuevas: usan `Textures/colormap.png`). Misma forma que `pipe-large*` con material de cristal; medidas y puertos en `docs/tuberias/piezas.md` y `src/view3d/tuberiasPiezas.ts`. De momento sólo se ven en `/galeria-tuberias.html`.

@@ -188,3 +188,7 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 ## Encargo de escala, City Kit y tutorial — en curso
 - [x] A0. Diagnóstico de escala y huellas (docs/escala/a0-diagnostico.md): las huellas NO existen (todo es 1×1); es la causa de que cintas y tuberías parezcan enormes. **Parado: esperando visto bueno.**
 - [ ] A1 huellas + escala + panel F2, B0 galería de edificios, B1 City Kit + almacén con contenedores + humo, C1-C3 tutorial.
+
+## Encargo de tuberías en desnivel (codo-vertical-codo) — en curso
+- [x] Hito 0. Piezas del kit medidas (`docs/tuberias/medidas-piezas.json`, `piezas.md`), tabla de puertos geométricos (`tuberiasPiezas.ts` + test contra las medidas) y galería `/galeria-tuberias.html` con ejes y extremos. Conclusión: el tramo vertical es la recta girada; los codos se generan por código (cuarto de toro) porque `pipe-large-bend` mide 1,9×1,9 y no encaja en una casilla con la escala aprobada. **Parado: esperando visto bueno.**
+- [ ] Hitos 1-4 (motor 3D de conexiones, aspecto, arrastrar en terreno desigual, galería y pruebas).
