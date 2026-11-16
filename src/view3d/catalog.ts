@@ -145,6 +145,7 @@ export function allModels(): ModelId[] {
   s.add('factory/hopper-square'); // ascensor (scene3d.ts: ELEVATOR_PARTS)
   s.add('factory/conveyor-sides');
   s.add('factory/cone'); // obras (scene3d.ts: syncCones)
+  for (const m of ['factory/pipe-large-bend', 'factory/pipe-glass-large', 'factory/pipe-glass-large-bend']) s.add(m); // tuberías: codo del kit y tramos de cristal
   s.add('factory/indicator-special-cross'); // casilla prohibida al construir
   for (const m of ['factory/pipe-large', 'factory/structure-short', 'factory/structure-medium', 'factory/structure-tall', 'factory/box-small', 'weapons/bullet-foam', 'factory/arrow']) s.add(m);
   return [...s];

@@ -10,12 +10,13 @@ import { heightAt, heightAtPoint } from '../game/world';
 import { ROLE_LOOK, TURRET_COLOR, TurretState, carried, enemyLook, npcAnim, smokeSources, turretLook, turretState } from './actors';
 import { BUILDING_PARTS, CHAR_SCALE, ENEMY_MODEL, allModels } from './catalog';
 import { AirFleet, dropsBomb } from './aereos3d';
-import { maskOf as connMask, pipeConnections, planFor } from '../game/conexiones';
+import { pipeConnections } from '../game/conexiones';
+import { SIDE, Sides, pipeSides, planFor3 } from '../game/conexiones3d';
 import { TracePlan, stepDir } from '../game/trazado';
 import { Effects } from './effects3d';
 import { CameraRig } from './camera';
 import { HOLES, OutlinePass, patchMaterial } from './fx';
-import { animations, instance, preload, tint } from './loader';
+import { animations, gltf, instance, preload, tint } from './loader';
 import { WALL_KINDS, isWallKind, wallDamage } from '../view/muros';
 import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
@@ -108,6 +109,14 @@ const WALL_STYLE: Record<WallKind, { h: number; color: number; cap: number }> = 
 const WALL_W = 0.36;
 const GATE_COLOR = 0xb9824a;
 const BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
+/** Líquido dentro de un tramo de cristal: cilindro a lo largo de x (largo 1, diámetro 1) que se escala al tubo. */
+const FLUID_GEO = new THREE.CylinderGeometry(0.5, 0.5, 1, 10).rotateZ(Math.PI / 2);
+const FLUID_MATS = new Map<number, THREE.MeshStandardMaterial>();
+const fluidMat = (color: number): THREE.MeshStandardMaterial => {
+  let m = FLUID_MATS.get(color);
+  if (!m) FLUID_MATS.set(color, (m = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0, emissive: color, emissiveIntensity: 0.18 })));
+  return m;
+};
 const PLINTH_MAT = new THREE.MeshStandardMaterial({ color: 0x8a7a5a, flatShading: true, roughness: 1 });
 patchMaterial(PLINTH_MAT);
 const wallMats = new Map<number, THREE.MeshStandardMaterial>();
@@ -586,7 +595,8 @@ export class View3D {
       const pc = pipeConnections(this.game, b);
       s += '|k';
       for (let d = 0; d < 4; d++) s += pc.machines & (1 << d) ? 'k' : '-';
-      for (let d = 0; d < 4; d++) s += pc.mask & (1 << d) ? 'p' : '-';
+      const ps = pipeSides(this.game, b);
+      for (let d = 0; d < 4; d++) s += ps[d] === SIDE.UP ? 'u' : ps[d] === SIDE.LEVEL ? 'p' : '-';
     } else if (isWallKind(b.kind)) {
       for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], WALL_LINK) ? 'w' : '-';
     } else if (b.kind === 'wall_gate') {
@@ -691,29 +701,57 @@ export class View3D {
       group.add(root);
       top = Math.max(0, s) + 0.45;
     } else if (kind === 'pipeline') {
-      // Tubería: tramo recto, o medios tramos hacia cada vecino con un codo central.
-      // Pieza y giro: tabla única de conexiones (conexiones.ts). Tramo aislado y extremo llevan tapa; recta, un tubo entero;
-      // curva, T y cruce, medios tubos hacia cada lado abierto con una pieza central.
-      const plan = planFor(connMask(on('p')));
+      // Tubería. Pieza y giro: tabla única con desnivel (conexiones3d.ts, PLAN3). Los lados vienen en la firma: 'p' a nivel, 'u' sube.
+      //  · En llano: tramo aislado y extremo con tapa, recta entera, **esquina = codo de 90° del Factory Kit** (pipe-large-bend a ×0,357: sus
+      //    brazos de 1,4 quedan en 0,5), T y cruce con medios tubos y pieza central.
+      //  · Con desnivel (la casilla baja contiene el escalón): los lados a nivel son medios tubos horizontales y cada lado que sube es un tramo
+      //    inclinado desde el centro hasta la pared, una junta, y un tramo corto horizontal que llega al borde a la altura de la casilla alta,
+      //    con un soporte hasta el suelo. (El codo de 90° del kit no cabe para subir medio nivel: ver SPEC.md.)
+      const flagStr = sig.slice(-4);
+      const sides = [0, 1, 2, 3].map((d) => (flagStr[d] === 'u' ? SIDE.UP : flagStr[d] === 'p' ? SIDE.LEVEL : SIDE.NONE)) as unknown as Sides;
+      const plan = planFor3(sides);
       const liquid = /\|q(\w*)/.exec(sig)?.[1] ?? '';
       const flangeMat = FLANGE_BY_LIQUID[liquid] ?? FLANGE_MAT;
-      // Tubo de largo `len` centrado en `cx` a lo largo de la dirección d, con bridas (o tapas) en las posiciones `flanges`.
-      const tube = (d: number, len: number, cx: number, flanges: number[]) => {
+      const axis = PIPE_LIFT + PIPE_T * 0.5;
+      const LH = CONFIG.scale.levelH;
+      // Con líquido dentro el tramo es de cristal y se ve el líquido (un cilindro de su color); vacío, de metal.
+      const glass = !!PIPE_LIQUID_TINT[liquid];
+      // Tubo de largo `len` cuyo eje pasa por (cx, cy) —cy medido desde el eje de la casilla— a lo largo de la dirección d, inclinado `tilt` rad hacia arriba,
+      // con bridas en las posiciones `flanges` (a lo largo del propio tubo, desde su centro).
+      const tube = (d: number, len: number, cx: number, flanges: number[], cy = 0, tilt = 0) => {
         const holder = new THREE.Group();
         holder.rotation.y = yawToDir(d);
-        const o = instance('factory/pipe-large', 1);
+        holder.position.y = axis;
+        const seg = new THREE.Group();
+        seg.position.set(cx, cy, 0);
+        seg.rotation.z = tilt;
+        const o = instance(glass ? 'factory/pipe-glass-large' : 'factory/pipe-large', 1);
         o.scale.set(len, PIPE_T, PIPE_T);
-        o.position.x = cx;
-        if (PIPE_LIQUID_TINT[liquid]) tint(o, PIPE_LIQUID_TINT[liquid]);
-        holder.add(o);
+        o.position.y = -PIPE_T * 0.5;
+        seg.add(o);
+        if (glass) {
+          const fluid = new THREE.Mesh(FLUID_GEO, fluidMat(PIPE_LIQUID_TINT[liquid]));
+          fluid.scale.set(len * 0.98, PIPE_T * 0.62, PIPE_T * 0.62);
+          seg.add(fluid);
+        }
         for (const sx of flanges) {
           const fl = new THREE.Mesh(FLANGE_GEO, flangeMat);
-          fl.position.set(sx, PIPE_T * 0.5, 0);
+          fl.position.set(sx, 0, 0);
           fl.scale.set(1, CONFIG.scale.pipeFlange, CONFIG.scale.pipeFlange);
-          holder.add(fl);
+          seg.add(fl);
         }
-        holder.position.y = PIPE_LIFT;
+        holder.add(seg);
         group.add(holder);
+      };
+      const joint = (d: number, x: number, y: number) => {
+        const hub = new THREE.Mesh(HUB_GEO, HUB_MAT);
+        const h = new THREE.Group();
+        h.rotation.y = yawToDir(d);
+        h.position.y = axis;
+        hub.position.set(x, y, 0);
+        hub.scale.setScalar(PIPE_T * 1.02);
+        h.add(hub);
+        group.add(h);
       };
       // Anillo de conexión pegado a la máquina vecina (donde el tubo "encaja").
       const kf = /\|k([k-]{4})/.exec(sig)?.[1] ?? '----';
@@ -722,29 +760,79 @@ export class View3D {
         const ring = new THREE.Mesh(PIPE_CONNECTOR_GEO, CONNECTOR_MAT);
         const r = CONFIG.scale.pipeFlange * 1.25;
         ring.scale.set(1, r, r);
-        ring.position.set(0.45, 0, 0);
+        ring.position.set(0.45, sides[d] === SIDE.UP ? LH : 0, 0);
         const h = new THREE.Group();
         h.rotation.y = yawToDir(d);
-        h.position.y = PIPE_LIFT + PIPE_T * 0.5;
+        h.position.y = axis;
         h.add(ring);
         group.add(h);
       }
-      if (plan.piece === 'isolated') tube(b.dir % 2, 0.5, 0, [0.22, -0.22]);
-      else if (plan.piece === 'end') tube(plan.open[0], 0.5, 0.25, [0.47, 0.0]);
-      else if (plan.piece === 'straight') tube(plan.open[0] % 2, 1, 0, [0.47, -0.47]);
-      else {
-        for (const d of plan.open) tube(d, 0.5, 0.25, [0.47]);
-        const hub = new THREE.Mesh(HUB_GEO, HUB_MAT);
-        hub.position.y = PIPE_T * 0.5 + PIPE_LIFT;
-        hub.scale.setScalar(PIPE_T);
-        group.add(hub);
+      if (plan.up.length === 0) {
+        if (plan.piece === 'isolated') tube(b.dir % 2, 0.5, 0, [0.22, -0.22]);
+        else if (plan.piece === 'end') tube(plan.level[0], 0.5, 0.25, [0.22, -0.25]);
+        else if (plan.piece === 'straight') tube(plan.level[0] % 2, 1, 0, [0.47, -0.47]);
+        else if (plan.piece === 'corner') {
+          // Codo de 90° del kit: extremos hacia +x y hacia -z (dir 3) con la esquina en (-0,4; 0); se lleva la esquina al centro de la casilla.
+          const [a, c] = plan.level;
+          const d0 = (a + 3) % 4 === c ? a : c;
+          const S = 0.5 / 1.4;
+          const holder = new THREE.Group();
+          holder.rotation.y = yawToDir(d0);
+          holder.position.y = axis - 0.5 * S;
+          const o = gltf(glass ? 'factory/pipe-glass-large-bend' : 'factory/pipe-large-bend').scene.clone(true);
+          o.scale.setScalar(S);
+          o.position.x = 0.4 * S;
+          if (PIPE_LIQUID_TINT[liquid] && !glass) tint(o, PIPE_LIQUID_TINT[liquid]);
+          holder.add(o);
+          group.add(holder);
+          // Bridas del juego en los dos bordes, como en las rectas.
+          for (const d of plan.level) {
+            const fl = new THREE.Mesh(FLANGE_GEO, flangeMat);
+            const h = new THREE.Group();
+            h.rotation.y = yawToDir(d);
+            h.position.y = axis;
+            fl.position.set(0.47, 0, 0);
+            fl.scale.set(1, CONFIG.scale.pipeFlange, CONFIG.scale.pipeFlange);
+            h.add(fl);
+            group.add(h);
+          }
+          if (glass) joint(0, 0, 0);
+        } else {
+          for (const d of plan.level) tube(d, 0.5, 0.25, [0.22]);
+          joint(0, 0, 0);
+        }
+      } else {
+        // Escalones y valles (y las combinaciones inválidas, que se dibujan igual para que se vean; el aviso lo da el trazado).
+        const KX = 0.34; // dónde acaba el tramo inclinado (el resto, hasta el borde, es horizontal a la altura de arriba)
+        const run = Math.hypot(KX, LH);
+        const tilt = Math.atan2(LH, KX);
+        for (const d of plan.level) tube(d, 0.5, 0.25, [0.22]);
+        for (const d of plan.up) {
+          tube(d, run, KX / 2, [], LH / 2, tilt);
+          tube(d, 0.5 - KX, (0.5 + KX) / 2, [(0.5 - KX) / 2 - 0.03], LH);
+          joint(d, KX, LH);
+          // Soporte: del suelo de esta casilla hasta la tubería elevada, junto a la pared del desnivel.
+          const post = new THREE.Mesh(BOX_GEO, FLANGE_MAT);
+          const ph = axis + LH - PIPE_T * 0.5;
+          post.scale.set(0.07, ph, 0.07);
+          const h = new THREE.Group();
+          h.rotation.y = yawToDir(d);
+          post.position.set(0.4, ph / 2, 0);
+          h.add(post);
+          const clamp = new THREE.Mesh(BOX_GEO, FLANGE_MAT);
+          clamp.scale.set(0.05, 0.06, PIPE_T + 0.08);
+          clamp.position.set(0.4, ph, 0);
+          h.add(clamp);
+          group.add(h);
+        }
+        joint(0, 0, 0);
       }
       // Soporte pequeño: las bridas (más gruesas que el tubo) descansan sobre el suelo sin hundirse.
       const saddle = new THREE.Mesh(BOX_GEO, FLANGE_MAT);
       saddle.scale.set(0.2, PIPE_LIFT + 0.01, 0.26);
       saddle.position.y = (PIPE_LIFT + 0.01) / 2;
       group.add(saddle);
-      top = PIPE_T + PIPE_LIFT;
+      top = PIPE_T + PIPE_LIFT + (plan.up.length ? CONFIG.scale.levelH : 0);
     } else if (isWallKind(kind)) {
       // Muro macizo: medios tramos hacia cada vecino y un poste central (esquina, T, cruz, extremo o suelto). El daño lo baja y lo oscurece.
       const st = WALL_STYLE[kind];
@@ -1607,10 +1695,17 @@ export class View3D {
       if (plan) {
         const w = this.game.world;
         const n = plan.tiles.length;
+        // Lado de una tubería del trazado: sin unión, a nivel o sube (la vecina del propio recorrido está un nivel más alta).
+        const pipeFlag = (t: { x: number; y: number }, d: number, prev: { x: number; y: number } | null, next: { x: number; y: number } | null): string => {
+          const nb = prev && stepDir(t, prev) === d ? prev : next && stepDir(t, next) === d ? next : null;
+          if (!nb) return '-';
+          const dh = heightAt(w, nb.x, nb.y) - heightAt(w, t.x, t.y);
+          return dh === 1 ? 'u' : Math.abs(dh) <= 1 ? 'p' : '-';
+        };
         plan.tiles.forEach((t, i) => {
           const prev = i > 0 ? plan.tiles[i - 1] : null;
           const next = i < n - 1 ? plan.tiles[i + 1] : null;
-          const flags = [0, 1, 2, 3].map((d) => (plan.kind === 'pipeline' ? ((prev && stepDir(t, prev) === d) || (next && stepDir(t, next) === d) ? 'p' : '-') : prev && stepDir(t, prev) === d ? 'i' : '-')).join('');
+          const flags = [0, 1, 2, 3].map((d) => (plan.kind === 'pipeline' ? pipeFlag(t, d, prev, next) : prev && stepDir(t, prev) === d ? 'i' : '-')).join('');
           const h = heightAt(w, t.x, t.y);
           const slope = plan.kind === 'pipeline' ? 0 : rampSlope(!!next, next ? heightAt(w, next.x, next.y) - h : 0, !!prev, prev ? heightAt(w, prev.x, prev.y) - h : 0);
           const sig = plan.kind === 'pipeline' ? `pipeline|${t.dir}|1|q|k----${flags}` : `${plan.kind}|${t.dir}|1|s${slope}|c--${flags}`;
