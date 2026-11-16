@@ -664,14 +664,14 @@ describe('torretas 3D: hielo y misil', () => {
     return n;
   };
 
-  it('todos los tipos tienen modelo propio y el misil es sólo de galería', async () => {
+  it('todos los tipos tienen modelo propio y el misil ya es un tipo de la lógica', async () => {
     const { GALLERY_ONLY, MODEL_KINDS, REDESIGNED, buildTurret } = await import('./turrets3d');
     const { CONFIG } = await import('../game/config');
     expect(MODEL_KINDS).toEqual(['turret_bullet', 'turret_laser', 'turret_fire', 'turret_frost', 'turret_missile']);
     expect(REDESIGNED).toEqual(MODEL_KINDS);
-    // La lógica no tiene torreta de misiles: no se puede colocar en partida.
-    expect(GALLERY_ONLY).toEqual(['turret_missile']);
-    expect(Object.keys(CONFIG.turrets)).not.toContain('turret_missile');
+    // Desde AIR5 el lanzamisiles existe en la lógica: ya no hay torretas sólo de galería.
+    expect(GALLERY_ONLY).toEqual([]);
+    expect(Object.keys(CONFIG.turrets)).toContain('turret_missile');
     for (const k of MODEL_KINDS) for (const l of [1, 2, 3]) expect(count(buildTurret(k, l).root), `${k} ${l}`).toBeGreaterThanOrEqual(30);
   });
 
@@ -817,11 +817,11 @@ describe('efectos de disparo por tipo', () => {
     expect(boom).toBe(true);
   });
 
-  it('el misil tiene su propio color de estela y no es un tipo de la lógica', async () => {
+  it('el misil tiene su propio color de estela y su color de torreta', async () => {
     const { MISSILE_COLOR, TURRET_COLOR } = await import('./actors');
-    expect(Object.keys(TURRET_COLOR)).not.toContain('turret_missile');
+    expect(Object.keys(TURRET_COLOR)).toContain('turret_missile');
     expect(Object.values(TURRET_COLOR)).not.toContain(MISSILE_COLOR);
-    expect(new Set(Object.values(TURRET_COLOR)).size).toBe(4);
+    expect(new Set(Object.values(TURRET_COLOR)).size).toBe(5);
   });
 });
 

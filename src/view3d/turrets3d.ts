@@ -548,7 +548,7 @@ export const MODEL_KINDS: TurretModelKind[] = ['turret_bullet', 'turret_laser', 
 /** Tipos con modelo propio (todos). */
 export const REDESIGNED: TurretModelKind[] = MODEL_KINDS;
 /** Modelos que existen sólo para la galería: la lógica no tiene ese tipo de torreta (no se puede colocar en partida). */
-export const GALLERY_ONLY: TurretModelKind[] = ['turret_missile'];
+export const GALLERY_ONLY: TurretModelKind[] = [];
 
 /** Modelo completo de una torreta de ese tipo y nivel (1-3). */
 /** Apoya la torreta en y = 0: si alguna pieza de la base baja del suelo (placas, patas), se sube todo el conjunto lo que sobre. */

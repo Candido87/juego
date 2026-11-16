@@ -140,9 +140,9 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] TR5. Efectos de disparo por tipo (casquillo, haz con onda, bola de fuego, niebla helada, estela de misil) y pulido a zoom alejado. **Rediseño de torretas terminado.**
 
 ## Pendiente, en este orden (diseño en SPEC.md)
-- [ ] INV1-INV5. Investigación con puntos y árbol (rama `investigacion`, creada, aún sin código): laboratorio, investigadores, puntos, árbol, pantalla, bloqueos reales, guardado, guía y sim.
+- [x] INV1-INV5. Investigación con puntos y árbol (hecha, ver commits INV1-INV5; esta línea estaba desactualizada): laboratorio, investigadores, puntos, árbol, pantalla, bloqueos reales, guardado, guía y sim.
 - [x] CIN0-CIN4. Cintas: Fase 0 de assets, textura animada, curvas, rampas (CIN3) y ascensor (CIN4). Rampas: una cinta o tubería sólo sube o baja 1 nivel; la cinta que sube va a `CONFIG.belt.rampUpFactor` (0,5). Ascensor de cintas (edificio `elevator`, Logística → `log_elevator`, cuesta bastidor 2, engranaje 4, circuito 1, necesita energía, 1,2 casillas/s, salva hasta 4 niveles); desnivel imposible avisado en rojo y en el texto; Conectar (A*) usa rampas y ascensores; 11 tests nuevos (`pendientes.test.ts`, `ruta.test.ts`).
-- [ ] AIR5-AIR9. Enemigos aéreos y lanzamisiles.
+- [ ] AIR5-AIR9. Enemigos aéreos y lanzamisiles. **AIR5 hecho** (datos y lógica: `aereos.ts`, 3 aéreos `flyer`/`bomber`/`heavy` que vuelan en línea recta con objetivo por tipo, `turret_missile` + ítem y receta `missile` + nodo `arm_missile`; balas y láser ya no alcanzan aéreos; 8 tests en `aereos.test.ts`). **Faltan:** AIR6 oleadas aéreas con "Alerta aérea" (hoy ninguna oleada los saca), AIR7 modelos propios y bombas/misiles en 3D (hoy figuras provisionales), AIR8 guía, bot y guardado, AIR9 equilibrado con `npm run sim`.
 
 ## Cuatro mejoras de edificios (parte C, después de los aéreos; reglas en SPEC.md)
 - [ ] HUE1. Sistema de huellas y colocación, con migración del guardado.

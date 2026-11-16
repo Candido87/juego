@@ -54,6 +54,7 @@ export const GENERATED_ICONS: Partial<Record<BuildKind, IconRect[]>> = {
   turret_laser: turretIcon('#d94fd9', '#ffb3ff'),
   turret_fire: turretIcon('#e8572a', '#ffb347'),
   turret_frost: turretIcon('#7fd8ff', '#e6f9ff'),
+  turret_missile: turretIcon('#ff7a45', '#ffe0cf'),
   pipeline: [
     [1, 6, 14, 5, OUT], [2, 7, 12, 3, '#9aa4ae'],
     [10, 4, 3, 9, OUT], [11, 5, 1, 7, '#9aa4ae'], [2, 8, 7, 1, '#e8eef4'],

@@ -12,6 +12,7 @@ export const ITEM_COLORS: Record<ItemId, number> = {
   copper_plate: 0xf0a35a,
   gear: 0x8d939e,
   ammo: 0xf2c14e,
+  missile: 0xff7a45,
   circuit: 0x4caf50,
   brick: 0xb5523b,
   battery: 0x66bb6a,

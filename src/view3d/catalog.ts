@@ -87,6 +87,7 @@ export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
   turret_laser: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xa8d8ff }],
   turret_fire: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xffb080 }],
   turret_frost: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xc8f0ff }],
+  turret_missile: [{ model: 'factory/hopper-round', fit: 0.85, tint: 0xffb08a }],
   wall_wood: [{ model: 'factory/structure-short', fit: 1.05, tint: 0xc98a52, sy: 1.4 }],
   wall_stone: [{ model: 'factory/structure-medium', fit: 1.05, tint: 0xb0b8c0 }],
   wall_metal: [{ model: 'factory/structure-tall', fit: 1.05, tint: 0xf0f4fa }],
@@ -102,6 +103,9 @@ export const ENEMY_MODEL: Record<EnemyKind, { model: ModelId; scale: number; lif
   armored: { model: 'characters/character-robot', scale: 1.15, lift: 0 },
   flyer: { model: 'characters/character-alien', scale: 0.9, lift: 1.1 },
   tank: { model: 'characters/character-knight', scale: 1.5, lift: 0 },
+  // Aéreos pendientes de modelo propio (AIR7): de momento figuras en el aire.
+  bomber: { model: 'characters/character-alien', scale: 1.15, lift: 1.3 },
+  heavy: { model: 'characters/character-robot', scale: 1.5, lift: 1.4 },
 };
 
 /** Terreno y decoración (Nature Kit y Mini Forest). */

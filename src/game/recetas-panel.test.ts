@@ -39,7 +39,7 @@ describe('panel de recetas (lógica)', () => {
     const cats = recipeCategories(g);
     expect(cats.map((c) => c.name)).toEqual(expect.arrayContaining(['Munición', 'Torretas', 'Piezas', 'Construcción', 'Materiales']));
     for (const c of cats) expect(c.total).toBeGreaterThan(0);
-    expect(recipeEntries(g, null, 'municion').map((e) => e.id)).toEqual(['ammo']);
+    expect(recipeEntries(g, null, 'municion').map((e) => e.id)).toEqual(['ammo', 'missile']);
     const piezas = cats.find((c) => c.id === 'piezas')!;
     expect(piezas.available).toBeLessThan(piezas.total); // circuito, batería y placa de muro están bloqueadas
   });

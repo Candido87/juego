@@ -32,6 +32,7 @@ export const ITEM_IDS = [
   'copper_plate',
   'gear',
   'ammo',
+  'missile',
   'circuit',
   'brick',
   'battery',
@@ -81,6 +82,7 @@ export const BUILD_KINDS = [
   'turret_laser',
   'turret_fire',
   'turret_frost',
+  'turret_missile',
   'wall_wood',
   'wall_stone',
   'wall_metal',
@@ -89,7 +91,7 @@ export const BUILD_KINDS = [
 export type BuildKind = (typeof BUILD_KINDS)[number];
 export type BuildingKind = 'core' | BuildKind;
 
-export type TurretKind = 'turret_bullet' | 'turret_laser' | 'turret_fire' | 'turret_frost';
+export type TurretKind = 'turret_bullet' | 'turret_laser' | 'turret_fire' | 'turret_frost' | 'turret_missile';
 export type WallKind = 'wall_wood' | 'wall_stone' | 'wall_metal';
 
 export const NPC_ROLES = ['constructor', 'transporter', 'operator', 'mechanic', 'researcher'] as const;
@@ -99,7 +101,7 @@ export const FREE_ROLES = ['constructor', 'transporter', 'operator'] as const;
 export const ASSIGNABLE_ROLES = ['constructor', 'transporter', 'operator', 'researcher'] as const;
 export type NpcRole = (typeof NPC_ROLES)[number];
 
-export const ENEMY_KINDS = ['grunt', 'runner', 'armored', 'flyer', 'tank'] as const;
+export const ENEMY_KINDS = ['grunt', 'runner', 'armored', 'flyer', 'tank', 'bomber', 'heavy'] as const;
 export type EnemyKind = (typeof ENEMY_KINDS)[number];
 
 export type JobType = 'build' | 'deconstruct' | 'repair' | 'supply' | 'collect' | 'maintain' | 'start';

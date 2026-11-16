@@ -61,6 +61,7 @@ export const TURRET_COLOR: Record<TurretKind, number> = {
   turret_laser: 0x45e0ff,
   turret_fire: 0xff8030,
   turret_frost: 0x9fe8ff,
+  turret_missile: 0xff6a4a,
 };
 
 /** Color del misil (la lógica no tiene esta torreta; sólo se ve en la galería): fuego de su estela. */

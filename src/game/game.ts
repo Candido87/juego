@@ -2,6 +2,7 @@
  * Estado y sistemas del juego. Sin Phaser ni DOM: se puede simular sin gráficos.
  */
 import { add, addAll, count, entries, take } from './bag';
+import { AirTarget, flyToward, pickAirTarget } from './aereos';
 import { BuildingDef, CONFIG, TurretDef } from './config';
 import { JobBoard } from './jobs';
 import { Npc, stepNpc } from './npc';
@@ -224,7 +225,7 @@ export class Game {
   /** Nivel de las fábricas (sube con el árbol). */
   factoryTier: number = CONFIG.factory.tier;
   /** Nivel global de cada tipo de torreta (sube con el árbol). */
-  readonly turretLevel: Record<TurretKind, number> = { turret_bullet: 1, turret_laser: 1, turret_fire: 1, turret_frost: 1 };
+  readonly turretLevel: Record<TurretKind, number> = { turret_bullet: 1, turret_laser: 1, turret_fire: 1, turret_frost: 1, turret_missile: 1 };
 
   private owner: Int32Array;
   private dist: Float64Array;
@@ -1460,12 +1461,45 @@ export class Game {
         }
       }
     }
-    if (!best) return;
-    best.hp -= dmg;
-    if (best.hp <= 0) {
-      this.emit({ type: 'destroyed', id: best.id, x: best.x, y: best.y });
-      this.deleteBuilding(best);
+    if (best) this.damageBuilding(best, dmg);
+  }
+
+  /** Quita vida a un edificio (no al núcleo) y lo destruye si llega a cero. */
+  private damageBuilding(b: Building, dmg: number): void {
+    if (b.kind === 'core') return;
+    b.hp -= dmg;
+    if (b.hp <= 0) {
+      this.emit({ type: 'destroyed', id: b.id, x: b.x, y: b.y });
+      this.deleteBuilding(b);
     }
+  }
+
+  /**
+   * Aéreo: vuela en línea recta hacia su objetivo (núcleo, industria o torreta según el tipo; `attacking` guarda el edificio).
+   * Devuelve true si golpeó el núcleo (y desaparece). El bombardero daña en área; el pesado, sólo al objetivo.
+   */
+  private stepAir(e: Enemy, def: (typeof CONFIG.enemies)[EnemyKind], speed: number, dt: number): boolean {
+    const mode: AirTarget = def.target ?? 'core';
+    let target = e.attacking !== null ? this.buildings.get(e.attacking) : undefined;
+    if (!target || !target.built) {
+      target = mode === 'core' ? undefined : (pickAirTarget(e, this.buildings.values(), mode) as Building | null) ?? undefined;
+      e.attacking = target ? target.id : null;
+    }
+    const c = this.core;
+    const tx = target ? target.x + target.w / 2 : c.x + c.w / 2;
+    const ty = target ? target.y + target.d / 2 : c.y + c.d / 2;
+    const r = flyToward(e.x, e.y, tx, ty, speed * dt, target ? 0.4 : 0.6);
+    e.x = r.x;
+    e.y = r.y;
+    if (!r.arrived) return false;
+    if (!target) return true;
+    if (def.bombRadius) {
+      for (const b of [...this.buildings.values()]) {
+        if (b.kind === 'core' || !b.built) continue;
+        if (Math.hypot(b.x + b.w / 2 - tx, b.y + b.d / 2 - ty) <= def.bombRadius) this.damageBuilding(b, def.dps * dt);
+      }
+    } else this.damageBuilding(target, def.dps * dt);
+    return false;
   }
 
   private removeDeadEnemies(): void {
@@ -1495,6 +1529,17 @@ export class Game {
         e.slowTimer -= dt;
         speed *= e.slowFactor;
         if (e.slowTimer <= 0) e.slowFactor = 1;
+      }
+      if (e.flying) {
+        const hitCore = this.stepAir(e, def, speed, dt);
+        if (def.dps > 0 && !def.bombRadius) {
+          for (const n of this.npcs) if (Math.hypot(n.x - e.x, n.y - e.y) <= CONFIG.enemyHitRadius) n.hp -= def.dps * dt;
+        }
+        if (hitCore) {
+          this.coreHp -= def.coreDamage;
+          this.emit({ type: 'coreHit', damage: def.coreDamage });
+        } else survivors.push(e);
+        continue;
       }
       let budget = speed * dt;
       let hit = false;

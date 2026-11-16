@@ -81,6 +81,10 @@ export interface EnemyDef {
   dps: number;
   coreDamage: number;
   flying: boolean;
+  /** Sólo aéreos: a qué apunta (núcleo, edificios de producción o torretas). Por defecto, el núcleo. */
+  target?: 'core' | 'industry' | 'turret';
+  /** Sólo aéreos: radio (casillas) del daño en área a edificios al bombardear. */
+  bombRadius?: number;
 }
 
 export interface TechEffects {
@@ -148,6 +152,7 @@ export const CONFIG = {
     copper_plate: 'Placa de cobre',
     gear: 'Engranaje',
     ammo: 'Munición',
+    missile: 'Misil',
     circuit: 'Circuito',
     brick: 'Ladrillo',
     battery: 'Batería',
@@ -188,6 +193,7 @@ export const CONFIG = {
     turret_bullet: { name: 'Torreta de balas', cost: { frame: 1, gun_part: 2 }, buildTime: 4, hp: 100, solid: true, size: [1, 1] },
     turret_laser: { name: 'Torreta láser', cost: { circuit: 4, wire: 4, frame: 2 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
     turret_fire: { name: 'Lanzallamas', cost: { gun_part: 2, pipe: 2, brick: 2 }, buildTime: 5, hp: 120, solid: true, size: [1, 1] },
+    turret_missile: { name: 'Lanzamisiles', cost: { gun_part: 2, circuit: 2, frame: 2 }, buildTime: 7, hp: 100, solid: true, size: [1, 1] },
     turret_frost: { name: 'Torreta de hielo', cost: { gun_part: 1, circuit: 3, battery: 1 }, buildTime: 5, hp: 90, solid: true, size: [1, 1] },
     wall_wood: { name: 'Muro de madera', cost: { frame: 1, wood: 3 }, buildTime: 1.5, hp: 120, solid: true, size: [1, 1] },
     wall_stone: { name: 'Muro de piedra', cost: { frame: 1, brick: 3 }, buildTime: 2.5, hp: 320, solid: true, size: [1, 1] },
@@ -207,7 +213,7 @@ export const CONFIG = {
     unit: 1,
     footprints: {
       drill: [2, 2], generator: [2, 2], house: [2, 2], storage: [2, 2], pump: [2, 2], core: [2, 2],
-      turret_laser: [2, 2], turret_fire: [2, 2], turret_frost: [2, 2],
+      turret_laser: [2, 2], turret_fire: [2, 2], turret_frost: [2, 2], turret_missile: [2, 2],
       factory: [3, 3], workshop: [3, 3], laboratory: [3, 3], refinery: [3, 4], farm: [4, 4],
     } as Partial<Record<BuildKind | 'core', [number, number]>>,
     /**
@@ -223,7 +229,7 @@ export const CONFIG = {
       item_lump: { w: 0.22 }, item_log: { w: 0.25 }, item_slab: { w: 0.25 }, item_disc: { w: 0.22 }, item_shell: { w: 0.18 }, item_crate: { w: 0.22 },
       npc_constructor: { h: 0.62 }, npc_transporter: { h: 0.62 }, npc_operator: { h: 0.62 }, npc_mechanic: { h: 0.62 }, npc_researcher: { h: 0.62 },
       enemy_grunt: { h: 0.65 }, enemy_runner: { h: 0.62 }, enemy_armored: { h: 0.8 }, enemy_flyer: { h: 0.6 }, enemy_tank: { h: 1.0 },
-      turret_bullet: { h: 1.3 }, turret_laser: { h: 1.3 }, turret_fire: { h: 1.3 }, turret_frost: { h: 1.3 },
+      turret_bullet: { h: 1.3 }, turret_laser: { h: 1.3 }, turret_fire: { h: 1.3 }, turret_frost: { h: 1.3 }, turret_missile: { h: 1.3 },
       turret_2x2: { w: 1.8, h: 1.3 },
       drill: { h: 1.2 }, storage: { h: 0.9 }, factory: { h: 1.6 }, farm: { h: 0.8 }, pump: { h: 0.8 },
       refinery: { h: 1.7 }, workshop: { h: 1.2 }, laboratory: { h: 1.3 }, house: { h: 1.1 },
@@ -339,15 +345,19 @@ export const CONFIG = {
   turrets: {
     turret_bullet: {
       range: 4.5, damage: 6, cooldown: 0.5, ammo: 'ammo', shotsPerAmmo: 1, ammoCap: 40, energyPerShot: 0,
-      area: 0, burnDps: 0, burnTime: 0, slow: 1, slowTime: 0, hitsAir: true, ignoresArmor: false,
+      area: 0, burnDps: 0, burnTime: 0, slow: 1, slowTime: 0, hitsAir: false, ignoresArmor: false,
     },
     turret_laser: {
       range: 5.5, damage: 9, cooldown: 0.7, shotsPerAmmo: 0, ammoCap: 0, energyPerShot: 6,
-      area: 0, burnDps: 0, burnTime: 0, slow: 1, slowTime: 0, hitsAir: true, ignoresArmor: true,
+      area: 0, burnDps: 0, burnTime: 0, slow: 1, slowTime: 0, hitsAir: false, ignoresArmor: true,
     },
     turret_fire: {
       range: 3, damage: 4, cooldown: 0.4, ammo: 'coal', shotsPerAmmo: 4, ammoCap: 20, energyPerShot: 0,
       area: 1.2, burnDps: 4, burnTime: 3, slow: 1, slowTime: 0, hitsAir: false, ignoresArmor: false,
+    },
+    turret_missile: {
+      range: 7, damage: 30, cooldown: 2, ammo: 'missile', shotsPerAmmo: 1, ammoCap: 10, energyPerShot: 0,
+      area: 1.3, burnDps: 0, burnTime: 0, slow: 1, slowTime: 0, hitsAir: true, ignoresArmor: false,
     },
     turret_frost: {
       range: 4, damage: 2, cooldown: 1, shotsPerAmmo: 0, ammoCap: 0, energyPerShot: 4,
@@ -372,6 +382,7 @@ export const CONFIG = {
     pipe: { name: 'Tubería', inputs: { iron_plate: 1 }, outputs: { pipe: 1 }, time: 1.2, tier: 1, category: 'piezas' },
     gun_part: { name: 'Mecanismo de torreta', inputs: { gear: 1, iron_plate: 2, stone: 1 }, outputs: { gun_part: 1 }, time: 2.5, tier: 1, category: 'torretas' },
     ammo: { name: 'Munición', inputs: { iron_plate: 1, sulfur: 1 }, outputs: { ammo: 6 }, time: 1.5, tier: 1, category: 'municion' },
+    missile: { name: 'Misil', inputs: { gear: 1, iron_plate: 1, sulfur: 2 }, outputs: { missile: 2 }, time: 3, tier: 2, category: 'municion' },
     tool_kit: { name: 'Kit de taller', inputs: { gear: 2, frame: 1 }, outputs: { tool_kit: 1 }, time: 3, tier: 1, category: 'construccion' },
     science_1: { name: 'Ciencia I', inputs: { copper_plate: 1, gear: 1 }, outputs: { science_1: 1 }, time: 4, tier: 1, category: 'ciencia' },
     circuit: { name: 'Circuito', inputs: { wire: 3, iron_plate: 1 }, outputs: { circuit: 1 }, time: 2.5, tier: 2, category: 'piezas' },
@@ -423,6 +434,8 @@ export const CONFIG = {
     armored: { name: 'Blindado', hp: 22, speed: 0.7, armor: 4, dps: 8, coreDamage: 12, flying: false },
     flyer: { name: 'Volador', hp: 10, speed: 1.2, armor: 0, dps: 0, coreDamage: 8, flying: true },
     tank: { name: 'Tanque', hp: 70, speed: 0.5, armor: 3, dps: 30, coreDamage: 30, flying: false },
+    bomber: { name: 'Bombardero', hp: 40, speed: 0.9, armor: 1, dps: 10, coreDamage: 20, flying: true, target: 'industry', bombRadius: 1.5 },
+    heavy: { name: 'Aéreo pesado', hp: 120, speed: 0.6, armor: 4, dps: 14, coreDamage: 35, flying: true, target: 'turret' },
   } as Record<EnemyKind, EnemyDef>,
 
   waves: {
@@ -453,6 +466,7 @@ export const CONFIG = {
     { id: 'arm_frost', name: 'Torreta de hielo', branch: 'Armamento', cost: 40, requires: ['ind_battery', 'arm_laser'], unlocks: { buildings: ['turret_frost'] }, tier: 3 },
     { id: 'arm_bullet_3', name: 'Cañones múltiples', branch: 'Armamento', cost: 60, requires: ['arm_bullet_2'], unlocks: {}, effects: { turretLevel: 'turret_bullet' }, tier: 2 },
     { id: 'arm_laser_2', name: 'Cristal mayor', branch: 'Armamento', cost: 60, requires: ['arm_laser'], unlocks: {}, effects: { turretLevel: 'turret_laser' }, tier: 3 },
+    { id: 'arm_missile', name: 'Lanzamisiles', branch: 'Armamento', cost: 55, requires: ['arm_laser', 'ind_battery'], unlocks: { buildings: ['turret_missile'], recipes: ['missile'] }, tier: 4 },
     { id: 'arm_frost_2', name: 'Racimo de cristales', branch: 'Armamento', cost: 70, requires: ['arm_frost'], unlocks: {}, effects: { turretLevel: 'turret_frost' }, tier: 4 },
     // ---- Defensa ----
     { id: 'def_wood', name: 'Murallas de madera', branch: 'Defensa', cost: 8, requires: [], unlocks: { buildings: ['wall_wood'] }, tier: 1 },
