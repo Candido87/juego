@@ -31,6 +31,7 @@ import {
   wallLook,
 } from './shapes';
 import { DecorLayer, preloadDecor } from './decorView';
+import { SmokeFx, preloadSmoke, smokeSource } from './humo';
 import { terrainTint, tintNoise } from './decor';
 import { isWallKind, wallDamage, wallMask } from './muros';
 import { factoryStatusText } from '../game/recetas';
@@ -106,6 +107,7 @@ export class GameScene extends Phaser.Scene {
   private items: Phaser.GameObjects.Image[] = [];
   private flashes: Flash[] = [];
   private fx!: Phaser.GameObjects.Graphics;
+  private smoke!: SmokeFx;
   private overlay!: Phaser.GameObjects.Graphics;
   private paths!: Phaser.GameObjects.Graphics;
   private wires!: Phaser.GameObjects.Graphics;
@@ -124,6 +126,7 @@ export class GameScene extends Phaser.Scene {
   preload() {
     preloadSprites(this);
     preloadDecor(this);
+    preloadSmoke(this);
   }
 
   create(data: { seed?: number }) {
@@ -152,6 +155,7 @@ export class GameScene extends Phaser.Scene {
     this.wiresGrid = null;
     this.overlay = this.add.graphics().setDepth(OVERLAY_DEPTH - 1);
     this.fx = this.add.graphics().setDepth(OVERLAY_DEPTH);
+    this.smoke = new SmokeFx(this, OVERLAY_DEPTH - 0.5);
     this.ghost = this.add.image(0, 0, 'core').setVisible(false).setAlpha(0.6);
 
     const cam = this.cameras.main;
@@ -340,6 +344,7 @@ export class GameScene extends Phaser.Scene {
     this.drawWires();
     this.drawOverlay();
     this.drawFx(dt);
+    this.updateSmoke(dt);
     this.updateOcclusion(dt);
 
     getHud().update(this.sim, this.hoverInfo(), dt);
@@ -888,6 +893,21 @@ export class GameScene extends Phaser.Scene {
   private bar(g: Phaser.GameObjects.Graphics, x: number, y: number, f: number, color: number) {
     g.fillStyle(0x000000, 0.6).fillRect(x - 11, y, 22, 4);
     g.fillStyle(color, 1).fillRect(x - 10, y + 1, 20 * Math.max(0, Math.min(1, f)), 2);
+  }
+
+  /** Humo de producción (blanco) y de daño (negro) sobre los edificios visibles; nada si están parados. */
+  private updateSmoke(dt: number) {
+    if (!ui.paused) {
+      const view = this.cameras.main.worldView;
+      for (const b of this.sim.buildings.values()) {
+        const src = smokeSource(b);
+        if (!src) continue;
+        const c = gridToScreen(b.x + b.w / 2, b.y + b.d / 2, heightAt(this.sim.world, b.x, b.y));
+        if (!view.contains(c.x, c.y - 30)) continue;
+        this.smoke.emit(b.id, src, c.x, c.y - 34, dt);
+      }
+      this.smoke.update(dt);
+    }
   }
 
   private drawFx(dt: number) {
