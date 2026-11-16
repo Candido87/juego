@@ -43,7 +43,7 @@ A = árbol/torretas/murallas/industria/NPCs, E = electricidad y automatización,
   - [x] T1.0 Inventario: los packs de tanques/naves no encajan (perfil/cenital) → modelos propios por código.
   - [x] T1.1 Torreta de balas de referencia (3 niveles en galería; nivel 1 en el juego; retroceso al disparar).
   - [x] T1.2 Láser y fuego · [x] T1.3 Hielo (misil no existe en la lógica) · [x] T1.4 Niveles (según turretLevel), estados (apagada, dañada con humo, en obra) y animaciones (retroceso, fogonazo, brillo propio) · [x] T1.5 Pulido: a zoom 1 se distinguen por silueta y color (gris, magenta, rojo, azul hielo).
-- [ ] T2. Enemigos: tanques de perfil (blindados) y naves proyectadas con sombra (voladores).
+- [x] T2. Enemigos: tanques Navy de perfil (blindado y tanque) y nave Red proyectada en el suelo con 16 rumbos (voladores); assets en public/assets/enemigos. Sin verificar en pantalla con una oleada real.
 - [ ] T3. Humo y efectos con partículas ligeras.
 - Pendiente de lógica (no tocada): **no existe torreta de misiles**; añadirla exige cambiar `game.ts` y `config.ts`.
 - Las fases G2 (murallas), G3 (interfaz) y G4 (terreno) de la primera tanda siguen pendientes.

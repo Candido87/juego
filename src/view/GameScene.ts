@@ -19,6 +19,8 @@ import {
   preloadSprites,
   enemyKey,
   enemyLookKey,
+  shipHeading,
+  shipKey,
   itemKey,
   npcKey,
   shapeInfo,
@@ -62,6 +64,8 @@ interface Mover {
   lastX: number;
   lastY: number;
   flip: boolean;
+  /** Rumbo de la nave (0..15), sólo voladores. */
+  heading?: number;
 }
 
 interface Flash {
@@ -550,14 +554,32 @@ export class GameScene extends Phaser.Scene {
     else m.img.clearTint();
   }
 
+  /** Nave voladora: plano proyectado en el suelo, orientado según el rumbo (16 texturas), con tinte de estado. */
+  private animateShip(m: Mover, e: Enemy) {
+    const dx = e.x - m.lastX;
+    const dy = e.y - m.lastY;
+    if (Math.abs(dx) + Math.abs(dy) > 1e-4) {
+      m.heading = shipHeading(dx, dy);
+      m.lastX = e.x;
+      m.lastY = e.y;
+    }
+    m.img.setTexture(shipKey(m.heading ?? 0));
+    if (e.burnTimer > 0) m.img.setTint(0xff9966);
+    else if (e.slowTimer > 0) m.img.setTint(0x9be7ff);
+    else m.img.clearTint();
+  }
+
   private syncMovers() {
     const seenE = new Set<number>();
     for (const e of this.sim.enemies) {
       seenE.add(e.id);
       const bob = Math.abs(Math.sin(this.sim.time * 8 + e.id)) * 2;
-      const key = enemyLookKey(this, e.kind);
+      const ship = e.flying && this.textures.exists(shipKey(0));
+      const key = ship ? shipKey(0) : enemyLookKey(this, e.kind);
       this.syncMover(this.eSprites, e.id, key, e.x, e.y, e.flying ? FLY_Z : 0, bob);
-      if (key !== enemyKey(e.kind)) this.animateEnemy(this.eSprites.get(e.id)!, e);
+      const m = this.eSprites.get(e.id)!;
+      if (ship) this.animateShip(m, e);
+      else if (key !== enemyKey(e.kind)) this.animateEnemy(m, e);
     }
     const seenN = new Set<number>();
     for (const n of this.sim.npcs) {

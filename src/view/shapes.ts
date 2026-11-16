@@ -479,7 +479,63 @@ export const enemyKey = (k: EnemyKind) => `enemy_${k}`;
 /** Sprite de cada enemigo (si el pack no se cargó, no existe y se usa el prisma). */
 export const enemySpriteKey = (k: EnemyKind) => `enemy_spr_${k}`;
 /** Clave a usar para dibujar un enemigo: sprite si existe, si no el prisma. */
-export const enemyLookKey = (scene: Phaser.Scene, k: EnemyKind) => (scene.textures.exists(enemySpriteKey(k)) ? enemySpriteKey(k) : enemyKey(k));
+export const enemyLookKey = (scene: Phaser.Scene, k: EnemyKind) => {
+  const kenney = kenneyEnemyKey(k);
+  if (kenney && scene.textures.exists(kenney)) return kenney;
+  return scene.textures.exists(enemySpriteKey(k)) ? enemySpriteKey(k) : enemyKey(k);
+};
+
+// ------------------------------------------------------------------ enemigos de Kenney (tanques y naves)
+/** Tanques de perfil (Kenney Tanks, Navy con X blanca) para los terrestres blindados; escala de reducción. */
+export const TANK_SPRITES: Partial<Record<EnemyKind, { file: string; scale: number }>> = {
+  armored: { file: 'tanks_tankNavy3', scale: 0.5 },
+  tank: { file: 'tanks_tankNavy5', scale: 0.7 },
+};
+/** Nave enemiga cenital (Space Shooter) que se proyecta sobre el plano del suelo en 16 rumbos. */
+export const SHIP_FILE = 'enemyRed2';
+export const SHIP_HEADINGS = 16;
+const SHIP_SCALE = 0.42;
+const SHIP_CANVAS = { w: 72, h: 52 };
+const enemyImgKey = (name: string) => `enemy_img_${name}`;
+export const kenneyEnemyKey = (k: EnemyKind): string | undefined => (TANK_SPRITES[k] ? `enemy_tank_${k}` : undefined);
+export const shipKey = (i: number) => `enemy_ship_${i}`;
+/** Índice de rumbo (0..15) de la nave a partir de un desplazamiento en la cuadrícula. */
+export function shipHeading(dx: number, dy: number): number {
+  const a = Math.atan2(dy, dx);
+  return ((Math.round((a / (Math.PI * 2)) * SHIP_HEADINGS) % SHIP_HEADINGS) + SHIP_HEADINGS) % SHIP_HEADINGS;
+}
+
+function bakeKenneyEnemies(scene: Phaser.Scene) {
+  for (const [kind, def] of Object.entries(TANK_SPRITES) as [EnemyKind, { file: string; scale: number }][]) {
+    const src = scene.textures.exists(enemyImgKey(def.file)) ? scene.textures.get(enemyImgKey(def.file)).getSourceImage() : undefined;
+    if (!src) continue;
+    const w = Math.round(src.width * def.scale);
+    const h = Math.round(src.height * def.scale);
+    const [tex, ctx] = canvasTexture(scene, kenneyEnemyKey(kind)!, w, h);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src as CanvasImageSource, 0, 0, w, h);
+    tex.refresh();
+    SHAPE_INFO.set(kenneyEnemyKey(kind)!, { originX: 0.5, originY: 0.9, tall: false });
+  }
+  const ship = scene.textures.exists(enemyImgKey(SHIP_FILE)) ? scene.textures.get(enemyImgKey(SHIP_FILE)).getSourceImage() : undefined;
+  if (!ship) return;
+  const { w, h } = SHIP_CANVAS;
+  for (let i = 0; i < SHIP_HEADINGS; i++) {
+    const [tex, ctx] = canvasTexture(scene, shipKey(i), w, h);
+    const ang = (i / SHIP_HEADINGS) * Math.PI * 2;
+    const fx = Math.cos(ang);
+    const fy = Math.sin(ang);
+    // Ejes "derecha" y "abajo" de la imagen sobre la cuadrícula, luego proyección isométrica 2:1.
+    const proj = (gx: number, gy: number): [number, number] => [(gx - gy) * SHIP_SCALE, ((gx + gy) / 2) * SHIP_SCALE];
+    const [ax, ay] = proj(-fy, fx);
+    const [bx, by] = proj(-fx, -fy);
+    ctx.setTransform(ax, ay, bx, by, w / 2, h / 2);
+    ctx.drawImage(ship as CanvasImageSource, -ship.width / 2, -ship.height / 2);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    tex.refresh();
+    SHAPE_INFO.set(shipKey(i), { originX: 0.5, originY: 0.5, tall: false });
+  }
+}
 export const npcKey = (r: string) => `npc_${r}`;
 
 // ------------------------------------------------------------------ terreno
@@ -650,6 +706,8 @@ function bakeShadow(scene: Phaser.Scene, key: string, size: number, center = fal
 /** Carga la hoja del pack (llamar en preload). */
 export function preloadSprites(scene: Phaser.Scene): void {
   for (const s of [TILESHEET, DUNGEON_SHEET]) if (!scene.textures.exists(s.key)) scene.load.image(s.key, s.url);
+  for (const f of [...Object.values(TANK_SPRITES).map((d) => d!.file), SHIP_FILE])
+    if (!scene.textures.exists(enemyImgKey(f))) scene.load.image(enemyImgKey(f), `assets/enemigos/${f}.png`);
   for (const [pack, name, rot] of wallAssetList()) {
     const k = wallAssetKey(name, rot);
     if (!scene.textures.exists(k)) scene.load.image(k, wallAssetUrl(pack, name, rot));
@@ -769,6 +827,7 @@ export function buildTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists(DUNGEON_SHEET.key)) {
     for (const k of ENEMY_KINDS) bakeBillboard(scene, enemySpriteKey(k), ENEMY_SPRITES[k].frame, ENEMY_SPRITES[k].scale, DUNGEON_SHEET);
   }
+  bakeKenneyEnemies(scene);
   bakeTurrets(scene);
   bakeShadow(scene, 'shadow_1', 1);
   bakeShadow(scene, 'shadow_2', 2);
