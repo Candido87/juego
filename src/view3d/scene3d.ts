@@ -708,7 +708,7 @@ export class View3D {
         group.add(holder);
       };
       // Anillo de conexión pegado a la máquina vecina (donde el tubo "encaja").
-      const kf = /|k([k-]{4})/.exec(sig)?.[1] ?? '----';
+      const kf = /\|k([k-]{4})/.exec(sig)?.[1] ?? '----';
       for (let d = 0; d < 4; d++) {
         if (kf[d] !== 'k') continue;
         const ring = new THREE.Mesh(PIPE_CONNECTOR_GEO, CONNECTOR_MAT);

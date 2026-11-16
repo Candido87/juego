@@ -178,3 +178,11 @@ Regla: tras cada hito, tests + tipos + build en verde, commit y push a `main`.
 - [x] CIN-K3. Cuestas: la cinta inclinada sigue el terreno (pieza recta girada, ya en K1/K2). Ascensor compuesto con el kit: tolva de entrada + cinta de barras inclinada + tolva de salida + poste, con la altura real del desnivel (firma `|e<n>`). Captura `docs/cintas/ascensor.png`. Pulido: la cinta inclinada usa `conveyor-sides` (como las cuestas) y lleva dos pares de postes. El alimentador (brazo robot) queda para ESC-6.
 - [x] CIN-K4. Objetos en cintas: `beltItemPose` (pieces.ts, con test) los hace recorrer la curva del borde de entrada al de salida (entrada lateral) y subir la cuesta con su inclinación; el piloto de cinta parada sube con la rampa. La capa de dirección y el estado ya cubrían curvas y cuestas (K1-K3). Captura: docs/cintas/k4-curva-objetos.jpg y k4-cuesta-objetos.jpg (la cuesta se veía hundida; arreglado: ahora sólo se inclina la cinta de abajo, `rampSlope`, captura k4-cuesta-arreglada.jpg). En T y cruces el juego no dice por qué lado llegó el objeto (se usa la primera entrada lateral).
 - [x] CIN-K5. Galería (ya listaba los 36 modelos `conveyor*`, ahora con test de que existen), tests geométricos en `cintas.test.ts` (recorrido dentro de la casilla, continuo, sin retroceder; tramos de la capa de dirección; conectores; piezas del kit) y medida de rendimiento en SPEC.md (55 FPS con 1500 objetos; sin comparación antes/después).
+
+## Encargo de conexiones de cintas/tuberías (arrastrar para dibujar) — en curso
+- [x] Hito 0. Diagnóstico de tuberías (docs/tuberias/diagnostico.md, mapa de pruebas `?demo=tuberias`): la vista conecta por vecindad y la lógica por dirección; puertos ignorados; extremos abiertos; sin piezas bend/junction; sin desniveles. **Parado: esperando visto bueno.**
+- [ ] Hitos 1-5 (motor de conexiones, arrastrar, enganche, aspecto, guía).
+
+## Encargo de escala, City Kit y tutorial — en curso
+- [x] A0. Diagnóstico de escala y huellas (docs/escala/a0-diagnostico.md): las huellas NO existen (todo es 1×1); es la causa de que cintas y tuberías parezcan enormes. **Parado: esperando visto bueno.**
+- [ ] A1 huellas + escala + panel F2, B0 galería de edificios, B1 City Kit + almacén con contenedores + humo, C1-C3 tutorial.

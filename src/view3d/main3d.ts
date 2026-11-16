@@ -15,6 +15,7 @@ import { createTutorialGame } from '../game/tutorial';
 import { BUILD_KINDS, BuildKind, DX, DY, ItemId, Ore, Tile, TurretKind, dirBetween } from '../game/types';
 import { CONFIG } from '../game/config';
 import { generateWorld, heightAt, oreAt } from '../game/world';
+import { placeDemoTuberias, tuberiasWorld } from './demoTuberias';
 import { getHud, itemName, setToolIcons, ui } from '../view/ui';
 import { setupBench, wiggle } from './bench';
 import { Options, loadOptions, saveOptions } from './options';
@@ -187,7 +188,7 @@ async function start() {
     ? gameFromSave(loaded)
     : tutorialMode
       ? createTutorialGame()
-      : new Game({ seed, noWaves: q.get('waves') === '0' || bench, world: map ? generateWorld(seed, map, map) : undefined });
+      : new Game({ seed, noWaves: q.get('waves') === '0' || bench, world: q.get('demo') === 'tuberias' ? tuberiasWorld() : map ? generateWorld(seed, map, map) : undefined });
   const options: Options = loadOptions(store);
   // Calidad: `?quality=low|medium|high` la fuerza sin guardarla (para medir). Sin aceleración por hardware se empieza en baja.
   const forced = QUALITY_LEVELS.includes(q.get('quality') as QualityLevel) ? (q.get('quality') as QualityLevel) : null;
@@ -222,7 +223,13 @@ async function start() {
   (window as unknown as { __v3: unknown }).__v3 = { view, game, ui };
   if (bench) setupBench(game, { objects: Number(q.get('objs') ?? 1500), enemies: Number(q.get('enemies') ?? 300) });
   if (bench) view.rig.zoom = Number(q.get('zoom') ?? 0.6);
-  if (q.get('demo')) demo(game, q.get('demo') === 'wave');
+  if (q.get('demo') === 'tuberias') {
+    const r = placeDemoTuberias(game);
+    console.info('[demo=tuberias]', r.notes.join(' / '));
+    view.rig.x = 20;
+    view.rig.z = 20;
+    view.rig.zoom = 1.6;
+  } else if (q.get('demo')) demo(game, q.get('demo') === 'wave');
   if (q.get('galeria')) showGallery(view, game);
 
   // ---------- interfaz compartida ----------
