@@ -5,7 +5,7 @@
  */
 import type { Game } from '../game/game';
 import { ports } from '../game/puertos';
-import type { Dir } from '../game/types';
+import { Ore, type Dir } from '../game/types';
 import { createFlatWorld, type World } from '../game/world';
 
 export interface PipeCase {
@@ -31,7 +31,7 @@ export function pipeCases(): PipeCase[] {
   const out: PipeCase[] = [];
   const add = (id: string, label: string, col: number, row: number, open: Dir[]): void => {
     const x = 5 + col * 5;
-    const y = 6 + row * 6;
+    const y = 4 + row * 5; // filas en y = 4, 9 y 14: lejos del núcleo (19-20)
     const pipes: [number, number, Dir][] = [[x, y, open[0] ?? 0], ...open.map((d): [number, number, Dir] => [...at(x, y, d), ((d + 2) % 4) as Dir])];
     out.push({ id, label, pipes, probe: [x, y], open });
   };
@@ -51,7 +51,11 @@ export function pipeCases(): PipeCase[] {
 /** Mundo del mapa de pruebas: 40×40 plano con un resalte de un nivel (para la subida/bajada) en x 30..37, y 30..37. */
 export function tuberiasWorld(): World {
   const w = createFlatWorld(40, 40);
-  for (let y = 30; y < 38; y++) for (let x = 30; x < 38; x++) w.height[y * 40 + x] = 1;
+  // Terraza de un nivel (x 30..37, y 28..38), segunda terraza encima (x 34..37, y 35..38) y un hoyo (33,31) para el valle.
+  for (let y = 28; y < 39; y++) for (let x = 30; x < 38; x++) w.height[y * 40 + x] = 1;
+  for (let y = 35; y < 39; y++) for (let x = 34; x < 38; x++) w.height[y * 40 + x] = 2;
+  w.height[31 * 40 + 33] = 0;
+  w.ore[31 * 40 + 8] = Ore.Oil; // la bomba del caso de puertos necesita petróleo debajo
   return w;
 }
 
@@ -77,8 +81,26 @@ export function placeDemoTuberias(game: Game): { cases: PipeCase[]; notes: strin
     if (noPort) put('pipeline', noPort[0], noPort[1]);
     notes.push(`${kind} en ${b.x},${b.y}: puertos de líquido ${ps.map((p) => `${p.io}@${p.x},${p.y}`).join(' | ') || 'ninguno'}; tubería sin puerto en ${noPort ? noPort.join(',') : '-'}`);
   }
-  // Desnivel: tubería que cruza del nivel 0 al 1 (resalte en x 30..37, y 30..37).
-  for (const [x, y] of [[28, 34], [29, 34], [30, 34], [31, 34]]) put('pipeline', x, y);
-  notes.push('desnivel: tuberías en 28..31,34 (28 y 29 a nivel 0; 30 y 31 a nivel 1)');
+  // Desniveles (terrazas de tuberiasWorld). Cada caso, con la pieza esperada en la casilla baja:
+  const line = (y: number, x0: number, x1: number, oil = false) => {
+    for (let x = x0; x <= x1; x++) {
+      const b = put('pipeline', x, y, 0);
+      if (b && oil) b.inv = { oil: 1 };
+    }
+  };
+  line(29, 28, 31); // escalón recto (stepStraight) en (29,29)
+  line(31, 32, 34); // valle (valleyStraight) en el hoyo (33,31)
+  put('pipeline', 29, 32, 1); // giro con escalón (stepCorner) en (29,33): entra desde arriba y sube hacia +x
+  put('pipeline', 29, 33, 0);
+  put('pipeline', 30, 33, 0);
+  line(36, 28, 36, true); // escalera de 2 niveles con petróleo (cristal): escalones en (29,36) y (33,36)
+  line(38, 29, 30); // extremo que sube (stepEnd) en (29,38)
+  // Esquina en llano con petróleo: codo del kit en versión de cristal.
+  for (const [x, y, d] of [[24, 36, 0], [25, 36, 1], [25, 37, 1]] as const) {
+    const b = put('pipeline', x, y, d);
+    if (b) b.inv = { oil: 1 };
+  }
+  notes.push('desniveles: escalón recto (29,29), valle (33,31), giro con escalón (29,33), escalera con petróleo y=36, extremo que sube (29,38), codo de cristal (25,36)');
+
   return { cases, notes };
 }
