@@ -118,3 +118,15 @@ export function beltFlowQuads(dir: Dir, incoming: Iterable<number>): FlowQuad[] 
 }
 const HALF_DX = [1, 0, -1, 0];
 const HALF_DZ = [0, 1, 0, -1];
+
+/**
+ * Lados de una cinta donde va un conector físico (placa de brida) porque allí hay un edificio y no otra cinta:
+ * delante si la salida da a un edificio, detrás si hay un edificio y ninguna cinta entra por ese lado.
+ */
+export function beltConnectors(dir: Dir, incoming: Iterable<number>, frontBuilding: boolean, backBuilding: boolean): Dir[] {
+  const back = norm(dir + 2) as Dir;
+  const out: Dir[] = [];
+  if (frontBuilding) out.push(dir);
+  if (backBuilding && ![...incoming].some((d) => norm(d) === back)) out.push(back);
+  return out;
+}

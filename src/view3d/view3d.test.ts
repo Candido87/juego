@@ -925,3 +925,17 @@ describe('cintas: curvas a izquierda y a derecha con auto-tile', () => {
     expect(beltPiece(0, [3]).piece).toBe('corner');
   });
 });
+
+describe('cinta: conectores de puerto', () => {
+  it('placa delante si la salida da a un edificio y detrás si no entra otra cinta', async () => {
+    const { beltConnectors } = await import('./pieces');
+    for (const dir of [0, 1, 2, 3] as const) {
+      const back = (dir + 2) % 4;
+      expect(beltConnectors(dir, [], false, false)).toEqual([]);
+      expect(beltConnectors(dir, [], true, false)).toEqual([dir]);
+      expect(beltConnectors(dir, [], false, true)).toEqual([back]);
+      expect(beltConnectors(dir, [], true, true)).toEqual([dir, back]);
+      expect(beltConnectors(dir, [back], false, true)).toEqual([]);
+    }
+  });
+});

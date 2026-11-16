@@ -18,7 +18,7 @@ import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { slopeLower, tileSurface } from './relieve';
 import { CINTA_PIEZAS, aspectF, aspectSy, escalaPieza } from './aspectos';
-import { ITEM_SHAPES, ItemShape, armsFor, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
+import { ITEM_SHAPES, ItemShape, armsFor, beltConnectors, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
 import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
 import { ThreatMarks } from './threat3d';
@@ -72,6 +72,8 @@ export const ITEM_GEO: Record<ItemShape, { geo: THREE.BufferGeometry; y: number 
   shell: { geo: new THREE.CylinderGeometry(0.05, 0.05, 0.18, 8), y: rests(0.09) },
   crate: { geo: new THREE.BoxGeometry(0.2, 0.16, 0.2), y: rests(0.08) },
 };
+const CONNECTOR_GEO = new THREE.BoxGeometry(0.06, CONFIG.scale.beltHeight + 0.06, CONFIG.scale.beltWidth + 0.14);
+const CONNECTOR_MAT = new THREE.MeshStandardMaterial({ color: 0xffb347, flatShading: true, roughness: 0.7 });
 const RAIL_MAT = new THREE.MeshStandardMaterial({ color: 0xc9cdd9, flatShading: true, roughness: 0.9 });
 const RAIL_OFF_MAT = new THREE.MeshStandardMaterial({ color: 0x8a8f9c, flatShading: true, roughness: 1 });
 const BELT_HUB_MAT = new THREE.MeshStandardMaterial({ color: 0x3a3b4d, flatShading: true, roughness: 1 });
@@ -269,6 +271,7 @@ export class View3D {
   private selMesh: THREE.LineSegments;
   private ghost: THREE.Group | null = null;
   private ghostKey = '';
+  private ghostMats: THREE.MeshStandardMaterial[] = [];
   private keys = new Set<string>();
   private lastW = 0;
   private lastH = 0;
@@ -552,6 +555,9 @@ export class View3D {
     if (b.kind === 'belt' || b.kind === 'belt_fast') {
       if (beltStopped(b)) s += '|off';
       s += `|s${this.beltSlope(b)}`;
+      const fb = this.game.buildingAt(b.x + DX[b.dir], b.y + DY[b.dir]);
+      const bb = this.game.buildingAt(b.x + DX[(b.dir + 2) % 4], b.y + DY[(b.dir + 2) % 4]);
+      s += `|c${fb && !this.isBeltKind(fb) ? 'f' : '-'}${bb && !this.isBeltKind(bb) ? 'b' : '-'}`;
       for (let d = 0; d < 4; d++) {
         const n = this.isKind(b.x + DX[d], b.y + DY[d], ['belt', 'belt_fast']);
         s += n && n.dir === (d + 2) % 4 ? 'i' : '-';
@@ -565,6 +571,10 @@ export class View3D {
       for (let d = 0; d < 4; d++) s += this.isKind(b.x + DX[d], b.y + DY[d], WALL_LINK) ? 'w' : '-';
     }
     return s;
+  }
+
+  private isBeltKind(b: Building): boolean {
+    return b.kind === 'belt' || b.kind === 'belt_fast';
   }
 
   private pipeLinked(x: number, y: number): boolean {
@@ -613,6 +623,16 @@ export class View3D {
           group.add(holder);
         }
         group.add(piece(set.hub, 1, 0));
+      }
+      // Conectores físicos: placa de brida en el borde de la casilla que da a un edificio (puerto de entrada o de salida).
+      const cf = /|c(.)(.)/.exec(sig);
+      for (const d of beltConnectors(b.dir, incoming, cf?.[1] === 'f', cf?.[2] === 'b')) {
+        const plate = new THREE.Mesh(CONNECTOR_GEO, CONNECTOR_MAT);
+        plate.position.set(0.47, sc.beltHeight / 2 + 0.01, 0);
+        const h = new THREE.Group();
+        h.rotation.y = yawToDir(d);
+        h.add(plate);
+        group.add(h);
       }
       top = sc.beltHeight;
     } else if (kind === 'pipeline') {
@@ -1384,15 +1404,36 @@ export class View3D {
       }
     } else this.hoverMesh.scale.set(1, 1, 1);
     // Fantasma de construcción.
-    const key = this.buildKind && this.hover ? `${this.buildKind}|${this.buildDir}` : '';
+    // Las cintas toman la forma que tendrán al colocarse (curva, T, conectores...) según sus vecinas.
+    const isBelt = this.buildKind === 'belt' || this.buildKind === 'belt_fast';
+    const fake = this.buildKind && this.hover ? ({ kind: this.buildKind, dir: this.buildDir, built: false, x: this.hover.x, y: this.hover.y, w: 1, d: 1, progress: 1, inv: {}, hp: 1, maxHp: 1 } as unknown as Building) : null;
+    const ghostSig = fake ? (isBelt ? this.signature(fake) : `${this.buildKind}|${this.buildDir}|0----`) : '';
+    const key = fake ? ghostSig : '';
     if (key !== this.ghostKey) {
       if (this.ghost) this.scene.remove(this.ghost);
+      for (const m of this.ghostMats) m.dispose();
+      this.ghostMats = [];
       this.ghost = null;
       this.ghostKey = key;
       if (key) {
-        const fake = { kind: this.buildKind, dir: this.buildDir, built: false, x: 0, y: 0, w: 1, d: 1, progress: 1 } as unknown as Building;
-        const v = this.makeBuilding(fake, `${this.buildKind}|${this.buildDir}|0----`);
+        const v = this.makeBuilding(fake!, ghostSig);
         this.ghost = v.group;
+        this.ghostMats = [];
+        // Vista previa translúcida: materiales propios para poder teñirlos de verde o rojo.
+        this.ghost.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh) return;
+          const mats = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => {
+            const c = x.clone() as THREE.MeshStandardMaterial;
+            c.transparent = true;
+            c.opacity = 0.6;
+            c.depthWrite = false;
+            this.ghostMats.push(c);
+            return c;
+          });
+          m.material = Array.isArray(m.material) ? mats : mats[0];
+          m.castShadow = false;
+        });
         this.scene.add(this.ghost);
       }
     }
@@ -1402,6 +1443,7 @@ export class View3D {
         this.ghost.position.set(this.hover.x + 0.5, tileSurface(w, this.hover.x, this.hover.y) + CONFIG.scale.groundMargin, this.hover.y + 0.5);
         const ok = this.game.canPlace(this.buildKind!, this.hover.x, this.hover.y).ok;
         mat.color.setHex(ok ? 0x70ff90 : 0xff6060);
+        for (const m of this.ghostMats) if (m.emissive) m.emissive.setHex(ok ? 0x1f7a3a : 0x8a1f1f);
       }
     }
   }
