@@ -71,7 +71,12 @@ export const BUILDING_PARTS: Record<BuildingKind, Part[]> = {
     { prim: 'cyl', size: [0.13, 0.13, 0.13], color: 0xd9483b, y: 0.56, dx: -0.2 },
     { prim: 'cyl', size: [0.13, 0.13, 0.13], color: 0x4a7bd9, y: 0.56, dx: 0.2 },
   ],
-  feeder: [{ model: 'factory/hopper-round', fit: 0.62, tint: 0xffdc8a }, { model: 'factory/box-small', fit: 0.3, stack: true }],
+  // Alimentador: brazo robótico del Factory Kit sobre una placa de apoyo, con piloto verde (ESC-6).
+  feeder: [
+    { prim: 'box', size: [0.86, 0.1, 0.86], color: 0x4a5361 },
+    { model: 'factory/robot-arm-a', fit: 0.42, stack: true },
+    { prim: 'cyl', size: [0.09, 0.07, 0.09], color: 0x9be564, glow: true, y: 0.1, dx: 0.34, dz: 0.34 },
+  ],
   // Ascensor: torre baja con una plataforma de carga arriba.
   elevator: [
     { prim: 'box', size: [0.7, 0.9, 0.7], color: 0x5c6b80 },
