@@ -178,3 +178,10 @@ export function rampItemLift(slope: number, p: number, levelH: number): number {
   const q = Math.min(1, Math.max(0, p));
   return levelH * (slope > 0 ? q : 1 - q);
 }
+
+/** Posiciones (respecto al centro de la huella, en casillas) de los conos de una obra: dos esquinas opuestas de la huella, o una si es de 1×1. */
+export function coneSpots(w: number, d: number): { dx: number; dz: number }[] {
+  const mx = Math.max(0.3, w / 2 - 0.12);
+  const mz = Math.max(0.3, d / 2 - 0.12);
+  return w * d <= 1 ? [{ dx: mx, dz: mz }] : [{ dx: mx, dz: mz }, { dx: -mx, dz: -mz }];
+}

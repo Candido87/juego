@@ -153,3 +153,18 @@ describe('luz de estado (ESC-6)', () => {
     expect(statusLight('factory', true, { type: 'remove' })).toBeNull();
   });
 });
+
+describe('conos de obra (ESC-6)', () => {
+  it('uno en las obras de 1×1 y dos esquinas opuestas dentro de la huella en las grandes', async () => {
+    const { coneSpots } = await import('./pieces');
+    expect(coneSpots(1, 1)).toHaveLength(1);
+    const big = coneSpots(2, 2);
+    expect(big).toHaveLength(2);
+    expect(big[0].dx).toBeCloseTo(-big[1].dx);
+    expect(big[0].dz).toBeCloseTo(-big[1].dz);
+    for (const s of [...coneSpots(1, 1), ...big, ...coneSpots(3, 2)]) {
+      expect(Math.abs(s.dx)).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(s.dz)).toBeLessThanOrEqual(1.0);
+    }
+  });
+});

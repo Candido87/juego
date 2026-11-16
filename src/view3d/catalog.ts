@@ -132,6 +132,8 @@ export function allModels(): ModelId[] {
   for (const set of Object.values(CINTA_PIEZAS)) for (const m of Object.values(set)) s.add(m);
   s.add('factory/hopper-square'); // ascensor (scene3d.ts: ELEVATOR_PARTS)
   s.add('factory/conveyor-sides');
+  s.add('factory/cone'); // obras (scene3d.ts: syncCones)
+  s.add('factory/indicator-special-cross'); // casilla prohibida al construir
   for (const m of ['factory/pipe-large', 'factory/structure-short', 'factory/structure-medium', 'factory/structure-tall', 'factory/box-small', 'weapons/bullet-foam', 'factory/arrow']) s.add(m);
   return [...s];
 }

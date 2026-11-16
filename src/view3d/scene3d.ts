@@ -18,7 +18,7 @@ import { ConnectAids, GuideAids, Overlay } from './overlay3d';
 import { LEVEL_H, pickBox, pickTile3D } from './pick';
 import { slopeLower, tileSurface } from './relieve';
 import { CINTA_PIEZAS, aspectF, aspectSy, escalaPieza } from './aspectos';
-import { ITEM_SHAPES, ItemShape, armsFor, beltConnectors, beltItemPose, rampCenter, rampItemLift, rampSlope, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
+import { ITEM_SHAPES, ItemShape, armsFor, beltConnectors, beltItemPose, coneSpots, rampCenter, rampItemLift, rampSlope, beltPiece, itemShape, maskOf, quarterYaw, yawToDir } from './pieces';
 import { ITEM_COLORS } from '../view/itemColors';
 import { beltStopped } from './status';
 import { ThreatMarks } from './threat3d';
@@ -273,6 +273,8 @@ export class View3D {
   connect: ConnectAids | null = null;
   private hoverMesh: THREE.Group;
   private selMesh: THREE.LineSegments;
+  private cones = new Map<number, THREE.Group[]>();
+  private denied: THREE.Group | null = null;
   private ghost: THREE.Group | null = null;
   private ghostKey = '';
   private ghostMats: THREE.MeshStandardMaterial[] = [];
@@ -1393,6 +1395,7 @@ export class View3D {
 
   /** Humo de chimeneas y de edificios dañados, y barras de vida de los edificios tocados. */
   private syncBuildingFx(dt: number): void {
+    this.syncCones();
     for (const b of this.game.buildings.values()) {
       if (!b.built) {
         // Obra en curso: barra azul de progreso sobre el edificio a medio levantar.
@@ -1416,6 +1419,32 @@ export class View3D {
         this.fx.smoke(cx + s.dx, base + (s.fromTop ? h : h * 0.6), cz + s.dz, s.color, s.size);
         if (s.sparks && Math.random() < 0.6) this.fx.flame(cx, base + h * 0.5, cz, 0.18);
       }
+    }
+  }
+
+  /** Conos del kit en las esquinas de las obras en curso; se quitan al terminar o al desmontar la obra. */
+  private syncCones(): void {
+    const seen = new Set<number>();
+    for (const b of this.game.buildings.values()) {
+      if (b.built) continue;
+      seen.add(b.id);
+      let list = this.cones.get(b.id);
+      const spots = coneSpots(b.w, b.d);
+      if (!list) {
+        list = spots.map(() => {
+          const c = instance('factory/cone', 0.2);
+          this.scene.add(c);
+          return c;
+        });
+        this.cones.set(b.id, list);
+      }
+      const y = this.levelTop(b);
+      list.forEach((c, i) => c.position.set(b.x + b.w / 2 + spots[i].dx, y, b.y + b.d / 2 + spots[i].dz));
+    }
+    for (const [id, list] of this.cones) {
+      if (seen.has(id)) continue;
+      for (const c of list) this.scene.remove(c);
+      this.cones.delete(id);
     }
   }
 
@@ -1508,12 +1537,24 @@ export class View3D {
         this.scene.add(this.ghost);
       }
     }
+    if (this.denied && (!this.hover || !this.ghost)) this.denied.visible = false;
     if (this.ghost) {
       this.ghost.visible = !!this.hover;
       if (this.hover) {
         this.ghost.position.set(this.hover.x + 0.5, tileSurface(w, this.hover.x, this.hover.y) + CONFIG.scale.groundMargin, this.hover.y + 0.5);
         const ok = this.game.canPlace(this.buildKind!, this.hover.x, this.hover.y).ok;
         mat.color.setHex(ok ? 0x70ff90 : 0xff6060);
+        // Casilla prohibida: aspa del kit pegada al suelo, en rojo.
+        if (!this.denied) {
+          this.denied = instance('factory/indicator-special-cross', 0.8);
+          this.denied.traverse((o) => {
+            const m = o as THREE.Mesh;
+            if (m.isMesh) { m.material = new THREE.MeshBasicMaterial({ color: 0xff4040, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false }); m.renderOrder = 6; }
+          });
+          this.scene.add(this.denied);
+        }
+        this.denied.visible = !ok;
+        this.denied.position.set(this.hover.x + 0.5, tileSurface(w, this.hover.x, this.hover.y) + CONFIG.scale.groundMargin + 0.01, this.hover.y + 0.5);
         for (const m of this.ghostMats) if (m.emissive) m.emissive.setHex(ok ? 0x1f7a3a : 0x8a1f1f);
       }
     }
